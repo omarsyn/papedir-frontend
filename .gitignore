@@ -1,16 +1,16 @@
-   .dart_tool/
-   build/
-   .flutter-plugins
-   .flutter-plugins-dependencies
-   *.iml
-   .idea/
-   .vscode/
-   .env
-   *.env
-   **/android/key.properties
-   **/android/app/*.jks
-   **/android/app/*.keystore
-   **/android/app/google-services.json
-   **/android/local.properties
-   web/node_modules/
-   web/dist/
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+.idea/
+.vscode/
+.env
+*.env
+**/android/key.properties
+**/android/app/*.jks
+**/android/app/*.keystore
+**/android/app/google-services.json
+**/android/local.properties
+web/node_modules/
+web/dist/
