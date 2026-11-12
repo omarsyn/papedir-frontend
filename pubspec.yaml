@@ -1,0 +1,9 @@
+﻿name: papedir_workspace
+publish_to: none
+environment:
+  sdk: ^3.6.0
+workspace:
+  - packages/core
+  - apps/cliente
+  - apps/tienda
+  - apps/repartidor
