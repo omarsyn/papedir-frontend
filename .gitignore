@@ -1,3 +1,4 @@
+# Flutter / Dart
 .dart_tool/
 build/
 .flutter-plugins
@@ -5,12 +6,23 @@ build/
 *.iml
 .idea/
 .vscode/
+
+# Secretos y llaves (nunca al repo)
 .env
 *.env
+.env.*
+!.env.example
 **/android/key.properties
 **/android/app/*.jks
 **/android/app/*.keystore
 **/android/app/google-services.json
 **/android/local.properties
+
+# Web (React)
 web/node_modules/
 web/dist/
+*.tsbuildinfo
+
+# macOS
+.DS_Store
+__MACOSX/
