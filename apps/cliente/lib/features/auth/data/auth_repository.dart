@@ -1,59 +1,48 @@
 import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+import '../../../core/api_error.dart';
+import '../../../core/token_store.dart';
+
+// Las pantallas de login/registro importan ApiError desde aquí.
+export '../../../core/api_error.dart';
 
 class Usuario {
-  Usuario(
-      {required this.id,
-      required this.nombre,
-      required this.email,
-      required this.estado});
+  const Usuario({
+    required this.id,
+    required this.nombre,
+    required this.email,
+    required this.estado,
+    required this.rol,
+    this.telefono,
+  });
+
   final String id;
   final String nombre;
   final String email;
   final String estado;
+  final String rol;
+  final String? telefono;
 
   factory Usuario.fromJson(Map<String, dynamic> j) => Usuario(
         id: j['id'] as String,
-        nombre: j['nombre'] as String,
-        email: j['email'] as String,
-        estado: j['estado'] as String,
+        nombre: '${j['nombre']}',
+        email: '${j['email']}',
+        estado: '${j['estado']}',
+        rol: '${j['rol'] ?? 'cliente'}',
+        telefono: j['telefono'] as String?,
       );
-}
-
-/// Error con el formato estándar de la API.
-class ApiError implements Exception {
-  ApiError(this.message, {this.codigo, this.detalles = const {}});
-  final String message;
-  final String? codigo;
-  final Map<String, String> detalles; // campo -> mensaje
-
-  factory ApiError.from(DioException e) {
-    final data = e.response?.data;
-    if (data is Map<String, dynamic>) {
-      final det = <String, String>{};
-      for (final d in (data['detalles'] as List? ?? const [])) {
-        det[d['campo'] as String] = d['mensaje'] as String;
-      }
-      return ApiError(
-        (data['message'] ?? 'Error del servidor').toString(),
-        codigo: data['error'] as String?,
-        detalles: det,
-      );
-    }
-    return ApiError('No se pudo conectar con el servidor');
-  }
-
-  @override
-  String toString() => message;
 }
 
 class AuthRepository {
-  AuthRepository(this._dio, this._storage);
+  AuthRepository(this._dio, this._tokens);
+
   final Dio _dio;
-  final FlutterSecureStorage _storage;
+  final TokenStore _tokens;
 
   Future<Usuario> login(String email, String password) => _autenticar(
-      '/auth/login', {'email': email, 'password': password, 'app': 'cliente'});
+        '/auth/login',
+        {'email': email, 'password': password, 'app': 'cliente'},
+      );
 
   Future<Usuario> registrar({
     required String nombre,
@@ -69,22 +58,45 @@ class AuthRepository {
         'rol': 'cliente',
       });
 
-  Future<Usuario> _autenticar(String ruta, Map<String, dynamic> body) async {
+  Future<Usuario> _autenticar(String ruta, Map<String, dynamic> body) =>
+      conApiError(() async {
+        final r = await _dio.post<Map<String, dynamic>>(ruta, data: body);
+        final data = r.data!;
+        await _tokens.guardar(
+          data['accessToken'] as String,
+          data['refreshToken'] as String,
+        );
+        return Usuario.fromJson(data['usuario'] as Map<String, dynamic>);
+      });
+
+  /// Si hay tokens guardados, pide el usuario actual (/auth/me).
+  /// Devuelve null si no hay sesión o si falla.
+  Future<Usuario?> restaurar() async {
     try {
-      final r = await _dio.post(ruta, data: body);
-      final data = r.data as Map<String, dynamic>;
-      await _storage.write(
-          key: 'accessToken', value: data['accessToken'] as String);
-      await _storage.write(
-          key: 'refreshToken', value: data['refreshToken'] as String);
-      return Usuario.fromJson(data['usuario'] as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw ApiError.from(e);
+      final access = await _tokens.access;
+      if (access == null) return null;
+      final r = await _dio.get<Map<String, dynamic>>('/auth/me');
+      final u = Usuario.fromJson(r.data!);
+      if (u.rol != 'cliente') {
+        await _tokens.borrar();
+        return null;
+      }
+      return u;
+    } catch (_) {
+      return null;
     }
   }
 
   Future<void> cerrarSesion() async {
-    await _storage.delete(key: 'accessToken');
-    await _storage.delete(key: 'refreshToken');
+    try {
+      final refresh = await _tokens.refresh;
+      if (refresh != null) {
+        await _dio.post<void>('/auth/logout', data: {'refreshToken': refresh});
+      }
+    } catch (_) {
+      // aunque falle el servidor, la sesión local se cierra igual
+    } finally {
+      await _tokens.borrar();
+    }
   }
 }

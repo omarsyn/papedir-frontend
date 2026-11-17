@@ -1,26 +1,31 @@
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../../../config.dart';
+
+import '../../../core/providers.dart';
 import '../data/auth_repository.dart';
 
-final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  final dio = Dio(BaseOptions(
-    baseUrl: apiUrl,
-    connectTimeout: const Duration(seconds: 60),
-    receiveTimeout: const Duration(seconds: 60),
-  ));
-
-  return AuthRepository(dio, const FlutterSecureStorage());
-});
+final authRepositoryProvider = Provider<AuthRepository>(
+  (ref) => AuthRepository(ref.read(dioProvider), ref.read(tokenStoreProvider)),
+);
 
 /// Usuario con sesión iniciada (null = sin sesión).
 class SesionNotifier extends Notifier<Usuario?> {
   @override
-  Usuario? build() => null;
+  Usuario? build() {
+    // Si el refresh de token falla en cualquier parte, se cierra la sesión.
+    ref.listen<int>(expiracionProvider, (previous, next) {
+      state = null;
+    });
+    return null;
+  }
+
+  AuthRepository get _repo => ref.read(authRepositoryProvider);
+
+  Future<void> restaurar() async {
+    state = await _repo.restaurar();
+  }
 
   Future<void> login(String email, String password) async {
-    state = await ref.read(authRepositoryProvider).login(email, password);
+    state = await _repo.login(email, password);
   }
 
   Future<void> registrar({
@@ -29,12 +34,16 @@ class SesionNotifier extends Notifier<Usuario?> {
     required String password,
     required String telefono,
   }) async {
-    state = await ref.read(authRepositoryProvider).registrar(
-        nombre: nombre, email: email, password: password, telefono: telefono);
+    state = await _repo.registrar(
+      nombre: nombre,
+      email: email,
+      password: password,
+      telefono: telefono,
+    );
   }
 
   Future<void> salir() async {
-    await ref.read(authRepositoryProvider).cerrarSesion();
+    await _repo.cerrarSesion();
     state = null;
   }
 }
