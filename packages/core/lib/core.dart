@@ -1,5 +1,3 @@
-library core;
-
 // API
 export 'api/api_client.dart';
 export 'api/api_exception.dart';
@@ -15,7 +13,10 @@ export 'auth/screens/pending_review_screen.dart';
 export 'models/comunes.dart';
 export 'models/enums.dart';
 export 'models/pedido.dart';
+export 'models/ticket.dart';
 export 'models/usuario.dart';
 export 'models/viaje.dart';
-// Push
+
+// Push & Realtime
 export 'push/fcm_service.dart';
+export 'realtime/socket_service.dart';
