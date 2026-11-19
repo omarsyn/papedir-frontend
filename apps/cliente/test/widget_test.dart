@@ -1,24 +1,23 @@
 import 'package:cliente/core/models.dart';
-import 'package:cliente/core/providers.dart';
-import 'package:cliente/core/token_store.dart';
 import 'package:cliente/features/carrito/providers/carrito_provider.dart';
 import 'package:cliente/main.dart';
+import 'package:core/core.dart' show TokenStorage, Tokens, tokenStorageProvider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Almacén de tokens en memoria: sin sesión guardada.
-class _TokenStoreFalso implements TokenStore {
+class _TokenStorageFalso implements TokenStorage {
   @override
-  Future<String?> get access async => null;
+  Future<void> saveTokens(Tokens tokens) async {}
 
   @override
-  Future<String?> get refresh async => null;
+  Future<String?> getAccessToken() async => null;
 
   @override
-  Future<void> guardar(String access, String refresh) async {}
+  Future<String?> getRefreshToken() async => null;
 
   @override
-  Future<void> borrar() async {}
+  Future<void> clear() async {}
 }
 
 Tienda _tienda(String id) => Tienda.fromJson({
@@ -44,7 +43,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          tokenStoreProvider.overrideWithValue(_TokenStoreFalso()),
+          tokenStorageProvider.overrideWithValue(_TokenStorageFalso()),
         ],
         child: const PaPedirCliente(),
       ),
@@ -52,7 +51,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Iniciar sesión'), findsWidgets);
-    expect(find.text('Crear cuenta'), findsWidgets);
+    expect(find.text('¿No tienes cuenta? Regístrate'), findsOneWidget);
   });
 
   test('Carrito: agrega, quita y calcula subtotal', () {

@@ -1,7 +1,9 @@
+import 'package:core/core.dart'
+    show Tokens, authProvider, dioProvider, tokenStorageProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../data/auth_repository.dart';
-import '../providers/auth_provider.dart';
+
+import '../../../core/api_error.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -36,12 +38,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       _detalles = {};
     });
     try {
-      await ref.read(sesionProvider.notifier).registrar(
-            nombre: _nombre.text.trim(),
-            email: _email.text.trim(),
-            password: _password.text,
-            telefono: _telefono.text.trim(),
-          );
+      final r = await conApiError(
+        () => ref.read(dioProvider).post<Map<String, dynamic>>(
+              '/auth/register',
+              data: {
+                'nombre': _nombre.text.trim(),
+                'email': _email.text.trim(),
+                'password': _password.text,
+                'telefono': _telefono.text.trim(),
+                'rol': 'cliente',
+                'aceptoTerminos': true,
+              },
+            ),
+      );
+      await ref.read(tokenStorageProvider).saveTokens(Tokens.fromJson(r.data!));
+      await ref.read(authProvider.notifier).checkSession();
       if (mounted) Navigator.of(context).pop();
     } on ApiError catch (e) {
       setState(() {

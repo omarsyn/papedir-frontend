@@ -1,55 +1,78 @@
+import 'package:core/core.dart'
+    show
+        AppTipo,
+        AuthState,
+        LoginScreen,
+        authProvider,
+        dioProvider,
+        fcmServiceProvider;
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'features/auth/providers/auth_provider.dart';
-import 'features/auth/screens/login_screen.dart';
+import 'features/auth/screens/register_screen.dart';
 import 'features/home/home_shell.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp();
+  } catch (_) {
+    // Sin Firebase la app sigue funcionando; solo se pierden las notificaciones.
+  }
   runApp(const ProviderScope(child: PaPedirCliente()));
 }
 
-class PaPedirCliente extends ConsumerStatefulWidget {
+/// Ajusta el cliente HTTP y recupera la sesión guardada (si existe).
+final arranqueProvider = FutureProvider<void>((ref) async {
+  await Future<void>.delayed(Duration.zero);
+  final dio = ref.read(dioProvider);
+  // Render (plan gratis) puede tardar hasta ~1 min en despertar.
+  dio.options.connectTimeout = const Duration(seconds: 60);
+  dio.options.receiveTimeout = const Duration(seconds: 60);
+  await ref.read(authProvider.notifier).checkSession();
+});
+
+class PaPedirCliente extends ConsumerWidget {
   const PaPedirCliente({super.key});
 
   @override
-  ConsumerState<PaPedirCliente> createState() => _PaPedirClienteState();
-}
-
-class _PaPedirClienteState extends ConsumerState<PaPedirCliente> {
-  bool _restaurando = true;
-
-  @override
-  void initState() {
-    super.initState();
-    // Intenta recuperar la sesión guardada (tokens en almacenamiento seguro).
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      try {
-        await ref.read(sesionProvider.notifier).restaurar();
-      } catch (_) {
-        // Sin sesión: se mostrará el login.
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Registra el token de notificaciones cada vez que se inicia sesión.
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      if (previous?.usuario == null && next.usuario != null) {
+        ref
+            .read(fcmServiceProvider)
+            .registerDevice(AppTipo.cliente)
+            .catchError((Object _) {});
       }
-      if (!mounted) return;
-      setState(() {
-        _restaurando = false;
-      });
     });
-  }
 
-  @override
-  Widget build(BuildContext context) {
-    final usuario = ref.watch(sesionProvider);
+    final arranque = ref.watch(arranqueProvider);
+    final autenticado = ref.watch(authProvider).isAuthenticated;
+
     final Widget inicio;
-    if (_restaurando) {
+    if (arranque.isLoading) {
       inicio = const Scaffold(body: Center(child: CircularProgressIndicator()));
-    } else if (usuario == null) {
-      inicio = const LoginScreen();
+    } else if (!autenticado) {
+      inicio = Builder(
+        builder: (context) => LoginScreen(
+          appTipo: AppTipo.cliente,
+          tituloApp: 'PaPedir',
+          onIrARegistro: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const RegisterScreen()),
+            );
+          },
+        ),
+      );
     } else {
       inicio = const HomeShell();
     }
+
     return MaterialApp(
       // La llave reinicia la navegación al iniciar o cerrar sesión.
-      key: ValueKey<bool>(usuario != null),
+      key: ValueKey<bool>(autenticado),
       title: 'PaPedir',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(

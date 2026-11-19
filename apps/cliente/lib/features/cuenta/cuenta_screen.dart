@@ -1,7 +1,7 @@
+import 'package:core/core.dart' show authProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../auth/providers/auth_provider.dart';
 import '../carrito/providers/carrito_provider.dart';
 import '../direcciones/providers/direccion_activa_provider.dart';
 import '../direcciones/screens/direcciones_screen.dart';
@@ -11,7 +11,7 @@ class CuentaScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final usuario = ref.watch(sesionProvider);
+    final usuario = ref.watch(authProvider).usuario;
     return Scaffold(
       appBar: AppBar(title: const Text('Mi cuenta')),
       body: ListView(
@@ -34,8 +34,7 @@ class CuentaScreen extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                    builder: (_) => const DireccionesScreen()),
+                MaterialPageRoute<void>(builder: (_) => const DireccionesScreen()),
               );
             },
           ),
@@ -46,7 +45,7 @@ class CuentaScreen extends ConsumerWidget {
               // Se limpia el estado local antes de cerrar sesión.
               ref.invalidate(carritoProvider);
               ref.invalidate(direccionActivaProvider);
-              await ref.read(sesionProvider.notifier).salir();
+              await ref.read(authProvider.notifier).logout();
             },
           ),
         ],

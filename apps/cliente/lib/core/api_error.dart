@@ -1,7 +1,7 @@
+import 'package:core/core.dart' show ApiException;
 import 'package:dio/dio.dart';
 
-/// Error con el formato estándar de la API:
-/// { statusCode, error, message, detalles: [{ campo, mensaje }] }
+/// Error listo para mostrar en pantalla (traduce ApiException de core).
 class ApiError implements Exception {
   ApiError(
     this.message, {
@@ -21,34 +21,26 @@ class ApiError implements Exception {
 
   factory ApiError.from(Object e) {
     if (e is ApiError) return e;
+    if (e is ApiException) return _desde(e);
     if (e is DioException) {
-      final data = e.response?.data;
-      if (data is Map<String, dynamic>) {
-        final det = <String, String>{};
-        final lista = data['detalles'];
-        if (lista is List) {
-          for (final d in lista) {
-            if (d is Map) {
-              det['${d['campo']}'] = '${d['mensaje']}';
-            }
-          }
-        }
-        return ApiError(
-          '${data['message'] ?? 'Error del servidor'}',
-          codigo: data['error'] as String?,
-          statusCode: e.response?.statusCode,
-          detalles: det,
-        );
-      }
-      if (e.type == DioExceptionType.connectionTimeout ||
+      final sinRespuesta = e.response == null;
+      final esTimeout = e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.receiveTimeout ||
-          e.type == DioExceptionType.sendTimeout) {
+          e.type == DioExceptionType.sendTimeout;
+      if (sinRespuesta && esTimeout) {
         return ApiError('El servidor tardó en responder, intenta de nuevo');
       }
-      return ApiError('No se pudo conectar con el servidor');
+      return _desde(ApiException.fromDioException(e));
     }
     return ApiError('Ocurrió un error inesperado');
   }
+
+  static ApiError _desde(ApiException e) => ApiError(
+        e.message,
+        codigo: e.error,
+        statusCode: e.statusCode,
+        detalles: {for (final d in e.detalles) d.campo: d.mensaje},
+      );
 
   @override
   String toString() => message;
