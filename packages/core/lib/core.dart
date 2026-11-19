@@ -9,6 +9,12 @@ export 'auth/token_storage.dart';
 export 'auth/screens/login_screen.dart';
 export 'auth/screens/pending_review_screen.dart';
 
+// Soporte
+export 'soporte/tickets_provider.dart';
+export 'soporte/screens/tickets_list_screen.dart';
+export 'soporte/screens/create_ticket_screen.dart';
+export 'soporte/screens/ticket_chat_screen.dart';
+
 // Models
 export 'models/comunes.dart';
 export 'models/enums.dart';
