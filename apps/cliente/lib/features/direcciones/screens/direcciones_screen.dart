@@ -6,33 +6,28 @@ import '../../../core/widgets/mensajes.dart';
 import '../../../core/widgets/vista_async.dart';
 import '../data/direcciones_repository.dart';
 import '../providers/direccion_activa_provider.dart';
+import '../providers/direcciones_provider.dart';
 import 'direccion_form_screen.dart';
 
 /// Lista de direcciones del cliente. Con [seleccionar] = true, al tocar una
 /// dirección se elige como destino y se regresa a la pantalla anterior.
-class DireccionesScreen extends ConsumerStatefulWidget {
+class DireccionesScreen extends ConsumerWidget {
   const DireccionesScreen({super.key, this.seleccionar = false});
 
   final bool seleccionar;
 
-  @override
-  ConsumerState<DireccionesScreen> createState() => _DireccionesScreenState();
-}
-
-class _DireccionesScreenState extends ConsumerState<DireccionesScreen> {
-  int _version = 0;
-
-  Future<void> _agregar() async {
+  Future<void> _agregar(BuildContext context, WidgetRef ref) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => const DireccionFormScreen()),
     );
-    if (!mounted) return;
-    setState(() {
-      _version++;
-    });
+    ref.invalidate(direccionesProvider);
   }
 
-  Future<void> _eliminar(Direccion d) async {
+  Future<void> _eliminar(
+    BuildContext context,
+    WidgetRef ref,
+    Direccion d,
+  ) async {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -56,33 +51,30 @@ class _DireccionesScreenState extends ConsumerState<DireccionesScreen> {
       if (ref.read(direccionActivaProvider)?.id == d.id) {
         ref.read(direccionActivaProvider.notifier).elegir(null);
       }
-      if (!mounted) return;
-      setState(() {
-        _version++;
-      });
+      ref.invalidate(direccionesProvider);
     } catch (e) {
-      if (!mounted) return;
+      if (!context.mounted) return;
       mostrarError(context, e);
     }
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final activa = ref.watch(direccionActivaProvider);
+    final direcciones = ref.watch(direccionesProvider);
     return Scaffold(
       appBar: AppBar(
-        title:
-            Text(widget.seleccionar ? 'Elegir dirección' : 'Mis direcciones'),
+        title: Text(seleccionar ? 'Elegir dirección' : 'Mis direcciones'),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _agregar,
+        onPressed: () => _agregar(context, ref),
         icon: const Icon(Icons.add_location_alt),
         label: const Text('Agregar'),
       ),
       body: VistaAsync<List<Direccion>>(
-        key: ValueKey<int>(_version),
-        cargar: () => ref.read(direccionesRepositoryProvider).listar(),
-        builder: (context, lista, recargar) {
+        valor: direcciones,
+        onReintentar: () => ref.invalidate(direccionesProvider),
+        builder: (lista) {
           if (lista.isEmpty) {
             return const Center(
               child: Padding(
@@ -95,7 +87,9 @@ class _DireccionesScreenState extends ConsumerState<DireccionesScreen> {
             );
           }
           return RefreshIndicator(
-            onRefresh: recargar,
+            onRefresh: () => recargarSilencioso(
+              () => ref.refresh(direccionesProvider.future),
+            ),
             child: ListView.builder(
               padding: const EdgeInsets.only(bottom: 88),
               itemCount: lista.length,
@@ -105,8 +99,9 @@ class _DireccionesScreenState extends ConsumerState<DireccionesScreen> {
                 return ListTile(
                   leading: Icon(
                     esActiva ? Icons.check_circle : Icons.place_outlined,
-                    color:
-                        esActiva ? Theme.of(context).colorScheme.primary : null,
+                    color: esActiva
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
                   ),
                   title: Text(d.alias),
                   subtitle: Text(
@@ -119,11 +114,11 @@ class _DireccionesScreenState extends ConsumerState<DireccionesScreen> {
                   trailing: IconButton(
                     icon: const Icon(Icons.delete_outline),
                     tooltip: 'Eliminar',
-                    onPressed: () => _eliminar(d),
+                    onPressed: () => _eliminar(context, ref, d),
                   ),
                   onTap: () {
                     ref.read(direccionActivaProvider.notifier).elegir(d);
-                    if (widget.seleccionar) Navigator.of(context).pop();
+                    if (seleccionar) Navigator.of(context).pop();
                   },
                 );
               },

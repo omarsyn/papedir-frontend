@@ -36,7 +36,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     if (dir == null || carrito.tienda == null || carrito.vacio) return;
     _clave =
         '${dir.id}|${carrito.tienda!.id}|${carrito.cantidadTotal}|${carrito.subtotal}';
-    _cotizacion = ref.read(pedidosRepositoryProvider).cotizar(
+    _cotizacion = ref
+        .read(pedidosRepositoryProvider)
+        .cotizar(
           tiendaId: carrito.tienda!.id,
           direccionId: dir.id,
           lineas: carrito.lineas.values.toList(),
@@ -52,7 +54,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     });
     try {
       final notas = _notas.text.trim();
-      final pedido = await ref.read(pedidosRepositoryProvider).crear(
+      final pedido = await ref
+          .read(pedidosRepositoryProvider)
+          .crear(
             tiendaId: carrito.tienda!.id,
             direccionId: dir.id,
             lineas: carrito.lineas.values.toList(),
@@ -91,7 +95,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       appBar: AppBar(title: const Text('Confirmar pedido')),
       body: dir == null || carrito.vacio
           ? const Center(
-              child: Text('Falta la dirección o el carrito está vacío.'))
+              child: Text('Falta la dirección o el carrito está vacío.'),
+            )
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
@@ -124,8 +129,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     child: Row(
                       children: [
                         Expanded(
-                            child:
-                                Text('${l.cantidad} × ${l.producto.nombre}')),
+                          child: Text('${l.cantidad} × ${l.producto.nombre}'),
+                        ),
                         Text(dinero(l.importe)),
                       ],
                     ),
@@ -159,7 +164,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           Text(
                             e.codigo == 'FUERA_DE_COBERTURA'
                                 ? 'Esta dirección está fuera de la zona de cobertura. '
-                                    'Elige otra dirección.'
+                                      'Elige otra dirección.'
                                 : e.message,
                             style: TextStyle(
                               color: Theme.of(context).colorScheme.error,
@@ -180,8 +185,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         _fila('Subtotal', dinero(c.subtotal)),
-                        _fila('Envío (${c.distanciaKm.toStringAsFixed(1)} km)',
-                            dinero(c.costoEnvio)),
+                        _fila(
+                          'Envío (${c.distanciaKm.toStringAsFixed(1)} km)',
+                          dinero(c.costoEnvio),
+                        ),
                         _fila('Total', dinero(c.total), negrita: true),
                         const SizedBox(height: 4),
                         Text('Tiempo estimado: ${c.tiempoEstimadoMin} min'),
@@ -192,8 +199,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               ? const SizedBox(
                                   height: 20,
                                   width: 20,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : Text('Confirmar pedido · ${dinero(c.total)}'),
                         ),
@@ -207,13 +215,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   Widget _fila(String a, String b, {bool negrita = false}) {
-    final estilo =
-        negrita ? const TextStyle(fontWeight: FontWeight.bold) : null;
+    final estilo = negrita
+        ? const TextStyle(fontWeight: FontWeight.bold)
+        : null;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [Text(a, style: estilo), Text(b, style: estilo)],
+        children: [
+          Text(a, style: estilo),
+          Text(b, style: estilo),
+        ],
       ),
     );
   }

@@ -32,7 +32,9 @@ class _PedidoDetalleScreenState extends ConsumerState<PedidoDetalleScreen> {
     _cargar();
     // Seguimiento sencillo: se actualiza cada 15 s hasta que el pedido termina.
     _timer = Timer.periodic(
-        const Duration(seconds: 15), (_) => _cargar(silencioso: true));
+      const Duration(seconds: 15),
+      (_) => _cargar(silencioso: true),
+    );
   }
 
   @override
@@ -117,8 +119,10 @@ class _PedidoDetalleScreenState extends ConsumerState<PedidoDetalleScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(ApiError.from(_error ?? 'Error').message,
-                  textAlign: TextAlign.center),
+              Text(
+                ApiError.from(_error ?? 'Error').message,
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: () {
@@ -147,8 +151,10 @@ class _PedidoDetalleScreenState extends ConsumerState<PedidoDetalleScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(etiquetaEstado(p.estado),
-                      style: tema.textTheme.titleLarge),
+                  Text(
+                    etiquetaEstado(p.estado),
+                    style: tema.textTheme.titleLarge,
+                  ),
                   Text(p.tienda.nombre),
                 ],
               ),
@@ -159,8 +165,9 @@ class _PedidoDetalleScreenState extends ConsumerState<PedidoDetalleScreen> {
               child: ListTile(
                 leading: const Icon(Icons.lock_outline),
                 title: const Text('Código de entrega'),
-                subtitle:
-                    const Text('Díselo al repartidor al recibir tu pedido'),
+                subtitle: const Text(
+                  'Díselo al repartidor al recibir tu pedido',
+                ),
                 trailing: Text(
                   p.codigoEntrega!,
                   style: tema.textTheme.headlineSmall,
@@ -218,13 +225,17 @@ class _PedidoDetalleScreenState extends ConsumerState<PedidoDetalleScreen> {
   }
 
   Widget _fila(String a, String b, {bool negrita = false}) {
-    final estilo =
-        negrita ? const TextStyle(fontWeight: FontWeight.bold) : null;
+    final estilo = negrita
+        ? const TextStyle(fontWeight: FontWeight.bold)
+        : null;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [Text(a, style: estilo), Text(b, style: estilo)],
+        children: [
+          Text(a, style: estilo),
+          Text(b, style: estilo),
+        ],
       ),
     );
   }

@@ -7,34 +7,40 @@ import '../cuenta/cuenta_screen.dart';
 import '../pedidos/screens/pedidos_screen.dart';
 import '../tiendas/screens/tiendas_screen.dart';
 
-class HomeShell extends ConsumerStatefulWidget {
+/// Pestaña elegida en la barra de navegación.
+class IndiceNavegacion extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void ir(int indice) {
+    state = indice;
+  }
+}
+
+final indiceNavegacionProvider = NotifierProvider<IndiceNavegacion, int>(
+  IndiceNavegacion.new,
+);
+
+class HomeShell extends ConsumerWidget {
   const HomeShell({super.key});
 
   @override
-  ConsumerState<HomeShell> createState() => _HomeShellState();
-}
-
-class _HomeShellState extends ConsumerState<HomeShell> {
-  int _indice = 0;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final indice = ref.watch(indiceNavegacionProvider);
     final cantidad = ref.watch(carritoProvider).cantidadTotal;
     // Las pantallas se recrean al cambiar de pestaña para refrescar sus datos.
-    final paginas = <Widget>[
-      const TiendasScreen(),
-      const CarritoScreen(),
-      const PedidosScreen(),
-      const CuentaScreen(),
+    const paginas = <Widget>[
+      TiendasScreen(),
+      CarritoScreen(),
+      PedidosScreen(),
+      CuentaScreen(),
     ];
     return Scaffold(
-      body: paginas[_indice],
+      body: paginas[indice],
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _indice,
+        selectedIndex: indice,
         onDestinationSelected: (i) {
-          setState(() {
-            _indice = i;
-          });
+          ref.read(indiceNavegacionProvider.notifier).ir(i);
         },
         destinations: [
           const NavigationDestination(

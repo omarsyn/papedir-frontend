@@ -1,76 +1,51 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api_error.dart';
 
-/// Carga un Future y muestra: cargando, error con "Reintentar", o el contenido.
-/// El builder recibe `recargar` para usarlo con RefreshIndicator.
-class VistaAsync<T> extends StatefulWidget {
-  const VistaAsync({super.key, required this.cargar, required this.builder});
+/// Muestra un AsyncValue: cargando, error con "Reintentar" o el contenido.
+class VistaAsync<T> extends StatelessWidget {
+  const VistaAsync({
+    super.key,
+    required this.valor,
+    required this.onReintentar,
+    required this.builder,
+  });
 
-  final Future<T> Function() cargar;
-  final Widget Function(
-    BuildContext context,
-    T datos,
-    Future<void> Function() recargar,
-  ) builder;
-
-  @override
-  State<VistaAsync<T>> createState() => _VistaAsyncState<T>();
-}
-
-class _VistaAsyncState<T> extends State<VistaAsync<T>> {
-  late Future<T> _futuro;
-
-  @override
-  void initState() {
-    super.initState();
-    _futuro = widget.cargar();
-  }
-
-  Future<void> _recargar() async {
-    if (!mounted) return;
-    final f = widget.cargar();
-    setState(() {
-      _futuro = f;
-    });
-    try {
-      await f;
-    } catch (_) {
-      // el error se muestra en la vista
-    }
-  }
+  final AsyncValue<T> valor;
+  final VoidCallback onReintentar;
+  final Widget Function(T datos) builder;
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<T>(
-      future: _futuro,
-      builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snap.hasError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    ApiError.from(snap.error!).message,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                    onPressed: _recargar,
-                    child: const Text('Reintentar'),
-                  ),
-                ],
+    return valor.when(
+      data: builder,
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(ApiError.from(error).message, textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: onReintentar,
+                child: const Text('Reintentar'),
               ),
-            ),
-          );
-        }
-        return widget.builder(context, snap.data as T, _recargar);
-      },
+            ],
+          ),
+        ),
+      ),
     );
+  }
+}
+
+/// Para RefreshIndicator: recarga sin propagar el error (la vista ya lo muestra).
+Future<void> recargarSilencioso(Future<Object?> Function() refrescar) async {
+  try {
+    await refrescar();
+  } catch (_) {
+    // el error se muestra en la vista
   }
 }

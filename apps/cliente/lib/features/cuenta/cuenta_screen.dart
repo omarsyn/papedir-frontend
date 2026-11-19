@@ -20,10 +20,10 @@ class CuentaScreen extends ConsumerWidget {
             leading: const CircleAvatar(child: Icon(Icons.person)),
             title: Text(usuario?.nombre ?? ''),
             subtitle: Text(
-              [usuario?.email, usuario?.telefono]
-                  .whereType<String>()
-                  .where((s) => s.isNotEmpty)
-                  .join('\n'),
+              [
+                usuario?.email,
+                usuario?.telefono,
+              ].whereType<String>().where((s) => s.isNotEmpty).join('\n'),
             ),
             isThreeLine: (usuario?.telefono ?? '').isNotEmpty,
           ),
@@ -34,7 +34,9 @@ class CuentaScreen extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const DireccionesScreen()),
+                MaterialPageRoute<void>(
+                  builder: (_) => const DireccionesScreen(),
+                ),
               );
             },
           ),

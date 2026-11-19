@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/formato.dart';
 import '../../../core/models.dart';
 import '../../../core/widgets/vista_async.dart';
-import '../data/pedidos_repository.dart';
+import '../providers/pedidos_provider.dart';
 import 'pedido_detalle_screen.dart';
 
 class PedidosScreen extends ConsumerWidget {
@@ -12,21 +12,24 @@ class PedidosScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final pedidos = ref.watch(pedidosProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Mis pedidos')),
       body: VistaAsync<List<Pedido>>(
-        cargar: () => ref.read(pedidosRepositoryProvider).listar(),
-        builder: (context, pedidos, recargar) {
-          if (pedidos.isEmpty) {
+        valor: pedidos,
+        onReintentar: () => ref.invalidate(pedidosProvider),
+        builder: (lista) {
+          if (lista.isEmpty) {
             return const Center(child: Text('Aún no has hecho pedidos.'));
           }
           return RefreshIndicator(
-            onRefresh: recargar,
+            onRefresh: () =>
+                recargarSilencioso(() => ref.refresh(pedidosProvider.future)),
             child: ListView.builder(
               padding: const EdgeInsets.all(12),
-              itemCount: pedidos.length,
+              itemCount: lista.length,
               itemBuilder: (context, i) {
-                final p = pedidos[i];
+                final p = lista[i];
                 return Card(
                   child: ListTile(
                     title: Text('${p.tienda.nombre} · ${p.folio}'),
@@ -41,7 +44,7 @@ class PedidosScreen extends ConsumerWidget {
                           builder: (_) => PedidoDetalleScreen(pedidoId: p.id),
                         ),
                       );
-                      await recargar();
+                      ref.invalidate(pedidosProvider);
                     },
                   ),
                 );

@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models.dart';
 
-/// Dirección de entrega elegida (de ella dependen las tiendas cercanas y la cotización).
+/// Dirección elegida como destino de entrega (null = ninguna).
 class DireccionActivaNotifier extends Notifier<Direccion?> {
   @override
   Direccion? build() => null;
@@ -14,5 +14,5 @@ class DireccionActivaNotifier extends Notifier<Direccion?> {
 
 final direccionActivaProvider =
     NotifierProvider<DireccionActivaNotifier, Direccion?>(
-  DireccionActivaNotifier.new,
-);
+      DireccionActivaNotifier.new,
+    );

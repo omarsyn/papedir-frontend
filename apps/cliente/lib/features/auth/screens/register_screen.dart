@@ -39,7 +39,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     });
     try {
       final r = await conApiError(
-        () => ref.read(dioProvider).post<Map<String, dynamic>>(
+        () => ref
+            .read(dioProvider)
+            .post<Map<String, dynamic>>(
               '/auth/register',
               data: {
                 'nombre': _nombre.text.trim(),
@@ -126,8 +128,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   const SizedBox(height: 12),
                   Text(
                     _error!,
-                    style:
-                        TextStyle(color: Theme.of(context).colorScheme.error),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 ],
                 const SizedBox(height: 20),

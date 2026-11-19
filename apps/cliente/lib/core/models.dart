@@ -39,12 +39,12 @@ class Direccion {
   final Coordenadas ubicacion;
 
   factory Direccion.fromJson(Map<String, dynamic> j) => Direccion(
-        id: j['id'] as String,
-        alias: '${j['alias']}',
-        texto: '${j['texto']}',
-        referencias: j['referencias'] as String?,
-        ubicacion: Coordenadas.fromJson(asMapa(j['ubicacion'])),
-      );
+    id: j['id'] as String,
+    alias: '${j['alias']}',
+    texto: '${j['texto']}',
+    referencias: j['referencias'] as String?,
+    ubicacion: Coordenadas.fromJson(asMapa(j['ubicacion'])),
+  );
 }
 
 class Tienda {
@@ -77,19 +77,19 @@ class Tienda {
   final double? distanciaKm;
 
   factory Tienda.fromJson(Map<String, dynamic> j) => Tienda(
-        id: j['id'] as String,
-        nombre: '${j['nombre']}',
-        categoria: '${j['categoria'] ?? ''}',
-        descripcion: j['descripcion'] as String?,
-        imagenUrl: j['imagenUrl'] as String?,
-        telefono: '${j['telefono'] ?? ''}',
-        direccion: '${j['direccion'] ?? ''}',
-        ubicacion: Coordenadas.fromJson(asMapa(j['ubicacion'])),
-        abierta: (j['abierta'] as bool?) ?? true,
-        tiempoPreparacionMin: (j['tiempoPreparacionMin'] as num?)?.toInt() ?? 0,
-        calificacion: _dn(j['calificacion']),
-        distanciaKm: _dn(j['distanciaKm']),
-      );
+    id: j['id'] as String,
+    nombre: '${j['nombre']}',
+    categoria: '${j['categoria'] ?? ''}',
+    descripcion: j['descripcion'] as String?,
+    imagenUrl: j['imagenUrl'] as String?,
+    telefono: '${j['telefono'] ?? ''}',
+    direccion: '${j['direccion'] ?? ''}',
+    ubicacion: Coordenadas.fromJson(asMapa(j['ubicacion'])),
+    abierta: (j['abierta'] as bool?) ?? true,
+    tiempoPreparacionMin: (j['tiempoPreparacionMin'] as num?)?.toInt() ?? 0,
+    calificacion: _dn(j['calificacion']),
+    distanciaKm: _dn(j['distanciaKm']),
+  );
 }
 
 class Producto {
@@ -110,13 +110,13 @@ class Producto {
   final bool disponible;
 
   factory Producto.fromJson(Map<String, dynamic> j) => Producto(
-        id: j['id'] as String,
-        nombre: '${j['nombre']}',
-        descripcion: j['descripcion'] as String?,
-        precio: _d(j['precio']),
-        imagenUrl: j['imagenUrl'] as String?,
-        disponible: (j['disponible'] as bool?) ?? true,
-      );
+    id: j['id'] as String,
+    nombre: '${j['nombre']}',
+    descripcion: j['descripcion'] as String?,
+    precio: _d(j['precio']),
+    imagenUrl: j['imagenUrl'] as String?,
+    disponible: (j['disponible'] as bool?) ?? true,
+  );
 }
 
 class MenuCategoria {
@@ -126,9 +126,9 @@ class MenuCategoria {
   final List<Producto> productos;
 
   factory MenuCategoria.fromJson(Map<String, dynamic> j) => MenuCategoria(
-        nombre: '${asMapa(j['categoria'])['nombre']}',
-        productos: _lista(j['productos'], Producto.fromJson),
-      );
+    nombre: '${asMapa(j['categoria'])['nombre']}',
+    productos: _lista(j['productos'], Producto.fromJson),
+  );
 }
 
 class Cotizacion {
@@ -147,12 +147,12 @@ class Cotizacion {
   final int tiempoEstimadoMin;
 
   factory Cotizacion.fromJson(Map<String, dynamic> j) => Cotizacion(
-        distanciaKm: _d(j['distanciaKm']),
-        subtotal: _d(j['subtotal']),
-        costoEnvio: _d(j['costoEnvio']),
-        total: _d(j['total']),
-        tiempoEstimadoMin: (j['tiempoEstimadoMin'] as num?)?.toInt() ?? 0,
-      );
+    distanciaKm: _d(j['distanciaKm']),
+    subtotal: _d(j['subtotal']),
+    costoEnvio: _d(j['costoEnvio']),
+    total: _d(j['total']),
+    tiempoEstimadoMin: (j['tiempoEstimadoMin'] as num?)?.toInt() ?? 0,
+  );
 }
 
 class PedidoItem {
@@ -169,11 +169,11 @@ class PedidoItem {
   final double importe;
 
   factory PedidoItem.fromJson(Map<String, dynamic> j) => PedidoItem(
-        nombre: '${j['nombre']}',
-        cantidad: (j['cantidad'] as num?)?.toInt() ?? 1,
-        precioUnitario: _d(j['precioUnitario']),
-        importe: _d(j['importe']),
-      );
+    nombre: '${j['nombre']}',
+    cantidad: (j['cantidad'] as num?)?.toInt() ?? 1,
+    precioUnitario: _d(j['precioUnitario']),
+    importe: _d(j['importe']),
+  );
 }
 
 class TiendaResumen {
@@ -190,11 +190,11 @@ class TiendaResumen {
   final String direccion;
 
   factory TiendaResumen.fromJson(Map<String, dynamic> j) => TiendaResumen(
-        id: '${j['id']}',
-        nombre: '${j['nombre']}',
-        telefono: '${j['telefono'] ?? ''}',
-        direccion: '${j['direccion'] ?? ''}',
-      );
+    id: '${j['id']}',
+    nombre: '${j['nombre']}',
+    telefono: '${j['telefono'] ?? ''}',
+    direccion: '${j['direccion'] ?? ''}',
+  );
 }
 
 class Destino {
@@ -211,11 +211,11 @@ class Destino {
   final String? referencias;
 
   factory Destino.fromJson(Map<String, dynamic> j) => Destino(
-        nombre: '${j['nombre'] ?? ''}',
-        telefono: '${j['telefono'] ?? ''}',
-        direccion: '${j['direccion'] ?? ''}',
-        referencias: j['referencias'] as String?,
-      );
+    nombre: '${j['nombre'] ?? ''}',
+    telefono: '${j['telefono'] ?? ''}',
+    direccion: '${j['direccion'] ?? ''}',
+    referencias: j['referencias'] as String?,
+  );
 }
 
 class RepartidorResumen {
@@ -267,23 +267,23 @@ class Pedido {
   final DateTime actualizadoEn;
 
   factory Pedido.fromJson(Map<String, dynamic> j) => Pedido(
-        id: j['id'] as String,
-        folio: '${j['folio']}',
-        estado: '${j['estado']}',
-        tienda: TiendaResumen.fromJson(asMapa(j['tienda'])),
-        destino: Destino.fromJson(asMapa(j['destino'])),
-        items: _lista(j['items'], PedidoItem.fromJson),
-        subtotal: _d(j['subtotal']),
-        costoEnvio: _d(j['costoEnvio']),
-        total: _d(j['total']),
-        codigoEntrega: j['codigoEntrega'] as String?,
-        notas: j['notas'] as String?,
-        repartidor: j['repartidor'] == null
-            ? null
-            : RepartidorResumen.fromJson(asMapa(j['repartidor'])),
-        creadoEn: _fecha(j['creadoEn']),
-        actualizadoEn: _fecha(j['actualizadoEn']),
-      );
+    id: j['id'] as String,
+    folio: '${j['folio']}',
+    estado: '${j['estado']}',
+    tienda: TiendaResumen.fromJson(asMapa(j['tienda'])),
+    destino: Destino.fromJson(asMapa(j['destino'])),
+    items: _lista(j['items'], PedidoItem.fromJson),
+    subtotal: _d(j['subtotal']),
+    costoEnvio: _d(j['costoEnvio']),
+    total: _d(j['total']),
+    codigoEntrega: j['codigoEntrega'] as String?,
+    notas: j['notas'] as String?,
+    repartidor: j['repartidor'] == null
+        ? null
+        : RepartidorResumen.fromJson(asMapa(j['repartidor'])),
+    creadoEn: _fecha(j['creadoEn']),
+    actualizadoEn: _fecha(j['actualizadoEn']),
+  );
 }
 
 class EventoPedido {
@@ -298,8 +298,8 @@ class EventoPedido {
   final DateTime creadoEn;
 
   factory EventoPedido.fromJson(Map<String, dynamic> j) => EventoPedido(
-        tipo: '${j['tipo']}',
-        detalle: j['detalle'] as String?,
-        creadoEn: _fecha(j['creadoEn']),
-      );
+    tipo: '${j['tipo']}',
+    detalle: j['detalle'] as String?,
+    creadoEn: _fecha(j['creadoEn']),
+  );
 }

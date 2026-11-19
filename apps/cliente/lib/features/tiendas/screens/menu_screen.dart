@@ -6,7 +6,7 @@ import '../../../core/models.dart';
 import '../../../core/widgets/vista_async.dart';
 import '../../carrito/providers/carrito_provider.dart';
 import '../../carrito/screens/carrito_screen.dart';
-import '../data/tiendas_repository.dart';
+import '../providers/tiendas_provider.dart';
 
 class MenuScreen extends ConsumerWidget {
   const MenuScreen({super.key, required this.tienda});
@@ -48,6 +48,7 @@ class MenuScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final menu = ref.watch(menuProvider(tienda.id));
     return Scaffold(
       appBar: AppBar(title: Text(tienda.nombre)),
       floatingActionButton: Consumer(
@@ -64,15 +65,19 @@ class MenuScreen extends ConsumerWidget {
             },
             icon: const Icon(Icons.shopping_cart),
             label: Text(
-                'Ver carrito (${c.cantidadTotal}) · ${dinero(c.subtotal)}'),
+              'Ver carrito (${c.cantidadTotal}) · ${dinero(c.subtotal)}',
+            ),
           );
         },
       ),
       body: VistaAsync<List<MenuCategoria>>(
-        cargar: () => ref.read(tiendasRepositoryProvider).menu(tienda.id),
-        builder: (context, menu, recargar) {
+        valor: menu,
+        onReintentar: () => ref.invalidate(menuProvider(tienda.id)),
+        builder: (categorias) {
           return RefreshIndicator(
-            onRefresh: recargar,
+            onRefresh: () => recargarSilencioso(
+              () => ref.refresh(menuProvider(tienda.id).future),
+            ),
             child: ListView(
               padding: const EdgeInsets.only(bottom: 96),
               children: [
@@ -102,13 +107,14 @@ class MenuScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-                if (menu.isEmpty)
+                if (categorias.isEmpty)
                   const Padding(
                     padding: EdgeInsets.all(24),
                     child: Center(
-                        child: Text('Esta tienda aún no tiene productos.')),
+                      child: Text('Esta tienda aún no tiene productos.'),
+                    ),
                   ),
-                for (final cat in menu) ...[
+                for (final cat in categorias) ...[
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
                     child: Text(
@@ -129,13 +135,13 @@ class MenuScreen extends ConsumerWidget {
                       trailing: !p.disponible
                           ? const Text('Agotado')
                           : !tienda.abierta
-                              ? null
-                              : IconButton(
-                                  icon: const Icon(Icons.add_circle),
-                                  color: Theme.of(context).colorScheme.primary,
-                                  tooltip: 'Agregar',
-                                  onPressed: () => _agregar(context, ref, p),
-                                ),
+                          ? null
+                          : IconButton(
+                              icon: const Icon(Icons.add_circle),
+                              color: Theme.of(context).colorScheme.primary,
+                              tooltip: 'Agregar',
+                              onPressed: () => _agregar(context, ref, p),
+                            ),
                     ),
                 ],
               ],

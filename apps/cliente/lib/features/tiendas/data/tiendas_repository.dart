@@ -16,29 +16,28 @@ class TiendasRepository {
     required double lng,
     String? q,
     String? categoria,
-  }) =>
-      conApiError(() async {
-        final r = await _dio.get<Map<String, dynamic>>(
-          '/tiendas',
-          queryParameters: {
-            'lat': lat,
-            'lng': lng,
-            'radioKm': 8, // cobertura máxima del servicio
-            'limit': 50,
-            if (q != null && q.isNotEmpty) 'q': q,
-            if (categoria != null) 'categoria': categoria,
-          },
-        );
-        final data = (r.data?['data'] as List?) ?? const [];
-        return data.map((e) => Tienda.fromJson(asMapa(e))).toList();
-      });
+  }) => conApiError(() async {
+    final r = await _dio.get<Map<String, dynamic>>(
+      '/tiendas',
+      queryParameters: {
+        'lat': lat,
+        'lng': lng,
+        'radioKm': 8, // cobertura máxima del servicio
+        'limit': 50,
+        if (q != null && q.isNotEmpty) 'q': q,
+        if (categoria != null) 'categoria': categoria,
+      },
+    );
+    final data = (r.data?['data'] as List?) ?? const [];
+    return data.map((e) => Tienda.fromJson(asMapa(e))).toList();
+  });
 
   Future<List<MenuCategoria>> menu(String tiendaId) => conApiError(() async {
-        final r = await _dio.get<List<dynamic>>('/tiendas/$tiendaId/menu');
-        return (r.data ?? <dynamic>[])
-            .map((e) => MenuCategoria.fromJson(asMapa(e)))
-            .toList();
-      });
+    final r = await _dio.get<List<dynamic>>('/tiendas/$tiendaId/menu');
+    return (r.data ?? <dynamic>[])
+        .map((e) => MenuCategoria.fromJson(asMapa(e)))
+        .toList();
+  });
 }
 
 final tiendasRepositoryProvider = Provider<TiendasRepository>(

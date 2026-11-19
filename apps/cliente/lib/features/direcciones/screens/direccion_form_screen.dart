@@ -59,7 +59,9 @@ class _DireccionFormScreenState extends ConsumerState<DireccionFormScreen> {
     });
     try {
       final referencias = _referencias.text.trim();
-      final nueva = await ref.read(direccionesRepositoryProvider).crear(
+      final nueva = await ref
+          .read(direccionesRepositoryProvider)
+          .crear(
             alias: _alias.text.trim(),
             texto: _texto.text.trim(),
             referencias: referencias.isEmpty ? null : referencias,

@@ -21,22 +21,22 @@ class _TokenStorageFalso implements TokenStorage {
 }
 
 Tienda _tienda(String id) => Tienda.fromJson({
-      'id': id,
-      'nombre': 'Tienda $id',
-      'categoria': 'comida',
-      'telefono': '4610000000',
-      'direccion': 'Centro',
-      'ubicacion': {'lat': 20.52, 'lng': -100.81},
-      'abierta': true,
-      'tiempoPreparacionMin': 15,
-    });
+  'id': id,
+  'nombre': 'Tienda $id',
+  'categoria': 'comida',
+  'telefono': '4610000000',
+  'direccion': 'Centro',
+  'ubicacion': {'lat': 20.52, 'lng': -100.81},
+  'abierta': true,
+  'tiempoPreparacionMin': 15,
+});
 
 Producto _producto(String id, num precio) => Producto.fromJson({
-      'id': id,
-      'nombre': 'Producto $id',
-      'precio': precio,
-      'disponible': true,
-    });
+  'id': id,
+  'nombre': 'Producto $id',
+  'precio': precio,
+  'disponible': true,
+});
 
 void main() {
   testWidgets('Sin sesión muestra el login', (tester) async {

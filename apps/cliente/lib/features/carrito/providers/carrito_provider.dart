@@ -48,7 +48,9 @@ class CarritoNotifier extends Notifier<Carrito> {
       lineas.remove(productoId);
     } else {
       lineas[productoId] = LineaCarrito(
-          producto: actual.producto, cantidad: actual.cantidad - 1);
+        producto: actual.producto,
+        cantidad: actual.cantidad - 1,
+      );
     }
     state = lineas.isEmpty
         ? const Carrito()
@@ -68,5 +70,6 @@ class CarritoNotifier extends Notifier<Carrito> {
   }
 }
 
-final carritoProvider =
-    NotifierProvider<CarritoNotifier, Carrito>(CarritoNotifier.new);
+final carritoProvider = NotifierProvider<CarritoNotifier, Carrito>(
+  CarritoNotifier.new,
+);

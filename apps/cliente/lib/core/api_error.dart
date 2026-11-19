@@ -24,7 +24,8 @@ class ApiError implements Exception {
     if (e is ApiException) return _desde(e);
     if (e is DioException) {
       final sinRespuesta = e.response == null;
-      final esTimeout = e.type == DioExceptionType.connectionTimeout ||
+      final esTimeout =
+          e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.receiveTimeout ||
           e.type == DioExceptionType.sendTimeout;
       if (sinRespuesta && esTimeout) {
@@ -36,11 +37,11 @@ class ApiError implements Exception {
   }
 
   static ApiError _desde(ApiException e) => ApiError(
-        e.message,
-        codigo: e.error,
-        statusCode: e.statusCode,
-        detalles: {for (final d in e.detalles) d.campo: d.mensaje},
-      );
+    e.message,
+    codigo: e.error,
+    statusCode: e.statusCode,
+    detalles: {for (final d in e.detalles) d.campo: d.mensaje},
+  );
 
   @override
   String toString() => message;

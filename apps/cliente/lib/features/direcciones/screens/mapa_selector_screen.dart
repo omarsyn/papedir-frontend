@@ -86,9 +86,9 @@ class _MapaSelectorScreenState extends State<MapaSelectorScreen> {
     final c = _mapa.camera.center;
     final texto = await direccionDe(c.latitude, c.longitude);
     if (!mounted) return;
-    Navigator.of(context).pop(
-      UbicacionElegida(Coordenadas(c.latitude, c.longitude), texto),
-    );
+    Navigator.of(
+      context,
+    ).pop(UbicacionElegida(Coordenadas(c.latitude, c.longitude), texto));
   }
 
   @override

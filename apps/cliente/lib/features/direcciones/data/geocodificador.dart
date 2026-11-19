@@ -18,12 +18,7 @@ Future<String?> direccionDe(double lat, double lng) async {
     );
     final r = await dio.get<Map<String, dynamic>>(
       'https://nominatim.openstreetmap.org/reverse',
-      queryParameters: {
-        'format': 'jsonv2',
-        'lat': lat,
-        'lon': lng,
-        'zoom': 18,
-      },
+      queryParameters: {'format': 'jsonv2', 'lat': lat, 'lon': lng, 'zoom': 18},
     );
     final nombre = r.data?['display_name'];
     return nombre is String ? nombre : null;
