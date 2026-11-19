@@ -2,6 +2,10 @@ import 'package:core/core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'features/historial/screens/historial_screen.dart';
+import 'features/mapa_disponibles/screens/mapa_disponibles_screen.dart';
+import 'features/permisos/screens/permissions_gate_screen.dart';
+import 'features/viaje_activo/screens/viaje_activo_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -22,7 +26,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       if (location == '/login' || location == '/revision') {
-        return '/inicio';
+        return '/permisos';
       }
 
       return null;
@@ -40,33 +44,40 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const PendingReviewScreen(),
       ),
       GoRoute(
-        path: '/inicio',
-        builder: (context, state) => const _HomePlaceholderScreen(),
+        path: '/permisos',
+        builder: (context, state) => const PermissionsGateScreen(),
+      ),
+      GoRoute(
+        path: '/mapa',
+        builder: (context, state) => const MapaDisponiblesScreen(),
+      ),
+      GoRoute(
+        path: '/viaje',
+        builder: (context, state) => const ViajeActivoScreen(),
+      ),
+      GoRoute(
+        path: '/historial',
+        builder: (context, state) => const HistorialScreen(),
+      ),
+      GoRoute(
+        path: '/perfil',
+        builder: (context, state) => const _RutaPendienteScreen(
+          titulo: 'Mi Perfil',
+        ),
       ),
     ],
   );
 });
 
-/// Vista temporal mientras construimos la pantalla de permisos y el mapa
-class _HomePlaceholderScreen extends ConsumerWidget {
-  const _HomePlaceholderScreen();
+class _RutaPendienteScreen extends StatelessWidget {
+  final String titulo;
+  const _RutaPendienteScreen({required this.titulo});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final usuario = ref.watch(authProvider).usuario;
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('PaPedir Repartidor'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => ref.read(authProvider.notifier).logout(),
-          ),
-        ],
-      ),
-      body: Center(
-        child: Text('Sesión activa: ${usuario?.nombre ?? ''}'),
-      ),
+      appBar: AppBar(title: Text(titulo)),
+      body: Center(child: Text('Construyendo pantalla: $titulo')),
     );
   }
 }
