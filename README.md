@@ -1,4 +1,4 @@
-﻿# PaPedir - Frontend
+# PaPedir - Frontend
 
 Apps Flutter (cliente, tienda, repartidor) y web de administracion de PaPedir.
 
@@ -33,6 +33,14 @@ Lo mismo para apps/tienda y apps/repartidor.
 | Produccion | https://papedir-api.onrender.com/api/v1 |
 
 10.0.2.2 es el localhost de tu PC visto desde el emulador de Android.
+
+## Web de soporte y administración
+
+Vive en `web/` (React + Vite) y se despliega en Vercel. Instrucciones en [web/README.md](web/README.md).
+
+    cd web
+    npm install
+    npm run dev
 
 ## Mock de la API (sin backend)
 
