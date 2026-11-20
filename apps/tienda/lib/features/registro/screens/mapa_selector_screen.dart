@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../core/models.dart';
 import '../../../core/widgets/mensajes.dart';
@@ -20,34 +20,40 @@ class UbicacionElegida {
 // Centro de Celaya.
 const _celaya = LatLng(20.5222, -100.8123);
 
-class MapaSelectorScreen extends StatefulWidget {
-  const MapaSelectorScreen({super.key, this.inicial});
+LatLng _inicio(Coordenadas? c) => c == null ? _celaya : LatLng(c.lat, c.lng);
 
-  final Coordenadas? inicial;
+class MapaSelectorState {
+  const MapaSelectorState({this.ubicando = false, this.confirmando = false});
 
-  @override
-  State<MapaSelectorScreen> createState() => _MapaSelectorScreenState();
+  final bool ubicando;
+  final bool confirmando;
 }
 
-class _MapaSelectorScreenState extends State<MapaSelectorScreen> {
-  final _mapa = MapController();
-  bool _ubicando = false;
-  bool _confirmando = false;
-
-  LatLng get _inicio => widget.inicial == null
-      ? _celaya
-      : LatLng(widget.inicial!.lat, widget.inicial!.lng);
+/// Estado del selector. El argumento es la ubicación inicial (o null).
+class MapaSelectorNotifier
+    extends AutoDisposeFamilyNotifier<MapaSelectorState, Coordenadas?> {
+  GoogleMapController? _mapa;
+  LatLng _centro = _celaya;
 
   @override
-  void dispose() {
-    _mapa.dispose();
-    super.dispose();
+  MapaSelectorState build(Coordenadas? arg) {
+    _centro = _inicio(arg);
+    ref.onDispose(() => _mapa = null);
+    return const MapaSelectorState();
   }
 
-  Future<void> _miUbicacion() async {
-    setState(() {
-      _ubicando = true;
-    });
+  void mapaListo(GoogleMapController c) {
+    _mapa = c;
+  }
+
+  /// Se llama al mover el mapa; el pin fijo marca el centro.
+  void moverCentro(CameraPosition posicion) {
+    _centro = posicion.target;
+  }
+
+  /// Centra el mapa en el GPS. Devuelve un mensaje si algo falla.
+  Future<String?> miUbicacion() async {
+    state = const MapaSelectorState(ubicando: true);
     try {
       var permiso = await Geolocator.checkPermission();
       if (permiso == LocationPermission.denied) {
@@ -55,67 +61,69 @@ class _MapaSelectorScreenState extends State<MapaSelectorScreen> {
       }
       if (permiso == LocationPermission.denied ||
           permiso == LocationPermission.deniedForever) {
-        if (!mounted) return;
-        mostrarMensaje(
-          context,
-          'Sin permiso de ubicación. Muévete en el mapa para elegir el punto.',
-        );
-        return;
+        return 'Sin permiso de ubicación. Mueve el mapa para elegir el punto.';
       }
       final pos = await Geolocator.getCurrentPosition();
-      _mapa.move(LatLng(pos.latitude, pos.longitude), 17);
-    } catch (_) {
-      if (!mounted) return;
-      mostrarMensaje(
-        context,
-        'No se pudo obtener tu ubicación. Revisa que el GPS esté activado.',
+      await _mapa?.animateCamera(
+        CameraUpdate.newLatLngZoom(LatLng(pos.latitude, pos.longitude), 17),
       );
+      return null;
+    } catch (_) {
+      return 'No se pudo obtener tu ubicación. Revisa que el GPS esté activado.';
     } finally {
-      if (mounted) {
-        setState(() {
-          _ubicando = false;
-        });
-      }
+      state = const MapaSelectorState();
     }
   }
 
-  Future<void> _confirmar() async {
-    setState(() {
-      _confirmando = true;
-    });
-    final c = _mapa.camera.center;
+  Future<UbicacionElegida> confirmar() async {
+    state = const MapaSelectorState(confirmando: true);
+    final c = _centro;
     final texto = await direccionDe(c.latitude, c.longitude);
-    if (!mounted) return;
-    Navigator.of(
-      context,
-    ).pop(UbicacionElegida(Coordenadas(c.latitude, c.longitude), texto));
+    state = const MapaSelectorState();
+    return UbicacionElegida(Coordenadas(c.latitude, c.longitude), texto);
+  }
+}
+
+final mapaSelectorProvider = NotifierProvider.autoDispose
+    .family<MapaSelectorNotifier, MapaSelectorState, Coordenadas?>(
+      MapaSelectorNotifier.new,
+    );
+
+class MapaSelectorScreen extends ConsumerWidget {
+  const MapaSelectorScreen({super.key, this.inicial});
+
+  final Coordenadas? inicial;
+
+  Future<void> _miUbicacion(BuildContext context, WidgetRef ref) async {
+    final error = await ref
+        .read(mapaSelectorProvider(inicial).notifier)
+        .miUbicacion();
+    if (error != null && context.mounted) mostrarMensaje(context, error);
+  }
+
+  Future<void> _confirmar(BuildContext context, WidgetRef ref) async {
+    final r = await ref.read(mapaSelectorProvider(inicial).notifier).confirmar();
+    if (context.mounted) Navigator.of(context).pop(r);
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final estado = ref.watch(mapaSelectorProvider(inicial));
+    final notifier = ref.read(mapaSelectorProvider(inicial).notifier);
     return Scaffold(
       appBar: AppBar(title: const Text('Elige la ubicación')),
       body: Stack(
         children: [
-          FlutterMap(
-            mapController: _mapa,
-            options: MapOptions(
-              initialCenter: _inicio,
-              initialZoom: 16,
-              minZoom: 4,
-              maxZoom: 19,
+          GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: _inicio(inicial),
+              zoom: 16,
             ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.cliente',
-              ),
-              const RichAttributionWidget(
-                attributions: [
-                  TextSourceAttribution('© colaboradores de OpenStreetMap'),
-                ],
-              ),
-            ],
+            onMapCreated: notifier.mapaListo,
+            onCameraMove: notifier.moverCentro,
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: false,
+            mapToolbarEnabled: false,
           ),
           // Pin fijo al centro: la punta queda justo en el centro del mapa.
           IgnorePointer(
@@ -135,8 +143,10 @@ class _MapaSelectorScreenState extends State<MapaSelectorScreen> {
             bottom: 96,
             child: FloatingActionButton.small(
               heroTag: 'mi_ubicacion',
-              onPressed: _ubicando ? null : _miUbicacion,
-              child: _ubicando
+              onPressed: estado.ubicando
+                  ? null
+                  : () => _miUbicacion(context, ref),
+              child: estado.ubicando
                   ? const SizedBox(
                       height: 18,
                       width: 18,
@@ -151,8 +161,10 @@ class _MapaSelectorScreenState extends State<MapaSelectorScreen> {
             bottom: 16,
             child: SafeArea(
               child: FilledButton.icon(
-                onPressed: _confirmando ? null : _confirmar,
-                icon: _confirmando
+                onPressed: estado.confirmando
+                    ? null
+                    : () => _confirmar(context, ref),
+                icon: estado.confirmando
                     ? const SizedBox(
                         height: 18,
                         width: 18,

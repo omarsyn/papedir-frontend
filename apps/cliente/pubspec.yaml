@@ -1,4 +1,4 @@
-﻿name: cliente
+name: cliente
 description: App Cliente de PaPedir
 publish_to: none
 version: 0.1.0+1
@@ -18,9 +18,8 @@ dependencies:
   dio: ^5.7.0
   flutter_secure_storage: ^9.2.2
   firebase_core: ^3.15.2
-  flutter_map: ^8.3.2
-  latlong2: ^0.10.1
   geolocator: ^13.0.2
+  google_maps_flutter: ^2.10.0
 
 dev_dependencies:
   flutter_test:
