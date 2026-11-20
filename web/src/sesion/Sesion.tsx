@@ -8,6 +8,8 @@ type Contexto = {
   esAdmin: boolean;
   entrar: (email: string, password: string) => Promise<void>;
   salir: () => Promise<void>;
+  /** Refleja en la barra los cambios hechos en Mi perfil. */
+  actualizarUsuario: (u: Usuario) => void;
 };
 
 const Ctx = createContext<Contexto | null>(null);
@@ -49,7 +51,7 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ usuario, cargando, esAdmin: usuario?.rol === 'admin', entrar, salir }}>{children}</Ctx.Provider>
+    <Ctx.Provider value={{ usuario, cargando, esAdmin: usuario?.rol === 'admin', entrar, salir, actualizarUsuario: setUsuario }}>{children}</Ctx.Provider>
   );
 }
 

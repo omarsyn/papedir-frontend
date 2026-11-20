@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ExternalLink, FileText, Lock } from 'lucide-react';
-import { useState } from 'react';
+import { ExternalLink, FileText, KeyRound, Lock, Pencil, Trash2 } from 'lucide-react';
+import { FormEvent, useState } from 'react';
+import { Usuario } from '../api/cliente';
 import { Link } from 'react-router';
 import { api, datos, ErrorApi, Esquemas } from '../api/cliente';
 import { useSesion } from '../sesion/Sesion';
@@ -13,7 +14,7 @@ type Documento = Esquemas['Documento'];
 
 /** Todo lo que soporte necesita de una cuenta: datos, documentos por revisar, saldo y su historial. */
 export function FichaCuenta({ id, onCerrar }: { id: string; onCerrar: () => void }) {
-  const { esAdmin } = useSesion();
+  const { esAdmin, usuario: yo } = useSesion();
   const { avisar } = useAvisos();
   const cache = useQueryClient();
   const [viendo, setViendo] = useState<{ doc: Documento; url: string } | null>(null);
@@ -80,6 +81,8 @@ export function FichaCuenta({ id, onCerrar }: { id: string; onCerrar: () => void
             )}
             {u!.rol === 'repartidor' && u!.calificacion != null && <Chip tono="activo">★ {u!.calificacion}</Chip>}
           </div>
+
+          {esAdmin && u!.estado !== 'eliminado' && u!.id !== yo?.id && <AccionesAdmin u={u!} onHecho={recargar} onEliminada={onCerrar} />}
 
           {u!.motivoBaneo && <p className="nota">Motivo del baneo: {u!.motivoBaneo}</p>}
           {bloqueada && (
@@ -248,5 +251,158 @@ export function FichaCuenta({ id, onCerrar }: { id: string; onCerrar: () => void
         }}
       />
     </Dialogo>
+  );
+}
+
+/** Solo admin: corregir datos, dar una contraseña temporal y eliminar (anonimizar) la cuenta. */
+function AccionesAdmin({ u, onHecho, onEliminada }: { u: Usuario; onHecho: (texto: string) => void; onEliminada: () => void }) {
+  const { avisar } = useAvisos();
+  const cache = useQueryClient();
+  const interna = u.rol === 'soporte' || u.rol === 'admin';
+  const [editando, setEditando] = useState(false);
+  const [conPassword, setConPassword] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
+  const [form, setForm] = useState({ nombre: u.nombre ?? '', telefono: u.telefono ?? '', email: u.email ?? '', rol: u.rol as 'soporte' | 'admin' });
+  const [password, setPassword] = useState('');
+
+  const editar = useMutation({
+    mutationFn: () => {
+      const body: { nombre?: string; telefono?: string; email?: string; rol?: 'soporte' | 'admin' } = {};
+      if (form.nombre.trim() !== u.nombre) body.nombre = form.nombre.trim();
+      if (form.telefono.trim() && form.telefono.trim() !== u.telefono) body.telefono = form.telefono.trim();
+      if (form.email.trim().toLowerCase() !== u.email) body.email = form.email.trim().toLowerCase();
+      if (interna && form.rol !== u.rol) body.rol = form.rol;
+      return datos(api.PATCH('/admin/usuarios/{id}', { params: { path: { id: u.id! } }, body }));
+    },
+    onSuccess: () => {
+      setEditando(false);
+      onHecho('Datos actualizados');
+    },
+    onError: (e) => avisar(e instanceof ErrorApi ? e.message : 'No se pudo guardar', 'error'),
+  });
+  const fijar = useMutation({
+    mutationFn: () => datos(api.PUT('/admin/usuarios/{id}/password', { params: { path: { id: u.id! } }, body: { password } })),
+    onSuccess: () => {
+      setConPassword(false);
+      setPassword('');
+      onHecho('Contraseña temporal lista. Se cerraron sus sesiones; compártela por un medio privado.');
+    },
+    onError: (e) => avisar(e instanceof ErrorApi ? e.message : 'No se pudo cambiar', 'error'),
+  });
+  const sugerir = () => {
+    const letras = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    const v = new Uint32Array(12);
+    crypto.getRandomValues(v);
+    setPassword(Array.from(v, (n) => letras[n % letras.length]).join(''));
+  };
+
+  return (
+    <div className="acciones-encabezado">
+      <button className="boton boton-chico" onClick={() => setEditando(true)}>
+        <Pencil size={14} aria-hidden /> Editar datos
+      </button>
+      <button
+        className="boton boton-chico"
+        onClick={() => {
+          sugerir();
+          setConPassword(true);
+        }}
+      >
+        <KeyRound size={14} aria-hidden /> Contraseña temporal
+      </button>
+      <button className="boton boton-chico boton-peligro-suave" onClick={() => setEliminando(true)}>
+        <Trash2 size={14} aria-hidden /> Eliminar cuenta
+      </button>
+
+      <Dialogo titulo={`Editar a ${u.nombre}`} abierto={editando} onCerrar={() => setEditando(false)}>
+        <form
+          className="formulario"
+          onSubmit={(e: FormEvent) => {
+            e.preventDefault();
+            editar.mutate();
+          }}
+        >
+          <label className="campo">
+            <span>Nombre</span>
+            <input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} required maxLength={80} />
+          </label>
+          <label className="campo">
+            <span>Teléfono</span>
+            <input value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} inputMode="tel" pattern="[0-9]{10}" placeholder="10 dígitos" />
+          </label>
+          <label className="campo">
+            <span>Correo</span>
+            <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+            <small className="texto-secundario">Si lo cambias, deberá verificar el nuevo correo.</small>
+          </label>
+          {interna && (
+            <label className="campo">
+              <span>Rol</span>
+              <select className="selector" value={form.rol} onChange={(e) => setForm({ ...form, rol: e.target.value as 'soporte' | 'admin' })}>
+                <option value="soporte">Soporte</option>
+                <option value="admin">Admin</option>
+              </select>
+            </label>
+          )}
+          <div className="acciones-dialogo">
+            <button type="button" className="boton" onClick={() => setEditando(false)}>
+              Cancelar
+            </button>
+            <button className="boton boton-primario" disabled={editar.isPending}>
+              {editar.isPending ? 'Guardando…' : 'Guardar'}
+            </button>
+          </div>
+        </form>
+      </Dialogo>
+
+      <Dialogo titulo="Contraseña temporal" abierto={conPassword} onCerrar={() => setConPassword(false)}>
+        <form
+          className="formulario"
+          onSubmit={(e: FormEvent) => {
+            e.preventDefault();
+            fijar.mutate();
+          }}
+        >
+          <p className="texto-secundario">
+            Para cuando {u.nombre} no puede recuperar su acceso por correo. Se cierran todas sus sesiones; pídele que la cambie al entrar.
+          </p>
+          <label className="campo">
+            <span>Contraseña</span>
+            <input value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} maxLength={72} autoComplete="off" spellCheck={false} />
+          </label>
+          <div className="acciones-dialogo">
+            <button type="button" className="boton" onClick={sugerir}>
+              Generar otra
+            </button>
+            <button
+              type="button"
+              className="boton"
+              onClick={() => navigator.clipboard?.writeText(password).then(() => avisar('Copiada', 'exito'), () => null)}
+            >
+              Copiar
+            </button>
+            <button className="boton boton-primario" disabled={fijar.isPending || password.length < 8}>
+              {fijar.isPending ? 'Guardando…' : 'Fijar contraseña'}
+            </button>
+          </div>
+        </form>
+      </Dialogo>
+
+      <DialogoMotivo
+        abierto={eliminando}
+        onCerrar={() => setEliminando(false)}
+        titulo={`Eliminar la cuenta de ${u.nombre}`}
+        descripcion="Se borran sus datos personales y se cierran sus sesiones; sus pedidos se conservan sin datos personales para contabilidad. No se puede deshacer."
+        textoBoton="Eliminar cuenta"
+        peligro
+        placeholder="Ej. La persona lo pidió por correo"
+        onConfirmar={async (motivo) => {
+          await datos(api.DELETE('/admin/usuarios/{id}', { params: { path: { id: u.id! } }, body: { motivo } }));
+          cache.invalidateQueries({ queryKey: ['usuarios'] });
+          avisar(`Cuenta de ${u.nombre} eliminada`, 'exito');
+          onEliminada();
+        }}
+      />
+    </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search } from 'lucide-react';
+import { Download, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api, datos, ErrorApi, EstadoCuenta, Rol, Usuario } from '../api/cliente';
 import { useAvisos } from '../componentes/Avisos';
@@ -8,7 +8,7 @@ import { DialogoMotivo } from '../componentes/Dialogo';
 import { FichaCuenta } from '../componentes/FichaCuenta';
 import { useNavigate, useParams } from 'react-router';
 import { useSesion } from '../sesion/Sesion';
-import { ESTADOS_CUENTA, ROLES, soloDia } from '../util/formato';
+import { descargarCsv, ESTADOS_CUENTA, ROLES, soloDia } from '../util/formato';
 
 const LIMITE = 25;
 const PESTANAS: { valor: EstadoCuenta; texto: string }[] = [
@@ -61,6 +61,20 @@ export function Cuentas() {
     onError: (e) => avisar(e instanceof ErrorApi ? e.message : 'No se pudo quitar el baneo', 'error'),
   });
 
+  const exportar = async () => {
+    try {
+      const r = await datos(api.GET('/soporte/usuarios', { params: { query: { estado, rol: rol || undefined, q: q || undefined, page: 1, limit: 100 } } }));
+      descargarCsv(
+        `cuentas-${ESTADOS_CUENTA[estado].toLowerCase()}-${new Date().toLocaleDateString('en-CA')}`,
+        ['Nombre', 'Rol', 'Correo', 'Teléfono', 'Estado', 'Alta'],
+        (r.data ?? []).map((u) => [u.nombre, ROLES[u.rol!], u.email, u.telefono, ESTADOS_CUENTA[u.estado!], soloDia(u.creadoEn)]),
+      );
+      if ((r.meta?.total ?? 0) > 100) avisar('Se exportaron las primeras 100 cuentas; acota el filtro para el resto', 'alerta');
+    } catch (e) {
+      avisar(e instanceof ErrorApi ? e.message : 'No se pudo exportar', 'error');
+    }
+  };
+
   // Soporte no puede banear cuentas internas; nadie puede banearse a sí mismo.
   const puedeBanear = (u: Usuario) => u.id !== yo?.id && (esAdmin || (u.rol !== 'soporte' && u.rol !== 'admin'));
 
@@ -110,6 +124,9 @@ export function Cuentas() {
           <Search size={16} aria-hidden />
           <input type="search" placeholder="Nombre, correo, teléfono o tienda" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} aria-label="Buscar cuentas" />
         </label>
+        <button className="boton boton-chico" onClick={exportar} title="Descargar esta lista en CSV (Excel)">
+          <Download size={14} aria-hidden /> CSV
+        </button>
       </div>
 
       {lista.isPending ? (
@@ -189,8 +206,10 @@ export function Cuentas() {
         peligro
         placeholder="Ej. Pedidos falsos repetidos"
         onConfirmar={async (motivo) => {
-          await datos(api.POST('/soporte/usuarios/{id}/banear', { params: { path: { id: aBanear!.id! } }, body: { motivo } }));
-          refrescar(`${aBanear?.nombre} fue baneado`);
+          const u = aBanear!;
+          await datos(api.POST('/soporte/usuarios/{id}/banear', { params: { path: { id: u.id! } }, body: { motivo } }));
+          cache.invalidateQueries({ queryKey: ['usuarios'] });
+          avisar(`${u.nombre} fue baneado`, 'exito', { texto: 'Deshacer', onClic: () => desbanear.mutate(u.id!) });
         }}
       />
     </div>

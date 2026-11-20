@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Bike, CalendarClock, CreditCard, Download, Package, Search, Send, Store, UserRound } from 'lucide-react';
 import { FormEvent, ReactNode, useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { api, Coordenadas, datos, ErrorApi, EstadoPedido, Pedido } from '../api/cliente';
 import { useAvisos } from '../componentes/Avisos';
 import { Cargando, Chip, ErrorCarga, Paginacion, Vacio } from '../componentes/Basicos';
@@ -23,9 +23,11 @@ type Filtro = 'activos' | 'todos' | EstadoPedido;
 
 export function Pedidos() {
   const { id } = useParams();
-  const [busqueda, setBusqueda] = useState('');
+  const [busqueda, setBusqueda] = useState(() => new URLSearchParams(window.location.search).get('q') ?? '');
   const [q, setQ] = useState('');
-  const [filtro, setFiltro] = useState<Filtro>('activos');
+  const [parametros] = useSearchParams();
+  // El inicio enlaza aquí con ?estado=… o ?q=… para abrir la lista ya filtrada.
+  const [filtro, setFiltro] = useState<Filtro>((parametros.get('estado') as Filtro) ?? 'activos');
   const [pagina, setPagina] = useState(1);
 
   // Busca al dejar de escribir (300 ms) para no pedir en cada tecla.
