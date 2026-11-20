@@ -38,12 +38,12 @@ class TicketsState {
 class TicketsNotifier extends StateNotifier<TicketsState> {
   final Dio _dio;
   final SocketService _socket;
-  StreamSubscription<Ticket>? _actualizadoSub;
+  StreamSubscription<JsonMap>? _actualizadoSub;
 
   TicketsNotifier(this._dio, this._socket) : super(const TicketsState()) {
     _actualizadoSub = _socket.onTicketActualizado.listen((_) {
       cargarTickets(silencioso: true);
-    }) as StreamSubscription<Ticket>?;
+    });
     cargarTickets();
   }
 
