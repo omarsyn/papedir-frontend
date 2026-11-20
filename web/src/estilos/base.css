@@ -662,8 +662,13 @@ time {
 .tabla tr:last-child td {
   border-bottom: 0;
 }
-.tabla-compacta td {
-  padding: 6px 0;
+.tabla-compacta td,
+.tabla-compacta th {
+  padding: 6px 12px 6px 0;
+}
+.tabla-compacta td:last-child,
+.tabla-compacta th:last-child {
+  padding-right: 0;
 }
 .numero {
   text-align: right;
