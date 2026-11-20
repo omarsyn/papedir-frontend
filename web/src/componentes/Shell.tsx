@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { ChartColumn, LogOut, MessagesSquare, Package, ShieldCheck, Users } from 'lucide-react';
+import { ChartColumn, LogOut, MessagesSquare, Package, Settings2, ShieldCheck, Users, Wallet } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router';
 import { api, datos } from '../api/cliente';
 import { useTiempoReal } from '../realtime/TiempoReal';
@@ -31,6 +31,8 @@ export function Shell() {
     { a: '/cuentas', texto: 'Cuentas', Icono: Users, cuenta: porAprobar.data },
     ...(esAdmin
       ? [
+          { a: '/finanzas', texto: 'Finanzas', Icono: Wallet },
+          { a: '/configuracion', texto: 'Ajustes', Icono: Settings2 },
           { a: '/metricas', texto: 'Métricas', Icono: ChartColumn },
           { a: '/equipo', texto: 'Equipo', Icono: ShieldCheck },
         ]

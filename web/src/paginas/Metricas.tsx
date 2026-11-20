@@ -22,6 +22,10 @@ export function Metricas() {
     queryKey: ['metricas', desde, hasta],
     queryFn: () => datos(api.GET('/admin/metricas', { params: { query: { desde: desde || undefined, hasta: hasta || undefined } } })),
   });
+  const c = useQuery({
+    queryKey: ['cancelaciones', desde, hasta],
+    queryFn: () => datos(api.GET('/admin/cancelaciones', { params: { query: { desde: desde || undefined, hasta: hasta || undefined } } })),
+  });
   const d = m.data;
   const tasa = d?.pedidosTotales ? Math.round(((d.pedidosEntregados ?? 0) / d.pedidosTotales) * 100) : null;
 
@@ -79,6 +83,8 @@ export function Metricas() {
             <Cifra valor={d?.repartidoresActivos} texto="Repartidores activos" />
             <Cifra valor={d?.ticketsAbiertos} texto="Tickets sin cerrar" />
           </section>
+          <h2 className="subtitulo">Por qué se cancelan los pedidos</h2>
+          {c.isPending ? <Cargando /> : c.isError ? <ErrorCarga error={c.error} onReintentar={() => c.refetch()} /> : <Motivos motivos={c.data.motivos ?? []} />}
         </>
       )}
     </div>
@@ -91,5 +97,39 @@ function Cifra({ valor, texto, destacada }: { valor?: number | string; texto: st
       <span className="cifra-valor">{valor ?? '—'}</span>
       <span className="cifra-texto">{texto}</span>
     </div>
+  );
+}
+
+type Motivo = { codigo?: string; texto?: string; cancelados?: number; rechazados?: number };
+
+function Motivos({ motivos }: { motivos: Motivo[] }) {
+  const filas = motivos
+    .map((m) => ({ ...m, total: (m.cancelados ?? 0) + (m.rechazados ?? 0) }))
+    .filter((m) => m.total > 0)
+    .sort((a, b) => b.total - a.total);
+  if (!filas.length) return <p className="texto-secundario">Ningún pedido se canceló ni se rechazó en este periodo.</p>;
+  const max = filas[0].total;
+  const total = filas.reduce((t, m) => t + m.total, 0);
+  return (
+    <section className="bloque">
+      <ul className="barras" aria-label="Cancelaciones y rechazos por motivo">
+        {filas.map((m) => (
+          <li key={m.codigo} className="barra-fila">
+            <span className="barra-etiqueta">{m.texto ?? m.codigo}</span>
+            <span className="barra-pista" aria-hidden>
+              <span className="barra barra-cancelado" style={{ width: `${((m.cancelados ?? 0) / max) * 100}%` }} />
+              <span className="barra barra-rechazado" style={{ width: `${((m.rechazados ?? 0) / max) * 100}%` }} />
+            </span>
+            <span className="barra-valor">
+              {m.total} <span className="texto-secundario texto-chico">({Math.round((m.total / total) * 100)} %)</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <ul className="leyenda">
+        <li><span className="punto barra-cancelado" />Cancelados (cliente, soporte o sistema)</li>
+        <li><span className="punto barra-rechazado" />Rechazados por la tienda</li>
+      </ul>
+    </section>
   );
 }

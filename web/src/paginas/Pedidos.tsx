@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Bike, Package, Search, Store, UserRound } from 'lucide-react';
-import { FormEvent, ReactNode, useEffect, useState } from 'react';
+import { ArrowLeft, Bike, CalendarClock, CreditCard, Download, Package, Search, Send, Store, UserRound } from 'lucide-react';
+import { FormEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { api, Coordenadas, datos, ErrorApi, EstadoPedido, Pedido } from '../api/cliente';
 import { useAvisos } from '../componentes/Avisos';
@@ -8,7 +8,14 @@ import { Cargando, Chip, ErrorCarga, Paginacion, Vacio } from '../componentes/Ba
 import { Dialogo, DialogoMotivo } from '../componentes/Dialogo';
 import { MapaPedido } from '../componentes/MapaPedido';
 import { RielEstado } from '../componentes/RielEstado';
-import { ACTIVOS, dinero, ESTADOS_PEDIDO, EVENTOS, fecha, haceCuanto, ROLES, soloHora, textoEstado, tonoEstado } from '../util/formato';
+import { useTiempoReal } from '../realtime/TiempoReal';
+import { ACTIVOS, descargarCsv, dinero, ESTADOS_PEDIDO, EVENTOS, fecha, haceCuanto, ROLES, soloHora, textoEstado, tonoEstado } from '../util/formato';
+
+const PAGO: Record<string, { texto: string; tono: 'exito' | 'alerta' | 'error' | 'neutro' }> = {
+  pagado: { texto: 'Pagado con tarjeta', tono: 'exito' },
+  reembolsado: { texto: 'Reembolsado', tono: 'neutro' },
+  reembolso_fallido: { texto: 'Reembolso fallido', tono: 'error' },
+};
 
 const LIMITE = 30;
 type Filtro = 'activos' | 'todos' | EstadoPedido;
@@ -35,6 +42,47 @@ export function Pedidos() {
     queryFn: () => datos(api.GET('/soporte/pedidos', { params: { query: { q: q || undefined, estado, page: pagina, limit: LIMITE } } })),
     placeholderData: (prev) => prev,
   });
+
+  const { avisar } = useAvisos();
+  const [exportando, setExportando] = useState(false);
+  async function exportar() {
+    setExportando(true);
+    try {
+      const filas: Pedido[] = [];
+      for (let page = 1; page <= 20; page++) {
+        const r = await datos(api.GET('/soporte/pedidos', { params: { query: { q: q || undefined, estado, page, limit: 100 } } }));
+        filas.push(...(r.data ?? []));
+        if (filas.length >= (r.meta?.total ?? 0) || !r.data?.length) break;
+      }
+      descargarCsv(
+        `pedidos-${new Date().toLocaleDateString('en-CA')}`,
+        ['Folio', 'Fecha', 'Estado', 'Tienda', 'Cliente', 'Teléfono', 'Pago', 'Productos', 'Envío', 'Recargos', 'Propina', 'Descuento', 'Total', 'Km', 'Repartidor', 'Motivo'],
+        filas.map((p) => [
+          p.folio,
+          fecha(p.creadoEn),
+          textoEstado(p.estado!),
+          p.tienda?.nombre,
+          p.destino?.nombre,
+          p.destino?.telefono,
+          p.metodoPago === 'tarjeta' ? 'Tarjeta' : 'Efectivo',
+          p.subtotal,
+          p.costoEnvio,
+          (p.recargos ?? []).reduce((t, r) => t + (r.monto ?? 0), 0),
+          p.propina,
+          p.descuento,
+          p.total,
+          p.distanciaKm,
+          p.repartidor?.nombre,
+          p.motivoCancelacion,
+        ]),
+      );
+      if (filas.length >= 2000) avisar('Se exportaron los primeros 2000 pedidos; acota la búsqueda para el resto', 'alerta');
+    } catch (e) {
+      avisar(e instanceof ErrorApi ? e.message : 'No se pudo exportar', 'error');
+    } finally {
+      setExportando(false);
+    }
+  }
 
   return (
     <div className="vista-dividida" data-detalle={id ? 'si' : 'no'}>
@@ -68,6 +116,9 @@ export function Pedidos() {
               </option>
             ))}
           </select>
+          <button className="boton boton-chico" onClick={exportar} disabled={exportando || !lista.data?.meta?.total} title="Descarga los pedidos de este filtro en CSV (Excel)">
+            <Download size={14} aria-hidden /> {exportando ? 'Exportando…' : 'CSV'}
+          </button>
         </header>
         <div className="panel-desplazable">
           {lista.isPending ? (
@@ -91,7 +142,10 @@ export function Pedidos() {
                       {p.tienda?.nombre} <span className="texto-secundario">para</span> {p.destino?.nombre}
                     </p>
                     <div className="fila-abajo">
-                      <span className="texto-secundario texto-chico">{haceCuanto(p.creadoEn)}</span>
+                      <span className="texto-secundario texto-chico">
+                        {p.estado === 'programado' && p.programadoPara ? `Para ${fecha(p.programadoPara)}` : haceCuanto(p.creadoEn)}
+                        {p.metodoPago === 'tarjeta' && <CreditCard size={13} className="icono-en-linea" aria-label="Pagado con tarjeta" />}
+                      </span>
                       <Chip tono={tonoEstado(p.estado!)}>{textoEstado(p.estado!)}</Chip>
                     </div>
                   </Link>
@@ -120,6 +174,7 @@ type Accion = 'cancelar' | 'completar' | 'liberar' | 'ubicacion' | null;
 function DetallePedido({ id }: { id: string }) {
   const navegar = useNavigate();
   const [accion, setAccion] = useState<Accion>(null);
+  useMotivos(); // para traducir motivoCancelacion
   const pedido = useQuery({ queryKey: ['pedido', id], queryFn: () => datos(api.GET('/pedidos/{id}', { params: { path: { id } } })) });
   const eventos = useQuery({
     queryKey: ['pedido', id, 'eventos'],
@@ -153,6 +208,16 @@ function DetallePedido({ id }: { id: string }) {
           <p className="texto-secundario texto-chico">
             {p.origen === 'manual' ? 'Pedido manual de la tienda' : 'Pedido desde la App Cliente'}, {fecha(p.creadoEn)}
           </p>
+          {(p.programadoPara || p.grupoId) && (
+            <p className="texto-secundario texto-chico aviso-linea">
+              {p.programadoPara && (
+                <>
+                  <CalendarClock size={14} aria-hidden /> Programado para {fecha(p.programadoPara)}.{' '}
+                </>
+              )}
+              {p.grupoId && <>Va junto con otros pedidos del mismo carrito (grupo {p.grupoId.slice(0, 8)}).</>}
+            </p>
+          )}
         </div>
         {!final && (
           <div className="acciones">
@@ -196,7 +261,14 @@ function DetallePedido({ id }: { id: string }) {
             />
           </Bloque>
 
-          <Bloque titulo="Cobro en efectivo">
+          <Bloque titulo="Cobro">
+            <div className="ficha-chips">
+              <Chip tono="neutro">{p.metodoPago === 'tarjeta' ? 'Tarjeta' : 'Efectivo al recibir'}</Chip>
+              {p.pagoEstado && <Chip tono={PAGO[p.pagoEstado]?.tono ?? 'neutro'}>{PAGO[p.pagoEstado]?.texto ?? p.pagoEstado}</Chip>}
+            </div>
+            {p.pagoEstado === 'reembolso_fallido' && (
+              <p className="nota nota-error">Stripe no pudo devolver el cobro. Revísalo en el panel de Stripe y avisa al cliente.</p>
+            )}
             {!!p.items?.length && (
               <table className="tabla tabla-compacta">
                 <tbody>
@@ -216,11 +288,22 @@ function DetallePedido({ id }: { id: string }) {
               <dd>{dinero(p.subtotal)}</dd>
               <dt>Envío ({p.distanciaKm} km)</dt>
               <dd>{dinero(p.costoEnvio)}</dd>
-              <dt className="cuentas-total">Cobra al cliente</dt>
+              {p.recargos?.map((r) => (
+                <Fila key={r.concepto} dt={`Recargo: ${r.concepto}`} dd={dinero(r.monto)} />
+              ))}
+              {!!p.propina && <Fila dt="Propina al repartidor" dd={dinero(p.propina)} />}
+              {!!p.descuento && <Fila dt="Cupón" dd={`−${dinero(p.descuento)}`} />}
+              <dt className="cuentas-total">{p.metodoPago === 'tarjeta' ? 'Cobrado con tarjeta' : 'Cobra al cliente'}</dt>
               <dd className="cuentas-total">{dinero(p.total)}</dd>
-              <dt>Paga a la tienda</dt>
+              <dt>{p.metodoPago === 'tarjeta' ? 'Efectivo a la tienda' : 'Paga a la tienda'}</dt>
               <dd>{dinero(p.montoAPagarTienda)}</dd>
+              {p.comisionTienda != null && <Fila dt="Comisión de PaPedir" dd={dinero(p.comisionTienda)} />}
             </dl>
+            {p.motivoCancelacion && (
+              <p className="nota nota-error">
+                Motivo de {estado === 'rechazado' ? 'rechazo' : 'cancelación'}: {motivoTexto(p.motivoCancelacion)}
+              </p>
+            )}
             {p.notas && <p className="nota">Nota del cliente: {p.notas}</p>}
             {p.calificacion && (
               <p className="texto-secundario texto-chico">
@@ -260,11 +343,99 @@ function DetallePedido({ id }: { id: string }) {
               </ol>
             )}
           </Bloque>
+          {p.origen !== 'manual' && <ChatPedido pedido={p} />}
         </div>
       </div>
 
       <AccionesSoporte pedido={p} accion={accion} onCerrar={() => setAccion(null)} />
     </article>
+  );
+}
+
+function Fila({ dt, dd }: { dt: string; dd: string }) {
+  return (
+    <>
+      <dt>{dt}</dt>
+      <dd>{dd}</dd>
+    </>
+  );
+}
+
+// Los códigos de sistema no vienen en el catálogo público; el resto se traduce con él.
+const MOTIVOS_SISTEMA: Record<string, string> = {
+  tienda_no_respondio: 'La tienda no respondió a tiempo',
+  tienda_cerrada: 'La tienda no abrió para el pedido programado',
+};
+let catalogo: Record<string, string> = {};
+const motivoTexto = (c: string) => catalogo[c] ?? MOTIVOS_SISTEMA[c] ?? c.replace(/_/g, ' ');
+
+function useMotivos() {
+  const q = useQuery({ queryKey: ['motivos'], queryFn: () => datos(api.GET('/catalogos/motivos-cancelacion')), staleTime: Infinity });
+  if (q.data) catalogo = Object.fromEntries(Object.values(q.data).flat().map((m) => [m.codigo!, m.texto!]));
+  return q.data;
+}
+
+function ChatPedido({ pedido }: { pedido: Pedido }) {
+  const id = pedido.id!;
+  const cache = useQueryClient();
+  const { socket } = useTiempoReal();
+  const [texto, setTexto] = useState('');
+  const caja = useRef<HTMLOListElement>(null);
+  const mensajes = useQuery({ queryKey: ['pedido', id, 'mensajes'], queryFn: () => datos(api.GET('/pedidos/{id}/mensajes', { params: { path: { id } } })) });
+
+  useEffect(() => {
+    if (!socket) return;
+    const alLlegar = (m: { pedidoId: string }) => m.pedidoId === id && cache.invalidateQueries({ queryKey: ['pedido', id, 'mensajes'] });
+    socket.on('pedido:mensaje', alLlegar);
+    return () => {
+      socket.off('pedido:mensaje', alLlegar);
+    };
+  }, [socket, id, cache]);
+  useEffect(() => {
+    // Baja solo la caja del chat, sin mover el resto del panel.
+    if (caja.current) caja.current.scrollTop = caja.current.scrollHeight;
+  }, [mensajes.data?.length]);
+
+  const enviar = useMutation({
+    mutationFn: () => datos(api.POST('/pedidos/{id}/mensajes', { params: { path: { id } }, body: { texto: texto.trim() } })),
+    onSuccess: () => {
+      setTexto('');
+      cache.invalidateQueries({ queryKey: ['pedido', id, 'mensajes'] });
+    },
+  });
+
+  return (
+    <Bloque titulo="Chat del pedido">
+      {mensajes.isPending ? (
+        <Cargando />
+      ) : !mensajes.data?.length ? (
+        <p className="texto-secundario texto-chico">El cliente y el repartidor no se han escrito. Lo que escribas aquí les llega a los dos.</p>
+      ) : (
+        <ol className="chat" ref={caja}>
+          {mensajes.data.map((m) => (
+            <li key={m.id} className={`chat-mensaje chat-${m.autorRol === 'soporte' || m.autorRol === 'admin' ? 'soporte' : m.autorRol}`}>
+              <span className="texto-chico chat-autor">
+                {ROLES[m.autorRol!]} · {soloHora(m.creadoEn)}
+              </span>
+              <p>{m.texto}</p>
+            </li>
+          ))}
+        </ol>
+      )}
+      <form
+        className="chat-entrada"
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault();
+          if (texto.trim()) enviar.mutate();
+        }}
+      >
+        <input value={texto} onChange={(e) => setTexto(e.target.value)} maxLength={500} placeholder="Escribir como soporte" aria-label="Mensaje para el cliente y el repartidor" />
+        <button className="boton boton-primario boton-chico" disabled={!texto.trim() || enviar.isPending} aria-label="Enviar">
+          <Send size={14} aria-hidden />
+        </button>
+      </form>
+      {enviar.isError && <p className="error-formulario">{enviar.error instanceof ErrorApi ? enviar.error.message : 'No se pudo enviar'}</p>}
+    </Bloque>
   );
 }
 
@@ -308,19 +479,7 @@ function AccionesSoporte({ pedido, accion, onCerrar }: { pedido: Pedido; accion:
 
   return (
     <>
-      <DialogoMotivo
-        abierto={accion === 'cancelar'}
-        onCerrar={onCerrar}
-        titulo={`Cancelar ${pedido.folio}`}
-        descripcion="Se avisará al cliente, a la tienda y al repartidor. No se puede deshacer."
-        textoBoton="Cancelar pedido"
-        peligro
-        placeholder="Ej. El cliente no responde y la dirección no existe"
-        onConfirmar={async (motivo) => {
-          await datos(api.POST('/soporte/pedidos/{id}/cancelar', { params: path, body: { motivo } }));
-          listo(`${pedido.folio} cancelado`);
-        }}
-      />
+      <CancelarPedido pedido={pedido} abierto={accion === 'cancelar'} onCerrar={onCerrar} onListo={() => listo(`${pedido.folio} cancelado`)} />
       <DialogoMotivo
         abierto={accion === 'completar'}
         onCerrar={onCerrar}
@@ -405,6 +564,70 @@ function CorregirDireccion({ pedido, abierto, onCerrar, onListo }: { pedido: Ped
           </button>
           <button className="boton boton-primario" disabled={!punto || !direccion.trim() || !motivo.trim() || guardar.isPending}>
             {guardar.isPending ? 'Guardando…' : 'Guardar dirección'}
+          </button>
+        </div>
+      </form>
+    </Dialogo>
+  );
+}
+
+function CancelarPedido({ pedido, abierto, onCerrar, onListo }: { pedido: Pedido; abierto: boolean; onCerrar: () => void; onListo: () => void }) {
+  const motivos = useMotivos();
+  const [codigo, setCodigo] = useState('');
+  const [motivo, setMotivo] = useState('');
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (abierto) {
+      setCodigo('');
+      setMotivo('');
+      setError('');
+    }
+  }, [abierto]);
+
+  const cancelar = useMutation({
+    mutationFn: () =>
+      datos(api.POST('/soporte/pedidos/{id}/cancelar', { params: { path: { id: pedido.id! } }, body: { codigo, motivo: motivo.trim() || undefined } })),
+    onSuccess: () => {
+      onListo();
+      onCerrar();
+    },
+    onError: (e) => setError(e instanceof ErrorApi ? e.message : 'No se pudo cancelar'),
+  });
+  const necesitaTexto = codigo === 'otro';
+
+  return (
+    <Dialogo titulo={`Cancelar ${pedido.folio}`} abierto={abierto} onCerrar={onCerrar}>
+      <form
+        className="formulario"
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault();
+          cancelar.mutate();
+        }}
+      >
+        <p className="texto-secundario">
+          Se avisará al cliente, a la tienda y al repartidor. No se puede deshacer.
+          {pedido.pagoEstado === 'pagado' && ' El cobro con tarjeta se reembolsa solo.'}
+        </p>
+        <fieldset className="opciones">
+          <legend>Motivo</legend>
+          {motivos?.soporte?.map((m) => (
+            <label key={m.codigo} className="opcion">
+              <input type="radio" name="motivo" value={m.codigo} checked={codigo === m.codigo} onChange={() => setCodigo(m.codigo!)} required />
+              {m.texto}
+            </label>
+          ))}
+        </fieldset>
+        <label className="campo">
+          <span>{necesitaTexto ? 'Explica el motivo' : 'Detalle (opcional, queda en la bitácora)'}</span>
+          <textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={2} maxLength={500} required={necesitaTexto} placeholder="Ej. El cliente no responde y la dirección no existe" />
+        </label>
+        {error && <p className="error-formulario" role="alert">{error}</p>}
+        <div className="acciones-dialogo">
+          <button type="button" className="boton" onClick={onCerrar}>
+            Volver
+          </button>
+          <button className="boton boton-peligro" disabled={!codigo || (necesitaTexto && !motivo.trim()) || cancelar.isPending}>
+            {cancelar.isPending ? 'Cancelando…' : 'Cancelar pedido'}
           </button>
         </div>
       </form>
