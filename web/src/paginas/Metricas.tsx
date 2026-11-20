@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { api, datos } from '../api/cliente';
+import { api, datos, Esquemas } from '../api/cliente';
 import { Cargando, ErrorCarga } from '../componentes/Basicos';
+import { Barras, Linea, Ranking } from '../componentes/Graficas';
 import { dinero } from '../util/formato';
 
 const hoy = () => new Date().toLocaleDateString('en-CA'); // AAAA-MM-DD en hora local
@@ -25,6 +26,10 @@ export function Metricas() {
   const c = useQuery({
     queryKey: ['cancelaciones', desde, hasta],
     queryFn: () => datos(api.GET('/admin/cancelaciones', { params: { query: { desde: desde || undefined, hasta: hasta || undefined } } })),
+  });
+  const s = useQuery({
+    queryKey: ['metricas-series', desde, hasta],
+    queryFn: () => datos(api.GET('/admin/metricas/series', { params: { query: { desde: desde || undefined, hasta: hasta || undefined } } })),
   });
   const d = m.data;
   const tasa = d?.pedidosTotales ? Math.round(((d.pedidosEntregados ?? 0) / d.pedidosTotales) * 100) : null;
@@ -77,6 +82,7 @@ export function Metricas() {
             <Cifra valor={d?.pedidosEntregados} texto={tasa == null ? 'Entregados' : `Entregados (${tasa} %)`} />
             <Cifra valor={d?.pedidosCancelados} texto="Cancelados o rechazados" />
           </section>
+          {s.isPending ? <Cargando /> : s.isError ? <ErrorCarga error={s.error} onReintentar={() => s.refetch()} /> : <Series s={s.data} />}
           <h2 className="subtitulo">Al día de hoy</h2>
           <section className="cifras" aria-label="Al día de hoy">
             <Cifra valor={d?.tiendasActivas} texto="Tiendas activas" />
@@ -88,6 +94,68 @@ export function Metricas() {
         </>
       )}
     </div>
+  );
+}
+
+const diaCorto = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+const minutos = (n?: number | null) => (n == null ? '—' : n < 60 ? `${Math.round(n)} min` : `${Math.floor(n / 60)} h ${Math.round(n % 60)} min`);
+
+function Series({ s }: { s: Esquemas['SeriesMetricas'] }) {
+  const pagos = (s.tiempos.tarjeta ?? 0) + (s.tiempos.efectivo ?? 0);
+  const pctTarjeta = pagos ? Math.round(((s.tiempos.tarjeta ?? 0) / pagos) * 100) : null;
+  const cada = Math.max(1, Math.ceil(s.porDia.length / 8));
+  return (
+    <>
+      <section className="cifras cifras-compactas" aria-label="Tiempos y pagos">
+        <Cifra valor={minutos(s.tiempos.entregaMin)} texto="Del pedido a la entrega" />
+        <Cifra valor={minutos(s.tiempos.preparacionMin)} texto="Preparación en tienda" />
+        <Cifra valor={s.tiempos.ticketPromedio == null ? '—' : dinero(s.tiempos.ticketPromedio)} texto="Ticket promedio" />
+        <Cifra valor={pctTarjeta == null ? '—' : `${pctTarjeta} % / ${100 - pctTarjeta} %`} texto="Tarjeta / efectivo" />
+      </section>
+
+      <div className="inicio-columnas">
+        <section className="bloque">
+          <h3>Ventas entregadas por día</h3>
+          {s.porDia.length < 2 ? (
+            <p className="texto-secundario">Elige un periodo de al menos dos días para ver la tendencia.</p>
+          ) : (
+            <Linea
+              titulo="Ventas entregadas por día"
+              etiquetaCada={cada}
+              formato={dinero}
+              puntos={s.porDia.map((p) => ({ etiqueta: diaCorto(p.dia), valor: p.ventas, detalle: `${p.pedidos} pedidos · ${p.entregados} entregados · ${p.cancelados} cancelados` }))}
+            />
+          )}
+        </section>
+        <section className="bloque">
+          <h3>A qué hora piden</h3>
+          <Barras
+            titulo="Pedidos por hora del día"
+            etiquetaCada={3}
+            puntos={Array.from({ length: 24 }, (_, h) => ({ etiqueta: `${h}h`, valor: s.porHora.find((x) => x.hora === h)?.pedidos ?? 0, detalle: `pedidos de ${h}:00 a ${h}:59` }))}
+          />
+        </section>
+        <section className="bloque">
+          <h3>Tiendas que más venden</h3>
+          {s.topTiendas.length ? (
+            <Ranking formato={dinero} puntos={s.topTiendas.map((t) => ({ etiqueta: t.nombre, valor: t.ventas, detalle: `${t.pedidos} pedidos` }))} />
+          ) : (
+            <p className="texto-secundario">Sin ventas en el periodo.</p>
+          )}
+        </section>
+        <section className="bloque">
+          <h3>Repartidores con más entregas</h3>
+          {s.topRepartidores.length ? (
+            <Ranking
+              formato={(n) => `${n} entregas`}
+              puntos={s.topRepartidores.map((r) => ({ etiqueta: r.nombre, valor: r.entregas, detalle: r.calificacion != null ? `★ ${r.calificacion}` : undefined }))}
+            />
+          ) : (
+            <p className="texto-secundario">Sin entregas en el periodo.</p>
+          )}
+        </section>
+      </div>
+    </>
   );
 }
 

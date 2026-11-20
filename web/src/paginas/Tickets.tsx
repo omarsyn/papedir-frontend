@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, MessagesSquare, Package, Send } from 'lucide-react';
+import { ArrowLeft, MessagesSquare, Package, Plus, Send, X, Zap } from 'lucide-react';
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { api, datos, ErrorApi, EstadoTicket, Mensaje, Ticket } from '../api/cliente';
@@ -111,14 +111,29 @@ function DetalleTicket({ id }: { id: string }) {
   });
 
   const cambiar = useMutation({
-    mutationFn: (body: { estado?: EstadoTicket; asignarmelo?: boolean }) =>
+    mutationFn: (body: { estado?: EstadoTicket; asignarmelo?: boolean; atendidoPor?: string }) =>
       datos(api.PATCH('/soporte/tickets/{id}', { params: { path: { id } }, body })),
     onSuccess: (t, body) => {
       cache.setQueryData(['tickets', 'detalle', id], t);
       cache.invalidateQueries({ queryKey: ['tickets'] });
-      avisar(body.asignarmelo ? 'Tomaste el ticket' : `Ticket ${textoTicket(t.estado).toLowerCase()}`, 'exito');
+      avisar(
+        body.asignarmelo ? 'Tomaste el ticket' : body.atendidoPor ? `Ahora lo atiende ${t.atendidoPor?.nombre ?? 'otra persona'}` : `Ticket ${textoTicket(t.estado).toLowerCase()}`,
+        'exito',
+      );
     },
     onError: (e) => avisar(e instanceof ErrorApi ? e.message : 'No se pudo actualizar el ticket', 'error'),
+  });
+
+  const equipo = useQuery({
+    queryKey: ['equipo-activo'],
+    queryFn: async () => {
+      const [a, s] = await Promise.all([
+        datos(api.GET('/soporte/usuarios', { params: { query: { rol: 'admin', estado: 'activo', limit: 100 } } })),
+        datos(api.GET('/soporte/usuarios', { params: { query: { rol: 'soporte', estado: 'activo', limit: 100 } } })),
+      ]);
+      return [...(a.data ?? []), ...(s.data ?? [])];
+    },
+    staleTime: 5 * 60_000,
   });
 
   if (ticket.isPending) return <Cargando />;
@@ -149,6 +164,23 @@ function DetalleTicket({ id }: { id: string }) {
             <button className="boton boton-primario" disabled={cambiar.isPending} onClick={() => cambiar.mutate({ asignarmelo: true })}>
               Tomar ticket
             </button>
+          )}
+          {!cerrado && (
+            <select
+              className="selector"
+              value={t.atendidoPor?.id ?? ''}
+              disabled={cambiar.isPending}
+              onChange={(e) => e.target.value && cambiar.mutate({ atendidoPor: e.target.value })}
+              aria-label="Quién lo atiende"
+              title="Pasar el ticket a alguien del equipo"
+            >
+              {!t.atendidoPor && <option value="">Sin asignar</option>}
+              {equipo.data?.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.id === usuario?.id ? `${p.nombre} (tú)` : p.nombre}
+                </option>
+              ))}
+            </select>
           )}
           {(t.estado === 'abierto' || t.estado === 'en_atencion') && (
             <button className="boton" disabled={cambiar.isPending} onClick={() => cambiar.mutate({ estado: 'resuelto' })}>
@@ -183,7 +215,7 @@ function DetalleTicket({ id }: { id: string }) {
       )}
 
       <Conversacion ticket={t} mensajes={mensajes.data ?? []} cargando={mensajes.isPending} />
-      <Responder ticketId={id} cerrado={cerrado} />
+      <Responder ticketId={id} cerrado={cerrado} nombre={t.creadoPor?.nombre} />
     </article>
   );
 }
@@ -225,7 +257,77 @@ function Conversacion({ ticket, mensajes, cargando }: { ticket: Ticket; mensajes
   );
 }
 
-function Responder({ ticketId, cerrado }: { ticketId: string; cerrado: boolean }) {
+const RAPIDAS_BASE = [
+  'Hola {nombre}, gracias por escribirnos. Ya estoy revisando tu caso.',
+  '¿Me compartes una foto o captura para revisarlo mejor?',
+  'Ya hablé con la tienda y está preparando tu pedido de nuevo.',
+  'Te hicimos el reembolso. En tarjeta puede tardar de 5 a 10 días hábiles en verse.',
+  'Corregí la dirección de entrega; el repartidor ya la tiene actualizada.',
+  'Quedó resuelto. Si necesitas algo más, responde aquí mismo.',
+];
+const CLAVE_RAPIDAS = 'papedir.respuestas-rapidas';
+function leerPropias(): string[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(CLAVE_RAPIDAS) ?? '[]');
+    return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+function guardarPropias(v: string[]) {
+  try {
+    localStorage.setItem(CLAVE_RAPIDAS, JSON.stringify(v));
+  } catch {
+    // Sin almacenamiento: duran hasta recargar.
+  }
+}
+
+function RespuestasRapidas({ nombre, onElegir, actual }: { nombre?: string; onElegir: (t: string) => void; actual: string }) {
+  const [abierto, setAbierto] = useState(false);
+  const [propias, setPropias] = useState(leerPropias);
+  const cambiar = (v: string[]) => {
+    setPropias(v);
+    guardarPropias(v);
+  };
+  const usar = (t: string) => {
+    onElegir(t.replace('{nombre}', (nombre ?? '').split(' ')[0] || ''));
+    setAbierto(false);
+  };
+  return (
+    <div className="rapidas">
+      <button type="button" className="boton boton-chico" onClick={() => setAbierto((a) => !a)} aria-expanded={abierto}>
+        <Zap size={14} aria-hidden /> Respuestas rápidas
+      </button>
+      {abierto && (
+        <div className="rapidas-menu" role="menu">
+          {[...propias.map((t) => ({ t, propia: true })), ...RAPIDAS_BASE.map((t) => ({ t, propia: false }))].map(({ t, propia }) => (
+            <div key={(propia ? 'p' : 'b') + t} className="rapidas-item">
+              <button type="button" role="menuitem" onClick={() => usar(t)}>
+                {t}
+              </button>
+              {propia && (
+                <button type="button" className="boton-icono" aria-label="Quitar de mis respuestas" onClick={() => cambiar(propias.filter((x) => x !== t))}>
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            type="button"
+            className="rapidas-guardar"
+            disabled={!actual.trim() || propias.includes(actual.trim())}
+            onClick={() => cambiar([actual.trim(), ...propias].slice(0, 20))}
+            title="Escribe una respuesta y guárdala para reutilizarla. Usa {nombre} para el nombre de quien escribió."
+          >
+            <Plus size={14} aria-hidden /> Guardar lo que escribí como respuesta rápida
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Responder({ ticketId, cerrado, nombre }: { ticketId: string; cerrado: boolean; nombre?: string }) {
   const [texto, setTexto] = useState('');
   const cache = useQueryClient();
   const { avisar } = useAvisos();
@@ -250,6 +352,7 @@ function Responder({ ticketId, cerrado }: { ticketId: string; cerrado: boolean }
   if (cerrado) return <p className="responder-cerrado">El ticket está cerrado. Reábrelo para escribir.</p>;
   return (
     <form className="responder" onSubmit={alEnviar}>
+      <RespuestasRapidas nombre={nombre} actual={texto} onElegir={(t) => setTexto((x) => (x.trim() ? `${x.trim()} ${t}` : t))} />
       <textarea
         value={texto}
         onChange={(e) => setTexto(e.target.value)}

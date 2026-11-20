@@ -4,6 +4,7 @@ import { io, Socket } from 'socket.io-client';
 import { API_URL, renovarSesion, sesion } from '../api/cliente';
 import { useAvisos } from '../componentes/Avisos';
 import { useSesion } from '../sesion/Sesion';
+import { sonar } from '../util/preferencias';
 
 type Contexto = { socket: Socket | null; conectado: boolean };
 const Ctx = createContext<Contexto>({ socket: null, conectado: false });
@@ -38,20 +39,29 @@ export function ProveedorTiempoReal({ children }: { children: ReactNode }) {
     s.on('ticket:nuevo', (t: { folio: string; asunto: string }) => {
       cache.invalidateQueries({ queryKey: ['tickets'] });
       avisar(`Ticket nuevo ${t.folio}: ${t.asunto}`);
+      sonar('aviso');
     });
     s.on('ticket:mensaje', (m: { ticketId: string }) => {
       cache.invalidateQueries({ queryKey: ['mensajes', m.ticketId] });
       cache.invalidateQueries({ queryKey: ['tickets'] });
     });
     s.on('ticket:actualizado', () => cache.invalidateQueries({ queryKey: ['tickets'] }));
-    s.on('pedido:nuevo', () => cache.invalidateQueries({ queryKey: ['pedidos'] }));
+    s.on('pedido:nuevo', () => {
+      cache.invalidateQueries({ queryKey: ['pedidos'] });
+      cache.invalidateQueries({ queryKey: ['tablero'] });
+      cache.invalidateQueries({ queryKey: ['mapa'] });
+    });
     s.on('pedido:actualizado', (p: { pedidoId: string }) => {
       cache.invalidateQueries({ queryKey: ['pedidos'] });
       cache.invalidateQueries({ queryKey: ['pedido', p.pedidoId] });
+      cache.invalidateQueries({ queryKey: ['tablero'] });
+      cache.invalidateQueries({ queryKey: ['mapa'] });
     });
     s.on('pedido:sin_repartidor', (p: { folio: string }) => {
       cache.invalidateQueries({ queryKey: ['pedidos'] });
       avisar(`${p.folio} lleva 15 minutos sin repartidor`, 'alerta');
+      sonar('alerta');
+      cache.invalidateQueries({ queryKey: ['tablero'] });
     });
 
     return () => {

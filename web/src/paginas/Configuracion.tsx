@@ -9,6 +9,7 @@ import { useAvisos } from '../componentes/Avisos';
 import { Cargando, Chip, ErrorCarga, Vacio } from '../componentes/Basicos';
 import { Dialogo } from '../componentes/Dialogo';
 import { dinero, soloDia } from '../util/formato';
+import { Notificaciones } from './Notificaciones';
 
 type Recargos = Esquemas['Recargos'];
 type Zona = Esquemas['Zona'];
@@ -18,6 +19,7 @@ const SECCIONES = [
   { a: 'tarifas', texto: 'Tarifas y comisiones' },
   { a: 'zonas', texto: 'Zonas de cobertura' },
   { a: 'cupones', texto: 'Cupones' },
+  { a: 'notificaciones', texto: 'Notificaciones' },
 ];
 
 const errorTexto = (e: unknown, t: string) => (e instanceof ErrorApi ? e.message : t);
@@ -37,7 +39,7 @@ export function Configuracion() {
           </NavLink>
         ))}
       </nav>
-      {seccion === 'zonas' ? <Zonas /> : seccion === 'cupones' ? <Cupones /> : <Tarifas />}
+      {seccion === 'zonas' ? <Zonas /> : seccion === 'cupones' ? <Cupones /> : seccion === 'notificaciones' ? <Notificaciones /> : <Tarifas />}
     </div>
   );
 }

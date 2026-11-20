@@ -1283,6 +1283,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/repartidor/viaje-actual/ruta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Trazo por calles del viaje activo para dibujarlo en el mapa
+         * @description Desde la última ubicación reportada (`PUT /repartidor/ubicacion`) por las paradas pendientes, en el orden de `paradas`. Se calcula con OSRM (OpenStreetMap). Si OSRM no responde, `fuente` es `linea_recta` y `puntos` son las paradas, para que la app siempre tenga qué dibujar. Basta pedirla al cargar el viaje y después de cada marca; la API la guarda 2 minutos.
+         */
+        get: operations["obtenerRutaDelViaje"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/repartidor/pedidos/{id}/llegada-tienda": {
         parameters: {
             query?: never;
@@ -2292,6 +2312,259 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/soporte/tablero": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resumen de inicio del panel, con alertas
+         * @description Cifras del momento y alertas de lo que necesita atención: pedidos listos con más de 15 min sin repartidor, pedidos que la tienda no ha aceptado en 3 min, reembolsos fallidos y tickets con más de 30 min sin atender.
+         */
+        get: operations["obtenerTablero"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/tiendas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Todas las tiendas, con dueño, plan, estado y ventas de los últimos 30 días */
+        get: operations["listarTiendasPanel"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/tiendas/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** Ficha completa de una tienda */
+        get: operations["obtenerTiendaPanel"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/tiendas/{id}/pausa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Pausar o reanudar una tienda sin banear la cuenta
+         * @description Con `minutos` > 0 deja de recibir pedidos hasta esa hora; con 0 quita la pausa. Se le avisa al dueño.
+         */
+        put: operations["pausarTienda"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/repartidores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Repartidores con conexión, vehículo, entregas de hoy y saldo */
+        get: operations["listarRepartidoresPanel"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/mapa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mapa de despacho en vivo
+         * @description Repartidores conectados o en viaje, pedidos activos y tiendas que reciben pedidos. Después, la sala `soporte` recibe `mapa:repartidor` con cada ubicación nueva y `pedido:actualizado` con cada cambio.
+         */
+        get: operations["obtenerMapaDespacho"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/resenas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Todas las reseñas, para moderarlas */
+        get: operations["listarResenasPanel"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/resenas/{pedidoId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pedidoId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Ocultar o volver a mostrar el texto de una reseña
+         * @description Una reseña oculta conserva sus estrellas en el promedio, pero el público ya no ve su comentario ni la respuesta.
+         */
+        patch: operations["moderarResena"];
+        trace?: never;
+    };
+    "/admin/usuarios/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Eliminar una cuenta (anonimiza sus datos)
+         * @description Igual que cuando el usuario elimina su cuenta; sus pedidos y pagos se conservan sin datos personales.
+         */
+        delete: operations["eliminarUsuarioAdmin"];
+        options?: never;
+        head?: never;
+        /**
+         * Corregir los datos de una cuenta
+         * @description El rol solo se cambia entre soporte y admin. Cambiar correo o rol cierra sus sesiones.
+         */
+        patch: operations["editarUsuarioAdmin"];
+        trace?: never;
+    };
+    "/admin/usuarios/{id}/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Poner una contraseña temporal y cerrar sus sesiones */
+        put: operations["fijarPasswordAdmin"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/metricas/series": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Series para las gráficas de métricas */
+        get: operations["obtenerSeriesMetricas"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/notificaciones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enviar una notificación push general
+         * @description `tema`: a un tema de FCM (novedades, promociones, tiendas, repartidores). `rol`: a todas las cuentas activas de un rol; también queda en su bandeja de notificaciones.
+         */
+        post: operations["enviarNotificacionGeneral"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/bitacora": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Acciones del equipo de soporte y admin */
+        get: operations["listarBitacoraAdmin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3071,6 +3344,288 @@ export interface components {
              * @example 216
              */
             totalACobrar?: number;
+        };
+        Tablero: {
+            pedidosEnCurso: number;
+            pedidosProgramados: number;
+            pedidosHoy: number;
+            ventasHoy: number;
+            /** @description Ventas de ayer hasta esta misma hora */
+            ventasAyerMismaHora: number;
+            ticketsSinAtender: number;
+            ticketsEnAtencion: number;
+            cuentasPorAprobar: number;
+            documentosPorRevisar: number;
+            repartidoresConectados: number;
+            tiendasAbiertas: number;
+            porEstado: {
+                estado: components["schemas"]["EstadoPedido"];
+                total: number;
+            }[];
+            alertas: {
+                /** @enum {string} */
+                tipo: "sin_repartidor" | "tienda_sin_responder" | "reembolso_fallido" | "ticket_esperando";
+                /** Format: uuid */
+                pedidoId?: string;
+                /** Format: uuid */
+                ticketId?: string;
+                /** @example R-000053 */
+                folio: string;
+                /** Format: date-time */
+                desde: string;
+            }[];
+        };
+        TiendaPanel: {
+            /** Format: uuid */
+            id: string;
+            nombre: string;
+            categoria: string;
+            imagenUrl?: string | null;
+            direccion: string;
+            telefono?: string | null;
+            /**
+             * @description Plan vigente
+             * @enum {string}
+             */
+            plan: "basico" | "pro" | "premium";
+            /** Format: date-time */
+            planHasta?: string | null;
+            calificacion?: number | null;
+            /** @description Interruptor de la tienda */
+            abierta: boolean;
+            /** @description Recibe pedidos en este momento (interruptor, horario y pausa) */
+            abiertaAhora: boolean;
+            /** Format: date-time */
+            pausadaHasta?: string | null;
+            /** @description Comisión propia; null usa la general */
+            comisionPct?: number | null;
+            dueno: {
+                /** Format: uuid */
+                id: string;
+                nombre: string;
+                email: string;
+                telefono?: string | null;
+                estado: components["schemas"]["EstadoCuenta"];
+            };
+            pedidos30d: number;
+            /** @description Productos vendidos en 30 días */
+            ventas30d: number;
+            resenas: number;
+            /** Format: date-time */
+            creadoEn: string;
+        };
+        FichaTienda: components["schemas"]["Tienda"] & {
+            /** Format: date-time */
+            pausadaHasta?: string | null;
+            dueno: components["schemas"]["Usuario"];
+            comision: {
+                propia?: number | null;
+                general: number;
+                aplicada: number;
+            };
+            ultimos30Dias: {
+                entregados?: number;
+                rechazados?: number;
+                cancelados?: number;
+                ventas?: number;
+                preparacionMin?: number | null;
+            };
+            sucursales: {
+                /** Format: uuid */
+                id?: string;
+                nombre?: string;
+                direccion?: string;
+            }[];
+            menu: components["schemas"]["MenuCategoria"][];
+            pedidos: {
+                /** Format: uuid */
+                id: string;
+                folio: string;
+                estado: components["schemas"]["EstadoPedido"];
+                total: number;
+                /** @enum {string} */
+                metodoPago?: "efectivo" | "tarjeta";
+                cliente?: string;
+                /** Format: date-time */
+                creadoEn: string;
+            }[];
+            resenas: components["schemas"]["ResenaPanel"][];
+            suscripciones: {
+                plan?: string;
+                monto?: number;
+                /** Format: date-time */
+                inicio?: string;
+                /** Format: date-time */
+                fin?: string;
+                /** Format: date-time */
+                creadoEn?: string;
+            }[];
+        };
+        RepartidorPanel: {
+            /** Format: uuid */
+            id: string;
+            nombre: string;
+            email: string;
+            telefono?: string | null;
+            estado: components["schemas"]["EstadoCuenta"];
+            fotoUrl?: string | null;
+            calificacion?: number | null;
+            conectado: boolean;
+            disponible: boolean;
+            /** Format: date-time */
+            ubicacionEn?: string | null;
+            ubicacion?: components["schemas"]["Coordenadas"] | null;
+            vehiculo?: components["schemas"]["Vehiculo"] | null;
+            pedidosEnCurso: number;
+            entregasHoy: number;
+            entregasTotales: number;
+            /** @description Positivo: le debe a PaPedir */
+            saldo: number;
+            /** Format: date-time */
+            creadoEn: string;
+        };
+        MapaDespacho: {
+            repartidores: {
+                /** Format: uuid */
+                id: string;
+                nombre: string;
+                ubicacion: components["schemas"]["Coordenadas"];
+                /** Format: date-time */
+                ubicacionEn?: string | null;
+                conectado: boolean;
+                pedidosEnCurso: number;
+            }[];
+            pedidos: {
+                /** Format: uuid */
+                id: string;
+                folio: string;
+                estado: components["schemas"]["EstadoPedido"];
+                /** Format: uuid */
+                repartidorId?: string | null;
+                cliente?: string;
+                destino: components["schemas"]["Coordenadas"];
+                tienda: {
+                    /** Format: uuid */
+                    id: string;
+                    nombre: string;
+                    ubicacion: components["schemas"]["Coordenadas"];
+                };
+                /** @description Minutos listo sin repartidor */
+                minutosEsperando?: number | null;
+            }[];
+            tiendas: {
+                /** Format: uuid */
+                id: string;
+                nombre: string;
+                ubicacion: components["schemas"]["Coordenadas"];
+            }[];
+        };
+        ResenaPanel: {
+            /** Format: uuid */
+            pedidoId: string;
+            folio: string;
+            estrellas: number;
+            estrellasRepartidor: number;
+            comentario?: string | null;
+            respuesta?: string | null;
+            /** Format: date-time */
+            respondidoEn?: string | null;
+            /** Format: date-time */
+            creadoEn: string;
+            oculta: boolean;
+            ocultaMotivo?: string | null;
+            /** Format: date-time */
+            ocultaEn?: string | null;
+            /** @description Nombre de quien la ocultó */
+            ocultaPor?: string | null;
+            tienda: {
+                /** Format: uuid */
+                id?: string;
+                nombre?: string;
+            };
+            cliente: {
+                /** Format: uuid */
+                id?: string | null;
+                nombre?: string | null;
+            };
+        };
+        SeriesMetricas: {
+            porDia: {
+                /** Format: date */
+                dia: string;
+                pedidos: number;
+                entregados: number;
+                cancelados: number;
+                ventas: number;
+            }[];
+            porHora: {
+                hora: number;
+                pedidos: number;
+            }[];
+            topTiendas: {
+                /** Format: uuid */
+                id: string;
+                nombre: string;
+                pedidos: number;
+                ventas: number;
+            }[];
+            topRepartidores: {
+                /** Format: uuid */
+                id: string;
+                nombre: string;
+                entregas: number;
+                calificacion?: number | null;
+            }[];
+            tiempos: {
+                /** @description Promedio de creado a entregado */
+                entregaMin?: number | null;
+                /** @description Promedio de creado a listo */
+                preparacionMin?: number | null;
+                ticketPromedio?: number | null;
+                tarjeta?: number;
+                efectivo?: number;
+            };
+        };
+        AccionInterna: {
+            /** Format: uuid */
+            id: string;
+            /** @example Baneó una cuenta */
+            accion: string;
+            /** @example POST */
+            metodo: string;
+            /** @example /soporte/usuarios/6f1c…/banear */
+            ruta: string;
+            /** Format: uuid */
+            recursoId?: string | null;
+            /** @description Cuerpo enviado, sin contraseñas ni tokens */
+            detalle?: {
+                [key: string]: unknown;
+            } | null;
+            estadoHttp: number;
+            /** Format: date-time */
+            creadoEn: string;
+            actor: {
+                /** Format: uuid */
+                id?: string | null;
+                nombre?: string | null;
+                rol?: string;
+            };
+        };
+        RutaViaje: {
+            /**
+             * @description `calles`: trazo real por calles. `linea_recta`: OSRM no respondió y se unen las paradas.
+             * @enum {string}
+             */
+            fuente: "calles" | "linea_recta";
+            /** @description Puntos de la polilínea, en orden. */
+            puntos: components["schemas"]["Coordenadas"][];
+            /** @example 3420 */
+            metros: number | null;
+            /**
+             * @description Tiempo estimado manejando
+             * @example 540
+             */
+            segundos: number | null;
         };
         Viaje: {
             /** Format: uuid */
@@ -4304,6 +4859,8 @@ export interface operations {
                             pedidoId?: string;
                             calificacion?: number;
                             comentario?: string | null;
+                            /** @description Oculta por moderación: comentario y respuesta llegan en null */
+                            oculta?: boolean;
                             /**
                              * @description Nombre e inicial del apellido
                              * @example Ana L.
@@ -5787,6 +6344,33 @@ export interface operations {
             };
         };
     };
+    obtenerRutaDelViaje: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RutaViaje"];
+                };
+            };
+            /** @description Sin viaje activo */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     marcarLlegadaTienda: {
         parameters: {
             query?: never;
@@ -6645,6 +7229,11 @@ export interface operations {
                 "application/json": {
                     estado?: components["schemas"]["EstadoTicket"];
                     asignarmelo?: boolean;
+                    /**
+                     * Format: uuid
+                     * @description Pasar el ticket a otra persona del equipo (soporte o admin)
+                     */
+                    atendidoPor?: string;
                 };
             };
         };
@@ -7416,6 +8005,433 @@ export interface operations {
                         repartidoresActivos?: number;
                         /** @example 3 */
                         ticketsAbiertos?: number;
+                    };
+                };
+            };
+        };
+    };
+    obtenerTablero: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Tablero"];
+                };
+            };
+        };
+    };
+    listarTiendasPanel: {
+        parameters: {
+            query?: {
+                /** @description Tienda, dueño o correo */
+                q?: string;
+                /** @description Estado de la cuenta del dueño */
+                estado?: components["schemas"]["EstadoCuenta"];
+                plan?: "basico" | "pro" | "premium";
+                /** @description Si recibe pedidos ahora */
+                abierta?: "si" | "no";
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TiendaPanel"][];
+                        meta: components["schemas"]["PaginaMeta"];
+                    };
+                };
+            };
+        };
+    };
+    obtenerTiendaPanel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FichaTienda"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    pausarTienda: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example 60 */
+                    minutos: number;
+                    /** @example Varias quejas por pedidos incompletos */
+                    motivo: string;
+                };
+            };
+        };
+        responses: {
+            /** @description La ficha actualizada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FichaTienda"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+        };
+    };
+    listarRepartidoresPanel: {
+        parameters: {
+            query?: {
+                /** @description Nombre, correo, teléfono o placa */
+                q?: string;
+                estado?: components["schemas"]["EstadoCuenta"];
+                /** @description Disponible y con ubicación de los últimos 5 min */
+                conectado?: "si" | "no";
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["RepartidorPanel"][];
+                        meta: components["schemas"]["PaginaMeta"];
+                    };
+                };
+            };
+        };
+    };
+    obtenerMapaDespacho: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MapaDespacho"];
+                };
+            };
+        };
+    };
+    listarResenasPanel: {
+        parameters: {
+            query?: {
+                /** @description Comentario, tienda o cliente */
+                q?: string;
+                estrellas?: number;
+                ocultas?: "si" | "no";
+                tiendaId?: string;
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ResenaPanel"][];
+                        meta: components["schemas"]["PaginaMeta"];
+                    };
+                };
+            };
+        };
+    };
+    moderarResena: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pedidoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    oculta: boolean;
+                    /**
+                     * @description Obligatorio al ocultar
+                     * @example Lenguaje ofensivo
+                     */
+                    motivo?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResenaPanel"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    eliminarUsuarioAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    motivo: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Eliminada */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `TIENE_PEDIDOS_ACTIVOS`, `ULTIMO_ADMIN` o `CUENTA_ELIMINADA` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    editarUsuarioAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    nombre?: string;
+                    telefono?: string;
+                    /** Format: email */
+                    email?: string;
+                    /** @enum {string} */
+                    rol?: "soporte" | "admin";
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Usuario"];
+                };
+            };
+            /** @description `EMAIL_EN_USO`, `ULTIMO_ADMIN` o `CUENTA_ELIMINADA` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    fijarPasswordAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Lista */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `CUENTA_SOCIAL`: entra con Google o GitHub */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    obtenerSeriesMetricas: {
+        parameters: {
+            query?: {
+                desde?: string;
+                hasta?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeriesMetricas"];
+                };
+            };
+        };
+    };
+    enviarNotificacionGeneral: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    destino: "tema" | "rol";
+                    /** @enum {string} */
+                    tema?: "novedades" | "promociones" | "tiendas" | "repartidores";
+                    /** @enum {string} */
+                    rol?: "cliente" | "tienda" | "repartidor";
+                    /** @example Hoy envío gratis */
+                    titulo: string;
+                    /** @example Usa el cupón ENVIOGRATIS en compras desde $150 */
+                    cuerpo: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        destino: "tema" | "rol";
+                        tema?: string;
+                        rol?: string;
+                        destinatarios?: number;
+                        /**
+                         * @description `simulada`: la API no tiene Firebase configurado
+                         * @enum {string}
+                         */
+                        modo: "enviada" | "simulada";
+                    };
+                };
+            };
+        };
+    };
+    listarBitacoraAdmin: {
+        parameters: {
+            query?: {
+                actorId?: string;
+                q?: string;
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AccionInterna"][];
+                        meta: components["schemas"]["PaginaMeta"];
                     };
                 };
             };

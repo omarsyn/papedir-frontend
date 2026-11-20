@@ -3,6 +3,7 @@ import './estilos/base.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { aplicarTema } from './util/preferencias';
 import { App } from './App';
 import { ErrorApi } from './api/cliente';
 import { ProveedorAvisos } from './componentes/Avisos';
@@ -17,6 +18,7 @@ const cache = new QueryClient({
   },
 });
 
+aplicarTema();
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={cache}>
