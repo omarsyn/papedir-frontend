@@ -5,6 +5,8 @@ import { api, datos, ErrorApi, EstadoCuenta, Rol, Usuario } from '../api/cliente
 import { useAvisos } from '../componentes/Avisos';
 import { Cargando, Chip, ErrorCarga, Paginacion, Vacio } from '../componentes/Basicos';
 import { DialogoMotivo } from '../componentes/Dialogo';
+import { FichaCuenta } from '../componentes/FichaCuenta';
+import { useNavigate, useParams } from 'react-router';
 import { useSesion } from '../sesion/Sesion';
 import { ESTADOS_CUENTA, ROLES, soloDia } from '../util/formato';
 
@@ -13,9 +15,12 @@ const PESTANAS: { valor: EstadoCuenta; texto: string }[] = [
   { valor: 'pendiente_aprobacion', texto: 'Por aprobar' },
   { valor: 'activo', texto: 'Activas' },
   { valor: 'baneado', texto: 'Baneadas' },
+  { valor: 'eliminado', texto: 'Eliminadas' },
 ];
 
 export function Cuentas() {
+  const { id } = useParams();
+  const navegar = useNavigate();
   const { usuario: yo, esAdmin } = useSesion();
   const { avisar } = useAvisos();
   const cache = useQueryClient();
@@ -63,7 +68,9 @@ export function Cuentas() {
     <div className="pagina">
       <header className="pagina-cabecera">
         <h1>Cuentas</h1>
-        <p className="texto-secundario">Tiendas y repartidores nuevos esperan aquí a que alguien de soporte los apruebe.</p>
+        <p className="texto-secundario">
+          Tiendas y repartidores nuevos esperan aquí a que alguien de soporte los apruebe. Abre una cuenta para ver sus documentos y su historial.
+        </p>
       </header>
 
       <div className="barra-herramientas">
@@ -131,7 +138,11 @@ export function Cuentas() {
             <tbody>
               {lista.data.data.map((u) => (
                 <tr key={u.id}>
-                  <td className="celda-fuerte">{u.nombre}</td>
+                  <td className="celda-fuerte">
+                    <button className="enlace-boton" onClick={() => navegar(`/cuentas/${u.id}`)}>
+                      {u.nombre}
+                    </button>
+                  </td>
                   <td>{ROLES[u.rol!]}</td>
                   <td>
                     <div>{u.email}</div>
@@ -139,7 +150,7 @@ export function Cuentas() {
                   </td>
                   <td className="texto-secundario">{soloDia(u.creadoEn)}</td>
                   <td>
-                    <Chip tono={u.estado === 'activo' ? 'exito' : u.estado === 'baneado' ? 'error' : 'alerta'}>{ESTADOS_CUENTA[u.estado!]}</Chip>
+                    <Chip tono={u.estado === 'activo' ? 'exito' : u.estado === 'pendiente_aprobacion' ? 'alerta' : 'error'}>{ESTADOS_CUENTA[u.estado!]}</Chip>
                   </td>
                   <td className="celda-acciones">
                     {u.estado === 'pendiente_aprobacion' && (
@@ -147,7 +158,7 @@ export function Cuentas() {
                         Aprobar
                       </button>
                     )}
-                    {u.estado === 'baneado' ? (
+                    {u.estado === 'eliminado' ? null : u.estado === 'baneado' ? (
                       <button className="boton boton-chico" disabled={desbanear.isPending} onClick={() => desbanear.mutate(u.id!)}>
                         Quitar baneo
                       </button>
@@ -166,6 +177,8 @@ export function Cuentas() {
         </div>
       )}
       <Paginacion pagina={pagina} total={lista.data?.meta?.total ?? 0} limite={LIMITE} onCambiar={setPagina} />
+
+      {id && <FichaCuenta key={id} id={id} onCerrar={() => navegar('/cuentas')} />}
 
       <DialogoMotivo
         abierto={!!aBanear}

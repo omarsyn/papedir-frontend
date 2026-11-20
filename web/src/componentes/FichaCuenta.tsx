@@ -1,0 +1,252 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ExternalLink, FileText, Lock } from 'lucide-react';
+import { useState } from 'react';
+import { Link } from 'react-router';
+import { api, datos, ErrorApi, Esquemas } from '../api/cliente';
+import { useSesion } from '../sesion/Sesion';
+import { dinero, ESTADOS_CUENTA, EVENTOS_CUENTA, fecha, PROVEEDORES, ROLES, soloDia } from '../util/formato';
+import { useAvisos } from './Avisos';
+import { Cargando, Chip, ErrorCarga } from './Basicos';
+import { Dialogo, DialogoMotivo } from './Dialogo';
+
+type Documento = Esquemas['Documento'];
+
+/** Todo lo que soporte necesita de una cuenta: datos, documentos por revisar, saldo y su historial. */
+export function FichaCuenta({ id, onCerrar }: { id: string; onCerrar: () => void }) {
+  const { esAdmin } = useSesion();
+  const { avisar } = useAvisos();
+  const cache = useQueryClient();
+  const [viendo, setViendo] = useState<{ doc: Documento; url: string } | null>(null);
+  const [aRechazar, setARechazar] = useState<Documento | null>(null);
+
+  const ficha = useQuery({ queryKey: ['usuario', id], queryFn: () => datos(api.GET('/soporte/usuarios/{id}', { params: { path: { id } } })) });
+  const eventos = useQuery({ queryKey: ['usuario', id, 'eventos'], queryFn: () => datos(api.GET('/soporte/usuarios/{id}/eventos', { params: { path: { id } } })) });
+  const u = ficha.data;
+  const conDocumentos = u?.rol === 'repartidor' || u?.rol === 'tienda';
+  const documentos = useQuery({
+    queryKey: ['usuario', id, 'documentos'],
+    queryFn: () => datos(api.GET('/soporte/usuarios/{id}/documentos', { params: { path: { id } } })),
+    enabled: conDocumentos,
+  });
+  const saldo = useQuery({
+    queryKey: ['saldo', id],
+    queryFn: () => datos(api.GET('/admin/usuarios/{id}/saldo', { params: { path: { id }, query: { limit: 1 } } })),
+    enabled: esAdmin && conDocumentos,
+  });
+
+  const recargar = (texto: string) => {
+    cache.invalidateQueries({ queryKey: ['usuario', id] });
+    cache.invalidateQueries({ queryKey: ['usuarios'] });
+    avisar(texto, 'exito');
+  };
+  const fallo = (e: unknown, texto: string) => avisar(e instanceof ErrorApi ? e.message : texto, 'error');
+
+  const desbloquear = useMutation({
+    mutationFn: () => datos(api.POST('/soporte/usuarios/{id}/desbloquear', { params: { path: { id } } })),
+    onSuccess: () => recargar('Cuenta desbloqueada'),
+    onError: (e) => fallo(e, 'No se pudo desbloquear'),
+  });
+  const ver = useMutation({
+    mutationFn: async (doc: Documento) => ({ doc, url: (await datos(api.GET('/soporte/documentos/{id}/archivo', { params: { path: { id: doc.id! } } }))).url! }),
+    onSuccess: setViendo,
+    onError: (e) => fallo(e, 'No se pudo abrir el documento'),
+  });
+  const aprobar = useMutation({
+    mutationFn: (doc: Documento) => datos(api.POST('/soporte/documentos/{id}/revisar', { params: { path: { id: doc.id! } }, body: { aprobado: true } })),
+    onSuccess: (d) => {
+      setViendo(null);
+      recargar(`${d.nombre} aprobado`);
+    },
+    onError: (e) => fallo(e, 'No se pudo aprobar'),
+  });
+
+  const bloqueada = !!u?.bloqueadoHasta;
+
+  return (
+    <Dialogo titulo={u?.nombre ?? 'Cuenta'} abierto onCerrar={onCerrar} ancho={820}>
+      {ficha.isPending ? (
+        <Cargando />
+      ) : ficha.isError ? (
+        <ErrorCarga error={ficha.error} onReintentar={() => ficha.refetch()} />
+      ) : (
+        <div className="ficha">
+          <div className="ficha-chips">
+            <Chip>{ROLES[u!.rol!]}</Chip>
+            <Chip tono={u!.estado === 'activo' ? 'exito' : u!.estado === 'pendiente_aprobacion' ? 'alerta' : 'error'}>{ESTADOS_CUENTA[u!.estado!]}</Chip>
+            {bloqueada && (
+              <Chip tono="error">
+                <Lock size={12} aria-hidden /> Bloqueada hasta {fecha(u!.bloqueadoHasta)}
+              </Chip>
+            )}
+            {u!.rol === 'repartidor' && u!.calificacion != null && <Chip tono="activo">★ {u!.calificacion}</Chip>}
+          </div>
+
+          {u!.motivoBaneo && <p className="nota">Motivo del baneo: {u!.motivoBaneo}</p>}
+          {bloqueada && (
+            <div className="aviso-linea">
+              <p>Se equivocó 5 veces de contraseña. Se desbloquea sola o puedes hacerlo ahora si confirmaste que es la persona.</p>
+              <button className="boton boton-chico" disabled={desbloquear.isPending} onClick={() => desbloquear.mutate()}>
+                Desbloquear
+              </button>
+            </div>
+          )}
+
+          <div className="ficha-rejilla">
+            <section className="bloque">
+              <h3>Datos</h3>
+              <dl className="datos">
+                <dt>Correo</dt>
+                <dd>
+                  {u!.email} {u!.emailVerificado ? <Chip tono="exito">Verificado</Chip> : <Chip>Sin verificar</Chip>}
+                </dd>
+                <dt>Teléfono</dt>
+                <dd>{u!.telefono ?? '—'}</dd>
+                <dt>Entra con</dt>
+                <dd>{PROVEEDORES[u!.proveedor ?? 'local'] ?? u!.proveedor}</dd>
+                <dt>Alta</dt>
+                <dd>{soloDia(u!.creadoEn)}</dd>
+                <dt>Términos</dt>
+                <dd>{u!.terminosVersion ? `Versión ${u!.terminosVersion}, ${soloDia(u!.terminosAceptadosEn)}` : 'Sin aceptar'}</dd>
+                {u!.vehiculo && (
+                  <>
+                    <dt>Vehículo</dt>
+                    <dd>
+                      {[u!.vehiculo.tipo, u!.vehiculo.marca, u!.vehiculo.modelo, u!.vehiculo.color].filter(Boolean).join(' · ')}
+                      {u!.vehiculo.placa && <span className="folio"> {u!.vehiculo.placa}</span>}
+                    </dd>
+                  </>
+                )}
+                {!!u!.tiendas?.length && (
+                  <>
+                    <dt>{u!.tiendas.length > 1 ? 'Sucursales' : 'Tienda'}</dt>
+                    <dd>
+                      {u!.tiendas.map((t) => (
+                        <div key={t.id}>
+                          {t.nombre} <span className="texto-secundario texto-chico">{t.abierta ? 'abierta' : 'cerrada'}</span>
+                        </div>
+                      ))}
+                    </dd>
+                  </>
+                )}
+                {saldo.data && (
+                  <>
+                    <dt>Saldo</dt>
+                    <dd>
+                      {saldo.data.saldo === 0 ? 'Al corriente' : saldo.data.aFavorDe === 'plataforma' ? `Debe ${dinero(saldo.data.saldo)}` : `PaPedir le debe ${dinero(-(saldo.data.saldo ?? 0))}`}{' '}
+                      <Link to="/finanzas" className="texto-chico">
+                        Ver en Finanzas
+                      </Link>
+                    </dd>
+                  </>
+                )}
+              </dl>
+            </section>
+
+            {conDocumentos && (
+              <section className="bloque">
+                <h3>
+                  Documentos{' '}
+                  {u!.documentosCompletos ? <Chip tono="exito">Completos</Chip> : <Chip tono="alerta">Faltan obligatorios</Chip>}
+                </h3>
+                {documentos.isPending ? (
+                  <Cargando />
+                ) : !documentos.data?.length ? (
+                  <p className="texto-secundario">Todavía no sube documentos desde su app.</p>
+                ) : (
+                  <ul className="lista-documentos">
+                    {documentos.data.map((d) => (
+                      <li key={d.id}>
+                        <FileText size={18} aria-hidden />
+                        <div>
+                          <p>{d.nombre}</p>
+                          <p className="texto-secundario texto-chico">
+                            {d.estado === 'rechazado' ? `Rechazado: ${d.motivo}` : `Subido ${fecha(d.creadoEn)}`}
+                          </p>
+                        </div>
+                        <Chip tono={d.estado === 'aprobado' ? 'exito' : d.estado === 'rechazado' ? 'error' : 'alerta'}>
+                          {d.estado === 'aprobado' ? 'Aprobado' : d.estado === 'rechazado' ? 'Rechazado' : 'Por revisar'}
+                        </Chip>
+                        <button className="boton boton-chico" disabled={ver.isPending} onClick={() => ver.mutate(d)}>
+                          Ver
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            )}
+          </div>
+
+          <section className="bloque">
+            <h3>Historial de la cuenta</h3>
+            {eventos.isPending ? (
+              <Cargando />
+            ) : !eventos.data?.length ? (
+              <p className="texto-secundario">Sin movimientos.</p>
+            ) : (
+              <ol className="bitacora">
+                {eventos.data.map((e) => (
+                  <li key={e.id} className={e.actorRol === 'soporte' || e.actorRol === 'admin' ? 'bitacora-soporte' : ''}>
+                    <time>{fecha(e.creadoEn)}</time>
+                    <div>
+                      <p>{EVENTOS_CUENTA[e.tipo ?? ''] ?? e.tipo}</p>
+                      <p className="texto-secundario texto-chico">
+                        {e.actorRol ? ROLES[e.actorRol] : 'Sistema'}
+                        {e.detalle && <>: {e.detalle}</>}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+        </div>
+      )}
+
+      {viendo && (
+        <Dialogo titulo={viendo.doc.nombre ?? 'Documento'} abierto onCerrar={() => setViendo(null)} ancho={760}>
+          <div className="visor-documento">
+            {viendo.url.includes('application/pdf') || /\.pdf(\?|$)/.test(viendo.url) ? (
+              <iframe src={viendo.url} title={viendo.doc.nombre} />
+            ) : (
+              <img src={viendo.url} alt={viendo.doc.nombre} />
+            )}
+          </div>
+          <p className="texto-secundario texto-chico">
+            El enlace vence en 10 minutos.{' '}
+            {!viendo.url.startsWith('data:') && (
+              <a href={viendo.url} target="_blank" rel="noreferrer">
+                Abrir en otra pestaña <ExternalLink size={12} aria-hidden />
+              </a>
+            )}
+          </p>
+          {viendo.doc.estado !== 'aprobado' && (
+            <div className="acciones-dialogo">
+              <button className="boton boton-peligro-suave" onClick={() => setARechazar(viendo.doc)}>
+                Rechazar
+              </button>
+              <button className="boton boton-primario" disabled={aprobar.isPending} onClick={() => aprobar.mutate(viendo.doc)}>
+                Aprobar
+              </button>
+            </div>
+          )}
+        </Dialogo>
+      )}
+
+      <DialogoMotivo
+        abierto={!!aRechazar}
+        onCerrar={() => setARechazar(null)}
+        titulo={`Rechazar ${aRechazar?.nombre}`}
+        descripcion="La persona recibe una notificación con el motivo para volver a subirlo."
+        textoBoton="Rechazar documento"
+        peligro
+        placeholder="Ej. La foto está borrosa y no se lee la vigencia"
+        onConfirmar={async (motivo) => {
+          await datos(api.POST('/soporte/documentos/{id}/revisar', { params: { path: { id: aRechazar!.id! } }, body: { aprobado: false, motivo } }));
+          setViendo(null);
+          recargar(`${aRechazar?.nombre} rechazado`);
+        }}
+      />
+    </Dialogo>
+  );
+}

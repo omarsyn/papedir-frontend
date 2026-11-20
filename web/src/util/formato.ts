@@ -22,6 +22,7 @@ export function haceCuanto(iso?: string | null) {
 }
 
 export const ESTADOS_PEDIDO: { valor: EstadoPedido; texto: string }[] = [
+  { valor: 'programado', texto: 'Programado' },
   { valor: 'creado', texto: 'Esperando a la tienda' },
   { valor: 'aceptado_tienda', texto: 'En preparación' },
   { valor: 'listo_para_recoger', texto: 'Listo para recoger' },
@@ -34,7 +35,7 @@ export const ESTADOS_PEDIDO: { valor: EstadoPedido; texto: string }[] = [
   { valor: 'rechazado', texto: 'Rechazado' },
 ];
 export const textoEstado = (e: EstadoPedido) => ESTADOS_PEDIDO.find((x) => x.valor === e)?.texto ?? e;
-export const ACTIVOS: EstadoPedido[] = ['creado', 'aceptado_tienda', 'listo_para_recoger', 'asignado', 'en_tienda', 'en_camino', 'en_domicilio'];
+export const ACTIVOS: EstadoPedido[] = ['programado', 'creado', 'aceptado_tienda', 'listo_para_recoger', 'asignado', 'en_tienda', 'en_camino', 'en_domicilio'];
 export const CON_REPARTIDOR: EstadoPedido[] = ['asignado', 'en_tienda', 'en_camino', 'en_domicilio'];
 
 /** Tono de color de un estado: el color solo aparece donde significa algo. */
@@ -67,6 +68,7 @@ export const ESTADOS_CUENTA: Record<EstadoCuenta, string> = {
   pendiente_aprobacion: 'Por aprobar',
   activo: 'Activa',
   baneado: 'Baneada',
+  eliminado: 'Eliminada',
 };
 
 /** Texto de cada evento de la bitácora del pedido. */
@@ -86,7 +88,51 @@ export const EVENTOS: Record<string, string> = {
   completado_por_soporte: 'Soporte lo marcó como entregado',
   liberado_por_soporte: 'Soporte lo liberó para otro repartidor',
   calificado: 'El cliente calificó el pedido',
+  enviado_a_tienda: 'El pedido programado llegó a la tienda',
+  reembolsado: 'Se reembolsó el pago con tarjeta',
+  reembolso_fallido: 'El reembolso falló: devolverlo desde Stripe',
 };
+
+/** Texto de cada evento de la bitácora de una cuenta. */
+export const EVENTOS_CUENTA: Record<string, string> = {
+  registrada: 'Se registró',
+  creada_por_admin: 'Cuenta creada por admin',
+  aprobada: 'Cuenta aprobada',
+  baneada: 'Cuenta baneada',
+  desbaneada: 'Se quitó el baneo',
+  bloqueada: 'Bloqueada por contraseñas equivocadas',
+  desbloqueada: 'Desbloqueada',
+  password_cambiada: 'Cambió su contraseña',
+  password_restablecida: 'Restableció su contraseña con un código',
+  correo_verificado: 'Verificó su correo',
+  terminos_aceptados: 'Aceptó los términos',
+  eliminada: 'Eliminó su cuenta',
+  documento_aprobado: 'Documento aprobado',
+  documento_rechazado: 'Documento rechazado',
+  ligada_firebase: 'Ligó su cuenta con Firebase',
+};
+
+export const PROVEEDORES: Record<string, string> = {
+  local: 'Correo de PaPedir',
+  password: 'Correo (Firebase)',
+  'google.com': 'Google',
+  'github.com': 'GitHub',
+};
+
+export const PLANES: Record<string, string> = { basico: 'Básico', pro: 'Pro', premium: 'Premium' };
+
+/** Descarga filas como CSV (separado por comas, con BOM para que Excel respete los acentos). */
+export function descargarCsv(nombre: string, columnas: string[], filas: (string | number | null | undefined)[][]) {
+  const celda = (v: string | number | null | undefined) => {
+    const t = v == null ? '' : String(v);
+    return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+  };
+  const texto = [columnas, ...filas].map((f) => f.map(celda).join(',')).join('\r\n');
+  const url = URL.createObjectURL(new Blob(['\uFEFF' + texto], { type: 'text/csv;charset=utf-8' }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: nombre });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 export const iniciales = (nombre?: string) =>
   (nombre ?? '?')
