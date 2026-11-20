@@ -1,11 +1,12 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, PauseCircle, PlayCircle, Search, Star } from 'lucide-react';
+import { ArchiveRestore, Download, PauseCircle, Pencil, PlayCircle, Plus, Search, Star, Trash2 } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { api, datos, ErrorApi, Esquemas } from '../api/cliente';
 import { useAvisos } from '../componentes/Avisos';
 import { Cargando, Chip, ErrorCarga, Paginacion, Vacio } from '../componentes/Basicos';
-import { Dialogo } from '../componentes/Dialogo';
+import { Dialogo, DialogoMotivo } from '../componentes/Dialogo';
+import { CATEGORIAS, FormularioTienda } from '../componentes/FormularioTienda';
 import { useSesion } from '../sesion/Sesion';
 import { descargarCsv, dinero, ESTADOS_CUENTA, fecha, haceCuanto, PLANES, soloDia, textoEstado, tonoEstado } from '../util/formato';
 
@@ -15,7 +16,8 @@ type Ficha = Esquemas['FichaTienda'];
 const LIMITE = 25;
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-export function estadoTienda(t: { abiertaAhora?: boolean; abierta?: boolean; pausadaHasta?: string | null }) {
+export function estadoTienda(t: { abiertaAhora?: boolean; abierta?: boolean; pausadaHasta?: string | null; eliminadaEn?: string | null }) {
+  if (t.eliminadaEn) return { texto: `Dada de baja el ${soloDia(t.eliminadaEn)}`, tono: 'error' };
   if (t.pausadaHasta && new Date(t.pausadaHasta) > new Date()) return { texto: `En pausa hasta ${fecha(t.pausadaHasta)}`, tono: 'alerta' };
   if (t.abiertaAhora) return { texto: 'Recibiendo pedidos', tono: 'exito' };
   return { texto: t.abierta ? 'Fuera de horario' : 'Cerrada', tono: 'neutro' };
@@ -25,8 +27,10 @@ export function Tiendas() {
   const { id } = useParams();
   const navegar = useNavigate();
   const { avisar } = useAvisos();
+  const { esAdmin } = useSesion();
+  const [creando, setCreando] = useState(false);
   const [busqueda, setBusqueda] = useState('');
-  const [filtros, setFiltros] = useState({ q: '', estado: 'activo', plan: '', abierta: '' });
+  const [filtros, setFiltros] = useState({ q: '', estado: 'activo', plan: '', abierta: '', eliminadas: '' });
   const [pagina, setPagina] = useState(1);
 
   useEffect(() => {
@@ -42,6 +46,7 @@ export function Tiendas() {
     estado: (filtros.estado || undefined) as never,
     plan: (filtros.plan || undefined) as never,
     abierta: (filtros.abierta || undefined) as never,
+    eliminadas: (filtros.eliminadas || undefined) as never,
     page,
     limit,
   });
@@ -72,9 +77,16 @@ export function Tiendas() {
 
   return (
     <div className="pagina">
-      <header className="pagina-cabecera">
-        <h1>Tiendas</h1>
-        <p className="texto-secundario">Cada negocio con su dueño, plan, calificación y ventas de los últimos 30 días.</p>
+      <header className="pagina-cabecera pagina-cabecera-acciones">
+        <div>
+          <h1>Tiendas</h1>
+          <p className="texto-secundario">Cada negocio con su dueño, plan, calificación y ventas de los últimos 30 días.</p>
+        </div>
+        {esAdmin && (
+          <button className="boton boton-primario" onClick={() => setCreando(true)}>
+            <Plus size={16} aria-hidden /> Nueva tienda
+          </button>
+        )}
       </header>
 
       <div className="barra-herramientas">
@@ -103,6 +115,10 @@ export function Tiendas() {
           <option value="si">Recibiendo pedidos</option>
           <option value="no">Cerradas o en pausa</option>
         </select>
+        <select className="selector" value={filtros.eliminadas} onChange={(e) => cambiar({ eliminadas: e.target.value, ...(e.target.value ? { estado: '' } : {}) })} aria-label="Vigentes o dadas de baja">
+          <option value="">Vigentes</option>
+          <option value="si">Dadas de baja</option>
+        </select>
         <button className="boton boton-chico" onClick={exportar} disabled={!lista.data?.meta.total}>
           <Download size={14} aria-hidden /> CSV
         </button>
@@ -113,7 +129,7 @@ export function Tiendas() {
       ) : lista.isError ? (
         <ErrorCarga error={lista.error} onReintentar={() => lista.refetch()} />
       ) : !lista.data.data.length ? (
-        <Vacio titulo="No hay tiendas con este filtro" />
+        <Vacio titulo={filtros.eliminadas ? 'No hay tiendas dadas de baja' : 'No hay tiendas con este filtro'} />
       ) : (
         <div className="tabla-contenedor">
           <table className="tabla">
@@ -138,6 +154,14 @@ export function Tiendas() {
       <Paginacion pagina={pagina} total={lista.data?.meta.total ?? 0} limite={LIMITE} onCambiar={setPagina} />
 
       {id && <FichaTienda key={id} id={id} onCerrar={() => navegar('/tiendas')} />}
+      <FormularioTienda
+        abierto={creando}
+        onCerrar={() => setCreando(false)}
+        onGuardada={(f) => {
+          setCreando(false);
+          navegar(`/tiendas/${f.id}`);
+        }}
+      />
     </div>
   );
 }
@@ -153,7 +177,7 @@ function FilaTienda({ t, onAbrir }: { t: TiendaPanel; onAbrir: () => void }) {
             <button className="enlace-boton celda-fuerte" onClick={onAbrir}>
               {t.nombre}
             </button>
-            <div className="texto-secundario texto-chico">{t.categoria}</div>
+            <div className="texto-secundario texto-chico">{CATEGORIAS[t.categoria as keyof typeof CATEGORIAS] ?? t.categoria}</div>
           </div>
         </div>
       </td>
@@ -182,6 +206,8 @@ function FichaTienda({ id, onCerrar }: { id: string; onCerrar: () => void }) {
   const cache = useQueryClient();
   const [pausando, setPausando] = useState(false);
   const [comision, setComision] = useState(false);
+  const [editando, setEditando] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
   const ficha = useQuery({ queryKey: ['tienda-panel', id], queryFn: () => datos(api.GET('/soporte/tiendas/{id}', { params: { path: { id } } })) });
 
   const pausa = useMutation({
@@ -194,6 +220,15 @@ function FichaTienda({ id, onCerrar }: { id: string; onCerrar: () => void }) {
       } else avisar(`${f.nombre} vuelve a recibir pedidos`, 'exito');
     },
     onError: (e) => avisar(e instanceof ErrorApi ? e.message : 'No se pudo cambiar la pausa', 'error'),
+  });
+  const restaurar = useMutation({
+    mutationFn: () => datos(api.POST('/admin/tiendas/{id}/restaurar', { params: { path: { id } } })),
+    onSuccess: (f) => {
+      cache.setQueryData(['tienda-panel', id], f);
+      cache.invalidateQueries({ queryKey: ['tiendas-panel'] });
+      avisar(`${f.nombre} está activa de nuevo (cerrada hasta que el dueño la abra)`, 'exito');
+    },
+    onError: (e) => avisar(e instanceof ErrorApi ? e.message : 'No se pudo restaurar', 'error'),
   });
 
   if (ficha.isPending)
@@ -228,10 +263,21 @@ function FichaTienda({ id, onCerrar }: { id: string; onCerrar: () => void }) {
                 <Star size={12} aria-hidden /> {f.calificacion}
               </Chip>
             )}
-            <Chip>{f.categoria}</Chip>
+            <Chip>{CATEGORIAS[f.categoria as keyof typeof CATEGORIAS] ?? f.categoria}</Chip>
           </div>
           <div className="acciones-encabezado">
-            {f.pausadaHasta ? (
+            {esAdmin && !f.eliminadaEn && (
+              <button className="boton boton-chico" onClick={() => setEditando(true)}>
+                <Pencil size={16} aria-hidden /> Editar
+              </button>
+            )}
+            {f.eliminadaEn ? (
+              esAdmin && (
+                <button className="boton boton-chico" disabled={restaurar.isPending} onClick={() => restaurar.mutate()}>
+                  <ArchiveRestore size={16} aria-hidden /> Restaurar
+                </button>
+              )
+            ) : f.pausadaHasta ? (
               <button className="boton boton-chico" disabled={pausa.isPending} onClick={() => pausa.mutate({ minutos: 0, motivo: 'Soporte quitó la pausa' })}>
                 <PlayCircle size={16} aria-hidden /> Quitar pausa
               </button>
@@ -243,8 +289,18 @@ function FichaTienda({ id, onCerrar }: { id: string; onCerrar: () => void }) {
             <Link to={`/cuentas/${f.dueno.id}`} className="boton boton-chico">
               Cuenta del dueño
             </Link>
+            {esAdmin && !f.eliminadaEn && (
+              <button className="boton boton-chico boton-peligro-suave" onClick={() => setEliminando(true)}>
+                <Trash2 size={16} aria-hidden /> Dar de baja
+              </button>
+            )}
           </div>
         </div>
+        {f.eliminadaEn && (
+          <p className="nota">
+            Dada de baja el {fecha(f.eliminadaEn)}: {f.eliminadaMotivo}. No aparece a los clientes ni recibe pedidos; su historial se conserva.
+          </p>
+        )}
 
         <section className="cifras cifras-compactas">
           <div className="cifra">
@@ -415,6 +471,27 @@ function FichaTienda({ id, onCerrar }: { id: string; onCerrar: () => void }) {
         )}
       </div>
 
+      <FormularioTienda
+        abierto={editando}
+        ficha={f}
+        onCerrar={() => setEditando(false)}
+        onGuardada={() => setEditando(false)}
+      />
+      <DialogoMotivo
+        abierto={eliminando}
+        onCerrar={() => setEliminando(false)}
+        titulo={`Dar de baja ${f.nombre}`}
+        descripcion="Deja de aparecer a los clientes y de recibir pedidos. Sus pedidos, pagos y reseñas se conservan, y puedes restaurarla después. La cuenta del dueño no se toca."
+        textoBoton="Dar de baja"
+        peligro
+        placeholder="Ej. El negocio cerró"
+        onConfirmar={async (motivo) => {
+          await datos(api.DELETE('/admin/tiendas/{id}', { params: { path: { id } }, body: { motivo } }));
+          cache.invalidateQueries({ queryKey: ['tiendas-panel'] });
+          await ficha.refetch();
+          avisar(`${f.nombre} fue dada de baja`, 'exito', { texto: 'Deshacer', onClic: () => restaurar.mutate() });
+        }}
+      />
       <DialogoPausa abierto={pausando} onCerrar={() => setPausando(false)} nombre={f.nombre!} onConfirmar={(b) => pausa.mutateAsync(b).then(() => setPausando(false))} />
       {esAdmin && <DialogoComision abierto={comision} onCerrar={() => setComision(false)} ficha={f} />}
     </Dialogo>
