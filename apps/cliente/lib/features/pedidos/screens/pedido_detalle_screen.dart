@@ -1,146 +1,93 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/api_error.dart';
 import '../../../core/formato.dart';
-import '../../../core/models.dart';
 import '../../../core/widgets/mensajes.dart';
+import '../../../core/widgets/vista_async.dart';
 import '../data/pedidos_repository.dart';
+import '../providers/pedido_detalle_provider.dart';
+import 'calificar_screen.dart';
 
-class PedidoDetalleScreen extends ConsumerStatefulWidget {
+class PedidoDetalleScreen extends ConsumerWidget {
   const PedidoDetalleScreen({super.key, required this.pedidoId});
 
   final String pedidoId;
 
-  @override
-  ConsumerState<PedidoDetalleScreen> createState() =>
-      _PedidoDetalleScreenState();
-}
-
-class _PedidoDetalleScreenState extends ConsumerState<PedidoDetalleScreen> {
-  Pedido? _pedido;
-  List<EventoPedido> _eventos = const [];
-  Object? _error;
-  bool _cargando = true;
-  Timer? _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    _cargar();
-    // Seguimiento sencillo: se actualiza cada 15 s hasta que el pedido termina.
-    _timer = Timer.periodic(
-      const Duration(seconds: 15),
-      (_) => _cargar(silencioso: true),
-    );
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _cargar({bool silencioso = false}) async {
-    final repo = ref.read(pedidosRepositoryProvider);
-    try {
-      final pedido = await repo.detalle(widget.pedidoId);
-      final eventos = await repo.eventos(widget.pedidoId);
-      if (!mounted) return;
-      setState(() {
-        _pedido = pedido;
-        _eventos = eventos;
-        _error = null;
-        _cargando = false;
-      });
-      if (estadoFinal(pedido.estado)) _timer?.cancel();
-    } catch (e) {
-      if (!mounted || silencioso) return;
-      setState(() {
-        _error = e;
-        _cargando = false;
-      });
-    }
-  }
-
-  Future<void> _cancelar() async {
-    final controller = TextEditingController(text: 'Ya no lo quiero');
-    final motivo = await showDialog<String>(
+  Future<void> _cancelar(BuildContext context, WidgetRef ref) async {
+    final motivos = await ref.read(motivosCancelacionProvider.future);
+    if (!context.mounted) return;
+    final motivo = await showDialog<Motivo>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Cancelar pedido'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(labelText: 'Motivo'),
-        ),
-        actions: [
-          TextButton(
+      builder: (ctx) => SimpleDialog(
+        title: const Text('¿Por qué cancelas?'),
+        children: [
+          for (final m in motivos)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, m),
+              child: Text(m.texto),
+            ),
+          SimpleDialogOption(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Volver'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('Cancelar pedido'),
+            child: const Text('No cancelar'),
           ),
         ],
       ),
     );
-    if (motivo == null || motivo.isEmpty) return;
+    if (motivo == null || !context.mounted) return;
     try {
-      await ref
-          .read(pedidosRepositoryProvider)
-          .cancelar(widget.pedidoId, motivo);
-      if (!mounted) return;
+      await ref.read(pedidosRepositoryProvider).cancelar(pedidoId, motivo);
+      if (!context.mounted) return;
       mostrarMensaje(context, 'Pedido cancelado');
-      await _cargar();
+      ref.invalidate(pedidoDetalleProvider(pedidoId));
     } catch (e) {
-      if (!mounted) return;
+      if (!context.mounted) return;
       mostrarError(context, e);
     }
   }
 
+  Future<void> _calificar(
+    BuildContext context,
+    WidgetRef ref,
+    String nombreTienda,
+  ) async {
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) =>
+            CalificarScreen(pedidoId: pedidoId, nombreTienda: nombreTienda),
+      ),
+    );
+    if (context.mounted) ref.invalidate(pedidoDetalleProvider(pedidoId));
+  }
+
   @override
-  Widget build(BuildContext context) {
-    final p = _pedido;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final valor = ref.watch(pedidoDetalleProvider(pedidoId));
+    // Si ya hay datos, se siguen mostrando aunque una actualización falle.
+    final detalle = valor.valueOrNull;
     return Scaffold(
-      appBar: AppBar(title: Text(p == null ? 'Pedido' : 'Pedido ${p.folio}')),
-      body: _cuerpo(p),
+      appBar: AppBar(
+        title: Text(
+          detalle == null ? 'Pedido' : 'Pedido ${detalle.pedido.folio}',
+        ),
+      ),
+      body: detalle != null
+          ? _contenido(context, ref, detalle)
+          : VistaAsync<DetallePedido>(
+              valor: valor,
+              onReintentar: () =>
+                  ref.invalidate(pedidoDetalleProvider(pedidoId)),
+              builder: (d) => _contenido(context, ref, d),
+            ),
     );
   }
 
-  Widget _cuerpo(Pedido? p) {
-    if (_cargando) return const Center(child: CircularProgressIndicator());
-    if (p == null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                ApiError.from(_error ?? 'Error').message,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton(
-                onPressed: () {
-                  setState(() {
-                    _cargando = true;
-                  });
-                  _cargar();
-                },
-                child: const Text('Reintentar'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+  Widget _contenido(BuildContext context, WidgetRef ref, DetallePedido d) {
+    final p = d.pedido;
     final tema = Theme.of(context);
     return RefreshIndicator(
-      onRefresh: _cargar,
+      onRefresh: () => recargarSilencioso(
+        () => ref.refresh(pedidoDetalleProvider(pedidoId).future),
+      ),
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -156,6 +103,8 @@ class _PedidoDetalleScreenState extends ConsumerState<PedidoDetalleScreen> {
                     style: tema.textTheme.titleLarge,
                   ),
                   Text(p.tienda.nombre),
+                  if (p.etaMin != null && !estadoFinal(p.estado))
+                    Text('Llega en aprox. ${p.etaMin} min'),
                 ],
               ),
             ),
@@ -182,6 +131,20 @@ class _PedidoDetalleScreenState extends ConsumerState<PedidoDetalleScreen> {
                 subtitle: Text('Tel. ${p.repartidor!.telefono}'),
               ),
             ),
+          if (p.estado == 'entregado') ...[
+            const SizedBox(height: 8),
+            if (p.calificado)
+              const ListTile(
+                leading: Icon(Icons.star, color: Colors.amber),
+                title: Text('Ya calificaste este pedido. ¡Gracias!'),
+              )
+            else
+              FilledButton.icon(
+                onPressed: () => _calificar(context, ref, p.tienda.nombre),
+                icon: const Icon(Icons.star_outline),
+                label: const Text('Calificar pedido'),
+              ),
+          ],
           const SizedBox(height: 8),
           Text('Productos', style: tema.textTheme.titleMedium),
           for (final i in p.items)
@@ -195,15 +158,15 @@ class _PedidoDetalleScreenState extends ConsumerState<PedidoDetalleScreen> {
               ),
             ),
           const Divider(height: 24),
-          _fila('Subtotal', dinero(p.subtotal)),
-          _fila('Envío', dinero(p.costoEnvio)),
-          _fila('Total (efectivo)', dinero(p.total), negrita: true),
+          _Fila('Subtotal', dinero(p.subtotal)),
+          _Fila('Envío', dinero(p.costoEnvio)),
+          _Fila('Total (efectivo)', dinero(p.total), negrita: true),
           const SizedBox(height: 4),
           Text('Entrega en: ${p.destino.direccion}'),
           if (p.notas != null && p.notas!.isNotEmpty) Text('Notas: ${p.notas}'),
           const SizedBox(height: 16),
           Text('Seguimiento', style: tema.textTheme.titleMedium),
-          for (final e in _eventos)
+          for (final e in d.eventos)
             ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
@@ -214,7 +177,7 @@ class _PedidoDetalleScreenState extends ConsumerState<PedidoDetalleScreen> {
           if (p.estado == 'creado') ...[
             const SizedBox(height: 16),
             OutlinedButton.icon(
-              onPressed: _cancelar,
+              onPressed: () => _cancelar(context, ref),
               icon: const Icon(Icons.cancel_outlined),
               label: const Text('Cancelar pedido'),
             ),
@@ -223,8 +186,17 @@ class _PedidoDetalleScreenState extends ConsumerState<PedidoDetalleScreen> {
       ),
     );
   }
+}
 
-  Widget _fila(String a, String b, {bool negrita = false}) {
+class _Fila extends StatelessWidget {
+  const _Fila(this.a, this.b, {this.negrita = false});
+
+  final String a;
+  final String b;
+  final bool negrita;
+
+  @override
+  Widget build(BuildContext context) {
     final estilo = negrita
         ? const TextStyle(fontWeight: FontWeight.bold)
         : null;

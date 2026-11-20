@@ -10,6 +10,26 @@ List<Map<String, dynamic>> _items(List<LineaCarrito> lineas) => lineas
     .map((l) => {'productoId': l.producto.id, 'cantidad': l.cantidad})
     .toList();
 
+/// Motivo del catálogo para cancelar un pedido.
+class Motivo {
+  const Motivo({this.codigo, required this.texto});
+
+  final String? codigo;
+  final String texto;
+
+  factory Motivo.fromJson(Map<String, dynamic> j) => Motivo(
+    codigo: j['codigo'] as String?,
+    texto: '${j['texto'] ?? j['codigo'] ?? ''}',
+  );
+}
+
+/// Por si el catálogo no responde.
+const motivosCancelacionBase = [
+  Motivo(texto: 'Ya no lo quiero'),
+  Motivo(texto: 'Me equivoqué en el pedido'),
+  Motivo(texto: 'Tarda demasiado'),
+];
+
 class PedidosRepository {
   PedidosRepository(this._dio);
 
@@ -72,12 +92,40 @@ class PedidosRepository {
         .toList();
   });
 
-  Future<Pedido> cancelar(String id, String motivo) => conApiError(() async {
+  /// Cancela con un motivo del catálogo (o texto libre si no hay código).
+  Future<Pedido> cancelar(String id, Motivo motivo) => conApiError(() async {
     final r = await _dio.post<Map<String, dynamic>>(
       '/pedidos/$id/cancelar',
-      data: {'motivo': motivo},
+      data: motivo.codigo != null
+          ? {'codigo': motivo.codigo}
+          : {'motivo': motivo.texto},
     );
     return Pedido.fromJson(r.data!);
+  });
+
+  Future<List<Motivo>> motivosCancelacion() => conApiError(() async {
+    final r = await _dio.get<Map<String, dynamic>>(
+      '/catalogos/motivos-cancelacion',
+    );
+    final lista = (r.data?['cliente'] as List?) ?? const [];
+    return lista.map((e) => Motivo.fromJson(asMapa(e))).toList();
+  });
+
+  /// Califica tienda y repartidor (1 a 5) hasta 24 h después de entregado.
+  Future<void> calificar(
+    String id, {
+    required int tienda,
+    required int repartidor,
+    String? comentario,
+  }) => conApiError(() async {
+    await _dio.post<Map<String, dynamic>>(
+      '/pedidos/$id/calificar',
+      data: {
+        'tienda': tienda,
+        'repartidor': repartidor,
+        'comentario': comentario,
+      },
+    );
   });
 }
 

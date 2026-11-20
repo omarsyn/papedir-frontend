@@ -1,99 +1,65 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/models.dart';
 import '../../../core/widgets/mensajes.dart';
-import '../data/direcciones_repository.dart';
-import '../providers/direccion_activa_provider.dart';
+import '../providers/direccion_form_provider.dart';
 import 'mapa_selector_screen.dart';
 
-class DireccionFormScreen extends ConsumerStatefulWidget {
+class DireccionFormScreen extends ConsumerWidget {
   const DireccionFormScreen({super.key});
 
-  @override
-  ConsumerState<DireccionFormScreen> createState() =>
-      _DireccionFormScreenState();
-}
-
-class _DireccionFormScreenState extends ConsumerState<DireccionFormScreen> {
-  final _form = GlobalKey<FormState>();
-  final _alias = TextEditingController(text: 'Casa');
-  final _texto = TextEditingController();
-  final _referencias = TextEditingController();
-  Coordenadas? _ubicacion;
-  bool _guardando = false;
-
-  @override
-  void dispose() {
-    _alias.dispose();
-    _texto.dispose();
-    _referencias.dispose();
-    super.dispose();
-  }
-
-  Future<void> _elegirEnMapa() async {
+  Future<void> _elegirEnMapa(BuildContext context, WidgetRef ref) async {
+    final actual = ref.read(direccionFormProvider).ubicacion;
     final r = await Navigator.of(context).push<UbicacionElegida>(
       MaterialPageRoute<UbicacionElegida>(
-        builder: (_) => MapaSelectorScreen(inicial: _ubicacion),
+        builder: (_) => MapaSelectorScreen(inicial: actual),
       ),
     );
-    if (r == null || !mounted) return;
-    setState(() {
-      _ubicacion = r.coordenadas;
-      // Solo se autocompleta si el usuario aún no escribió la dirección.
-      if (_texto.text.trim().isEmpty && r.texto != null) {
-        _texto.text = r.texto!;
-      }
-    });
+    if (r == null || !context.mounted) return;
+    ref.read(direccionFormProvider.notifier).fijarUbicacion(r.coordenadas);
+    // Solo se autocompleta si el usuario aún no escribió la dirección.
+    final c = ref.read(direccionFormControllersProvider);
+    if (c.texto.text.trim().isEmpty && r.texto != null) {
+      c.texto.text = r.texto!;
+    }
   }
 
-  Future<void> _guardar() async {
-    if (!_form.currentState!.validate()) return;
-    final ubicacion = _ubicacion;
-    if (ubicacion == null) {
+  Future<void> _guardar(BuildContext context, WidgetRef ref) async {
+    final c = ref.read(direccionFormControllersProvider);
+    if (!c.form.currentState!.validate()) return;
+    if (ref.read(direccionFormProvider).ubicacion == null) {
       mostrarMensaje(context, 'Elige la ubicación en el mapa');
       return;
     }
-    setState(() {
-      _guardando = true;
-    });
     try {
-      final referencias = _referencias.text.trim();
-      final nueva = await ref
-          .read(direccionesRepositoryProvider)
-          .crear(
-            alias: _alias.text.trim(),
-            texto: _texto.text.trim(),
+      final referencias = c.referencias.text.trim();
+      await ref
+          .read(direccionFormProvider.notifier)
+          .guardar(
+            alias: c.alias.text.trim(),
+            texto: c.texto.text.trim(),
             referencias: referencias.isEmpty ? null : referencias,
-            ubicacion: ubicacion,
           );
-      if (ref.read(direccionActivaProvider) == null) {
-        ref.read(direccionActivaProvider.notifier).elegir(nueva);
-      }
-      if (!mounted) return;
+      if (!context.mounted) return;
       Navigator.of(context).pop();
     } catch (e) {
-      if (!mounted) return;
+      if (!context.mounted) return;
       mostrarError(context, e);
-    } finally {
-      if (mounted) {
-        setState(() {
-          _guardando = false;
-        });
-      }
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    final u = _ubicacion;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = ref.watch(direccionFormControllersProvider);
+    final estado = ref.watch(direccionFormProvider);
+    final u = estado.ubicacion;
     return Scaffold(
       appBar: AppBar(title: const Text('Nueva dirección')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Form(
-            key: _form,
+            key: c.form,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -116,12 +82,12 @@ class _DireccionFormScreenState extends ConsumerState<DireccionFormScreen> {
                             '${u.lat.toStringAsFixed(5)}, ${u.lng.toStringAsFixed(5)}',
                           ),
                     trailing: Text(u == null ? 'Abrir' : 'Cambiar'),
-                    onTap: _elegirEnMapa,
+                    onTap: () => _elegirEnMapa(context, ref),
                   ),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
-                  controller: _alias,
+                  controller: c.alias,
                   decoration: const InputDecoration(
                     labelText: 'Nombre (Casa, Trabajo...)',
                   ),
@@ -131,7 +97,7 @@ class _DireccionFormScreenState extends ConsumerState<DireccionFormScreen> {
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
-                  controller: _texto,
+                  controller: c.texto,
                   maxLines: 2,
                   decoration: const InputDecoration(
                     labelText: 'Dirección',
@@ -143,7 +109,7 @@ class _DireccionFormScreenState extends ConsumerState<DireccionFormScreen> {
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
-                  controller: _referencias,
+                  controller: c.referencias,
                   decoration: const InputDecoration(
                     labelText: 'Referencias (opcional)',
                     hintText: 'Portón negro, frente al parque...',
@@ -151,8 +117,10 @@ class _DireccionFormScreenState extends ConsumerState<DireccionFormScreen> {
                 ),
                 const SizedBox(height: 24),
                 FilledButton(
-                  onPressed: _guardando ? null : _guardar,
-                  child: _guardando
+                  onPressed: estado.guardando
+                      ? null
+                      : () => _guardar(context, ref),
+                  child: estado.guardando
                       ? const SizedBox(
                           height: 18,
                           width: 18,

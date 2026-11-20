@@ -247,6 +247,8 @@ class Pedido {
     this.codigoEntrega,
     this.notas,
     this.repartidor,
+    this.calificado = false,
+    this.etaMin,
   });
 
   final String id;
@@ -266,6 +268,12 @@ class Pedido {
   final DateTime creadoEn;
   final DateTime actualizadoEn;
 
+  /// true si el cliente ya calificó el pedido.
+  final bool calificado;
+
+  /// Minutos aproximados para que llegue (null si ya terminó).
+  final int? etaMin;
+
   factory Pedido.fromJson(Map<String, dynamic> j) => Pedido(
     id: j['id'] as String,
     folio: '${j['folio']}',
@@ -283,6 +291,8 @@ class Pedido {
         : RepartidorResumen.fromJson(asMapa(j['repartidor'])),
     creadoEn: _fecha(j['creadoEn']),
     actualizadoEn: _fecha(j['actualizadoEn']),
+    calificado: j['calificacion'] != null || j['calificado'] == true,
+    etaMin: (j['etaMin'] as num?)?.toInt(),
   );
 }
 
