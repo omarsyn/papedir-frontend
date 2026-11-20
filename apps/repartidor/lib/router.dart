@@ -1,18 +1,23 @@
 import 'package:core/core.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'features/historial/screens/historial_screen.dart';
 import 'features/mapa_disponibles/screens/mapa_disponibles_screen.dart';
+import 'features/perfil/screens/perfil_screen.dart';
 import 'features/permisos/screens/permissions_gate_screen.dart';
 import 'features/viaje_activo/screens/viaje_activo_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
+  final authRefresh = ValueNotifier<int>(0);
+  ref.listen(authProvider, (_, __) => authRefresh.value++);
+  ref.onDispose(authRefresh.dispose);
 
   return GoRouter(
     initialLocation: '/login',
+    refreshListenable: authRefresh,
     redirect: (context, state) {
+      final authState = ref.read(authProvider);
       final isLoggedIn = authState.isAuthenticated;
       final isPending = authState.isPendingApproval;
       final location = state.matchedLocation;
@@ -61,23 +66,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/perfil',
-        builder: (context, state) => const _RutaPendienteScreen(
-          titulo: 'Mi Perfil',
-        ),
+        builder: (context, state) => const PerfilScreen(),
+      ),
+      GoRoute(
+        path: '/soporte',
+        builder: (context, state) => const TicketsListScreen(),
       ),
     ],
   );
 });
-
-class _RutaPendienteScreen extends StatelessWidget {
-  final String titulo;
-  const _RutaPendienteScreen({required this.titulo});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(titulo)),
-      body: Center(child: Text('Construyendo pantalla: $titulo')),
-    );
-  }
-}

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:core/core.dart' hide PedidoDisponible;
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import '../models/pedido_disponible.dart';
@@ -57,13 +58,29 @@ class MapaDisponiblesNotifier extends StateNotifier<MapaDisponiblesState> {
   final SocketService _socket;
 
   Timer? _gpsTimer;
-  StreamSubscription<Map<String, dynamic>>? _nuevoPedidoSub;
+  StreamSubscription<JsonMap>? _nuevoPedidoSub;
   StreamSubscription<String>? _pedidoTomadoSub;
 
   MapaDisponiblesNotifier(this._dio, this._socket)
       : super(const MapaDisponiblesState()) {
     _iniciarListenersRealtime();
     inicializar();
+  }
+
+  String _extraerMensajeConDetalles(DioException e) {
+    final apiErr = ApiException.fromDioException(e);
+    final data = e.response?.data;
+
+    debugPrint(
+      '[MapaDisponibles ERROR] ${e.requestOptions.method} ${e.requestOptions.path} '
+      'query=${e.requestOptions.queryParameters} body=${e.requestOptions.data} '
+      '-> status=${e.response?.statusCode} response=$data',
+    );
+
+    if (data is JsonMap && data['detalles'] != null) {
+      return '${apiErr.message}: ${data['detalles']}';
+    }
+    return apiErr.message;
   }
 
   void _iniciarListenersRealtime() {
@@ -100,11 +117,15 @@ class MapaDisponiblesNotifier extends StateNotifier<MapaDisponiblesState> {
   Future<void> _verificarViajeActivo() async {
     try {
       final res = await _dio.get('/repartidor/viaje-actual');
-      if (res.data is Map<String, dynamic> && res.data['id'] != null) {
+      if (res.statusCode == 200 &&
+          res.data is JsonMap &&
+          (res.data as JsonMap)['id'] != null) {
         state = state.copyWith(tieneViajeActivo: true);
       }
-    } on DioException {
-      // 404 significa que no tiene viaje en curso; continúa normal
+    } on DioException catch (e) {
+      if (e.response?.statusCode != 404 && e.response?.statusCode != 204) {
+        state = state.copyWith(mensajeError: _extraerMensajeConDetalles(e));
+      }
     }
   }
 
@@ -130,35 +151,48 @@ class MapaDisponiblesNotifier extends StateNotifier<MapaDisponiblesState> {
         );
       }
     } on DioException catch (e) {
-      final apiErr = ApiException.fromDioException(e);
       state = state.copyWith(
         cargando: false,
-        mensajeError: apiErr.message,
+        mensajeError: _extraerMensajeConDetalles(e),
       );
     }
   }
 
-  Future<void> cargarPedidosDisponibles() async {
+Future<void> cargarPedidosDisponibles() async {
     state = state.copyWith(cargando: true, limpiarError: true);
     try {
-      final res = await _dio.get('/repartidor/pedidos-disponibles');
+      final pos = state.ubicacionActual ?? await _actualizarUbicacionLocal();
+      if (pos == null) {
+        state = state.copyWith(
+          cargando: false,
+          mensajeError: 'Activa la ubicación para ver pedidos',
+        );
+        return;
+      }
+
+      final res = await _dio.get(
+        '/repartidor/pedidos-disponibles',
+        queryParameters: {'lat': pos.latitude, 'lng': pos.longitude},
+      );
+
       final rawList = res.data is List
           ? res.data as List<dynamic>
-          : (res.data is Map<String, dynamic>
-              ? (res.data['pedidos'] ?? res.data['data'] ?? []) as List<dynamic>
+          : (res.data is JsonMap
+              ? ((res.data as JsonMap)['pedidos'] ??
+                  (res.data as JsonMap)['data'] ??
+                  []) as List<dynamic>
               : <dynamic>[]);
 
       final lista = rawList
-          .whereType<Map<String, dynamic>>()
+          .whereType<JsonMap>()
           .map(PedidoDisponible.fromJson)
           .toList();
 
       state = state.copyWith(pedidos: lista, cargando: false);
     } on DioException catch (e) {
-      final apiErr = ApiException.fromDioException(e);
       state = state.copyWith(
         cargando: false,
-        mensajeError: apiErr.message,
+        mensajeError: _extraerMensajeConDetalles(e),
       );
     }
   }
@@ -185,7 +219,9 @@ class MapaDisponiblesNotifier extends StateNotifier<MapaDisponiblesState> {
       return true;
     } on DioException catch (e) {
       final apiErr = ApiException.fromDioException(e);
-      final yaTomado = apiErr.error == 'PEDIDO_YA_TOMADO' || apiErr.statusCode == 409;
+      final detalleMsg = _extraerMensajeConDetalles(e);
+      final yaTomado =
+          apiErr.error == 'PEDIDO_YA_TOMADO' || e.response?.statusCode == 409;
       final restantes = yaTomado
           ? state.pedidos.where((p) => p.id != pedidoId).toList()
           : state.pedidos;
@@ -196,7 +232,7 @@ class MapaDisponiblesNotifier extends StateNotifier<MapaDisponiblesState> {
         limpiarSeleccion: yaTomado,
         mensajeError: yaTomado
             ? 'Otro repartidor tomó este pedido hace un instante.'
-            : apiErr.message,
+            : detalleMsg,
       );
       return false;
     }
@@ -244,8 +280,8 @@ class MapaDisponiblesNotifier extends StateNotifier<MapaDisponiblesState> {
           '/repartidor/ubicacion',
           data: {'lat': pos.latitude, 'lng': pos.longitude},
         );
-      } catch (_) {
-        // Se reintentará en el siguiente ciclo de 10 segundos
+      } on DioException catch (e) {
+        _extraerMensajeConDetalles(e);
       }
     }
   }

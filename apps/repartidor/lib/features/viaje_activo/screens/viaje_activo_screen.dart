@@ -80,6 +80,34 @@ class _ViajeActivoScreenState extends ConsumerState<ViajeActivoScreen> {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
+  void _abrirSoportePedido(Pedido? pedido) {
+    if (pedido != null) {
+      final tickets = ref.read(ticketsProvider).tickets;
+      final ticketActivo = tickets.cast<Ticket?>().firstWhere(
+            (t) =>
+                t != null &&
+                t.pedidoId == pedido.id &&
+                t.estado != EstadoTicket.cerrado,
+            orElse: () => null,
+          );
+
+      if (ticketActivo != null) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => TicketChatScreen(ticketId: ticketActivo.id),
+          ),
+        );
+        return;
+      }
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CreateTicketScreen(pedidoIdInicial: pedido?.id),
+      ),
+    );
+  }
+
   void _mostrarModalEntrega(Pedido pedido) {
     showModalBottomSheet(
       context: context,
@@ -150,7 +178,7 @@ class _ViajeActivoScreenState extends ConsumerState<ViajeActivoScreen> {
             (p) => p.id == paradaActual.pedidoId,
             orElse: () => viaje.pedidos.first,
           )
-        : null;
+        : (viaje.pedidos.isNotEmpty ? viaje.pedidos.first : null);
 
     final driverLatLng = estado.ubicacionActual != null
         ? LatLng(
@@ -176,6 +204,13 @@ class _ViajeActivoScreenState extends ConsumerState<ViajeActivoScreen> {
                 ? null
                 : () =>
                     ref.read(viajeActivoProvider.notifier).cargarViajeActual(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.support_agent_outlined),
+            tooltip: pedidoActual != null
+                ? 'Soporte (${pedidoActual.folio})'
+                : 'Soporte',
+            onPressed: () => _abrirSoportePedido(pedidoActual),
           ),
         ],
       ),

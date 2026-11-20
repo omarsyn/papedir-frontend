@@ -8,7 +8,7 @@ class PedidoDisponible {
   final String clienteDireccion;
   final double gananciaEnvio;
   final double totalPedido;
-  final int cantidadProductos;
+  final double montoAPagarTienda;
 
   const PedidoDisponible({
     required this.id,
@@ -20,32 +20,26 @@ class PedidoDisponible {
     required this.clienteDireccion,
     required this.gananciaEnvio,
     required this.totalPedido,
-    required this.cantidadProductos,
+    required this.montoAPagarTienda,
   });
 
   factory PedidoDisponible.fromJson(Map<String, dynamic> json) {
     final tienda = json['tienda'] as Map<String, dynamic>? ?? {};
-    final tiendaDir = tienda['direccion'] as Map<String, dynamic>? ?? {};
-    final tiendaCoords =
-        (tiendaDir['coordenadas'] ?? tienda['coordenadas']) as Map<String, dynamic>? ?? {};
-
-    final entregaDir =
-        (json['direccionEntrega'] ?? json['destino']) as Map<String, dynamic>? ?? {};
-    final items = json['items'] as List<dynamic>? ?? [];
+    final tiendaUbicacion =
+        tienda['ubicacion'] as Map<String, dynamic>? ?? {};
 
     return PedidoDisponible(
       id: (json['id'] ?? json['pedidoId'] ?? '').toString(),
       folio: (json['folio'] ?? 'SIN-FOLIO').toString(),
-      tiendaNombre: (tienda['nombre'] ?? json['tiendaNombre'] ?? 'Tienda').toString(),
-      tiendaDireccion:
-          (tiendaDir['texto'] ?? tiendaDir['calle'] ?? 'Dirección de tienda').toString(),
-      tiendaLat: _toDouble(tiendaCoords['lat'] ?? tienda['lat'], 20.5289),
-      tiendaLng: _toDouble(tiendaCoords['lng'] ?? tienda['lng'], -100.8157),
+      tiendaNombre: (tienda['nombre'] ?? 'Tienda').toString(),
+      tiendaDireccion: (tienda['direccion'] ?? 'Dirección de tienda').toString(),
+      tiendaLat: _toDouble(tiendaUbicacion['lat'], 20.5222),
+      tiendaLng: _toDouble(tiendaUbicacion['lng'], -100.8123),
       clienteDireccion:
-          (entregaDir['texto'] ?? entregaDir['calle'] ?? 'Domicilio del cliente').toString(),
-      gananciaEnvio: _toDouble(json['gananciaEnvio'] ?? json['costoEnvio'], 0.0),
-      totalPedido: _toDouble(json['total'], 0.0),
-      cantidadProductos: items.length,
+          (json['destinoDireccion'] ?? 'Domicilio del cliente').toString(),
+      gananciaEnvio: _toDouble(json['costoEnvio'], 0.0),
+      totalPedido: _toDouble(json['totalACobrar'], 0.0),
+      montoAPagarTienda: _toDouble(json['montoAPagarTienda'], 0.0),
     );
   }
 

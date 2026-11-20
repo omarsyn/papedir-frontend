@@ -54,7 +54,11 @@ class PerfilNotifier extends StateNotifier<PerfilState> {
   PerfilNotifier(this._dio, this._ref) : super(const PerfilState()) {
     final usuario = _ref.read(authProvider).usuario;
     if (usuario != null) {
-      state = state.copyWith(nombre: usuario.nombre);
+      state = state.copyWith(
+        nombre: usuario.nombre,
+        telefono: usuario.telefono ?? '',
+        correo: usuario.email,
+      );
     }
     cargarPerfil();
   }
@@ -62,16 +66,16 @@ class PerfilNotifier extends StateNotifier<PerfilState> {
   Future<void> cargarPerfil() async {
     state = state.copyWith(cargando: true, limpiarError: true);
     try {
-      final res = await _dio.get('/usuarios/me');
-      final data = res.data as Map<String, dynamic>;
-      final perfilRep = data['repartidor'] as Map<String, dynamic>? ??
-          data['perfilRepartidor'] as Map<String, dynamic>? ??
+      final res = await _dio.get('/auth/me');
+      final data = res.data as JsonMap;
+      final perfilRep = data['repartidor'] as JsonMap? ??
+          data['perfilRepartidor'] as JsonMap? ??
           {};
 
       state = state.copyWith(
         nombre: (data['nombre'] ?? state.nombre).toString(),
-        telefono: (data['telefono'] ?? '').toString(),
-        correo: (data['email'] ?? data['correo'] ?? '').toString(),
+        telefono: (data['telefono'] ?? state.telefono).toString(),
+        correo: (data['email'] ?? state.correo).toString(),
         vehiculo:
             (perfilRep['tipoVehiculo'] ?? perfilRep['vehiculo'] ?? '').toString(),
         placas: (perfilRep['placas'] ?? '').toString(),

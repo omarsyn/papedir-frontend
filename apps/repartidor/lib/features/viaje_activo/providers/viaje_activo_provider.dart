@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'package:core/core.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class ViajeActivoState {
   final Viaje? viaje;
+  final List<LatLng> rutaPuntos;
   final bool cargando;
   final bool procesandoAccion;
   final Position? ubicacionActual;
@@ -14,6 +17,7 @@ class ViajeActivoState {
 
   const ViajeActivoState({
     this.viaje,
+    this.rutaPuntos = const [],
     this.cargando = false,
     this.procesandoAccion = false,
     this.ubicacionActual,
@@ -24,6 +28,7 @@ class ViajeActivoState {
   ViajeActivoState copyWith({
     Viaje? viaje,
     bool limpiarViaje = false,
+    List<LatLng>? rutaPuntos,
     bool? cargando,
     bool? procesandoAccion,
     Position? ubicacionActual,
@@ -33,6 +38,7 @@ class ViajeActivoState {
   }) {
     return ViajeActivoState(
       viaje: limpiarViaje ? null : (viaje ?? this.viaje),
+      rutaPuntos: rutaPuntos ?? this.rutaPuntos,
       cargando: cargando ?? this.cargando,
       procesandoAccion: procesandoAccion ?? this.procesandoAccion,
       ubicacionActual: ubicacionActual ?? this.ubicacionActual,
@@ -47,7 +53,7 @@ class ViajeActivoNotifier extends StateNotifier<ViajeActivoState> {
   final SocketService _socket;
 
   Timer? _gpsTimer;
-  StreamSubscription<Map<String, dynamic>>? _pedidoActualizadoSub;
+  StreamSubscription<JsonMap>? _pedidoActualizadoSub;
 
   ViajeActivoNotifier(this._dio, this._socket)
       : super(const ViajeActivoState()) {
@@ -65,27 +71,40 @@ class ViajeActivoNotifier extends StateNotifier<ViajeActivoState> {
 
     try {
       final res = await _dio.get('/repartidor/viaje-actual');
-      final data = res.data as Map<String, dynamic>;
-      final viaje = Viaje.fromJson(data);
-
-      if (viaje.estado == EstadoViaje.finalizado) {
+      if (res.statusCode == 204 || res.data == null || res.data is! JsonMap) {
         state = state.copyWith(
           limpiarViaje: true,
+          rutaPuntos: const [],
           cargando: false,
           viajeFinalizado: true,
         );
         return;
       }
 
+      final viaje = Viaje.fromJson(res.data as JsonMap);
+      if (viaje.estado == EstadoViaje.finalizado) {
+        state = state.copyWith(
+          limpiarViaje: true,
+          rutaPuntos: const [],
+          cargando: false,
+          viajeFinalizado: true,
+        );
+        return;
+      }
+
+      final puntosRuta = await _cargarRuta();
+
       state = state.copyWith(
         viaje: viaje,
+        rutaPuntos: puntosRuta,
         cargando: false,
         viajeFinalizado: false,
       );
     } on DioException catch (e) {
-      if (e.response?.statusCode == 404) {
+      if (e.response?.statusCode == 404 || e.response?.statusCode == 204) {
         state = state.copyWith(
           limpiarViaje: true,
+          rutaPuntos: const [],
           cargando: false,
           viajeFinalizado: true,
         );
@@ -97,6 +116,27 @@ class ViajeActivoNotifier extends StateNotifier<ViajeActivoState> {
         mensajeError: apiErr.message,
       );
     }
+  }
+
+  Future<List<LatLng>> _cargarRuta() async {
+    try {
+      final r = (await _dio.get('/repartidor/viaje-actual/ruta')).data;
+      if (r is JsonMap && r['puntos'] is List) {
+        return (r['puntos'] as List)
+            .whereType<JsonMap>()
+            .where((p) => p['lat'] != null && p['lng'] != null)
+            .map(
+              (p) => LatLng(
+                (p['lat'] as num).toDouble(),
+                (p['lng'] as num).toDouble(),
+              ),
+            )
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('[ViajeActivo] No se pudo obtener la polilínea de ruta: $e');
+    }
+    return const [];
   }
 
   double? calcularDistanciaMetros(ParadaViaje parada) {
@@ -115,20 +155,7 @@ class ViajeActivoNotifier extends StateNotifier<ViajeActivoState> {
   }
 
   Future<bool> registrarSalidaTienda(String pedidoId) async {
-    state = state.copyWith(procesandoAccion: true, limpiarError: true);
-    try {
-      await _dio.post('/repartidor/pedidos/$pedidoId/salida-tienda');
-      await cargarViajeActual(silencioso: true);
-      state = state.copyWith(procesandoAccion: false);
-      return true;
-    } on DioException catch (e) {
-      final apiErr = ApiException.fromDioException(e);
-      state = state.copyWith(
-        procesandoAccion: false,
-        mensajeError: apiErr.message,
-      );
-      return false;
-    }
+    return _ejecutarPasoConGps('/repartidor/pedidos/$pedidoId/salida-tienda');
   }
 
   Future<bool> registrarLlegadaCliente(String pedidoId) async {
@@ -149,22 +176,16 @@ class ViajeActivoNotifier extends StateNotifier<ViajeActivoState> {
 
       await _dio.post(
         endpoint,
-        data: {'lat': pos.latitude, 'lng': pos.longitude},
+        data: {
+          'ubicacion': {'lat': pos.latitude, 'lng': pos.longitude},
+        },
       );
 
       await cargarViajeActual(silencioso: true);
       state = state.copyWith(procesandoAccion: false);
       return true;
     } on DioException catch (e) {
-      final apiErr = ApiException.fromDioException(e);
-      final mensaje = apiErr.error == 'FUERA_DE_RANGO'
-          ? 'Estás a más de 150 m del punto. Acércate un poco más para confirmar.'
-          : apiErr.message;
-
-      state = state.copyWith(
-        procesandoAccion: false,
-        mensajeError: mensaje,
-      );
+      await _manejarErrorOperacion(e);
       return false;
     }
   }
@@ -176,6 +197,15 @@ class ViajeActivoNotifier extends StateNotifier<ViajeActivoState> {
   }) async {
     state = state.copyWith(procesandoAccion: true, limpiarError: true);
     try {
+      final pos = await _obtenerPosicionActual();
+      if (pos == null) {
+        state = state.copyWith(
+          procesandoAccion: false,
+          mensajeError: 'No se pudo obtener tu ubicación GPS actual.',
+        );
+        return false;
+      }
+
       String? fotoUrl;
       if (fotoPath != null && fotoPath.isNotEmpty) {
         fotoUrl = await _subirFotoEvidencia(fotoPath);
@@ -184,8 +214,9 @@ class ViajeActivoNotifier extends StateNotifier<ViajeActivoState> {
       await _dio.post(
         '/repartidor/pedidos/$pedidoId/entregado',
         data: {
+          'ubicacion': {'lat': pos.latitude, 'lng': pos.longitude},
           'codigoEntrega': codigoEntrega.trim(),
-          if (fotoUrl != null) 'fotoEntregaUrl': fotoUrl,
+          if (fotoUrl != null) 'evidenciaUrl': fotoUrl,
         },
       );
 
@@ -193,25 +224,47 @@ class ViajeActivoNotifier extends StateNotifier<ViajeActivoState> {
       state = state.copyWith(procesandoAccion: false);
       return true;
     } on DioException catch (e) {
-      final apiErr = ApiException.fromDioException(e);
-      state = state.copyWith(
-        procesandoAccion: false,
-        mensajeError: apiErr.message,
-      );
+      await _manejarErrorOperacion(e);
       return false;
     }
+  }
+
+  Future<void> _manejarErrorOperacion(DioException e) async {
+    final apiErr = ApiException.fromDioException(e);
+    final rawData = e.response?.data;
+    final codigoError = apiErr.error ??
+        (rawData is JsonMap ? rawData['error']?.toString() : null);
+
+    debugPrint(
+      '[ViajeActivo ERROR] ${e.requestOptions.method} ${e.requestOptions.path} -> $rawData',
+    );
+
+    if (codigoError == 'TRANSICION_INVALIDA') {
+      await cargarViajeActual(silencioso: true);
+    }
+
+    final mensaje = codigoError == 'FUERA_DE_RANGO'
+        ? 'Estás a más de 150 m del punto. Acércate un poco más para confirmar.'
+        : (rawData is JsonMap && rawData['detalles'] != null
+            ? '${apiErr.message}: ${rawData['detalles']}'
+            : apiErr.message);
+
+    state = state.copyWith(
+      procesandoAccion: false,
+      mensajeError: mensaje,
+    );
   }
 
   Future<String?> _subirFotoEvidencia(String filePath) async {
     final fileName = filePath.split(RegExp(r'[/\\]')).last;
     final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(filePath, filename: fileName),
+      'archivo': await MultipartFile.fromFile(filePath, filename: fileName),
+      'tipo': 'evidencia',
     });
 
     final res = await _dio.post('/uploads', data: formData);
-    if (res.data is Map<String, dynamic>) {
-      final map = res.data as Map<String, dynamic>;
-      return (map['url'] ?? map['fotoUrl'] ?? map['archivoUrl'])?.toString();
+    if (res.data is JsonMap) {
+      return (res.data as JsonMap)['url']?.toString();
     }
     return null;
   }
@@ -253,7 +306,9 @@ class ViajeActivoNotifier extends StateNotifier<ViajeActivoState> {
           '/repartidor/ubicacion',
           data: {'lat': pos.latitude, 'lng': pos.longitude},
         );
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[ViajeActivo GPS HTTP] $e');
+      }
     }
   }
 
