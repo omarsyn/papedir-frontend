@@ -135,7 +135,7 @@ export function Finanzas() {
         <p className="texto-secundario">Todavía no hay pagos registrados.</p>
       ) : (
         <div className="tabla-contenedor">
-          <table className="tabla tabla-compacta">
+          <table className="tabla">
             <thead>
               <tr>
                 <th>Fecha</th>
