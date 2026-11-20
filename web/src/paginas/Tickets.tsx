@@ -141,7 +141,7 @@ function DetalleTicket({ id }: { id: string }) {
           <h2>{t.asunto}</h2>
           <p className="texto-secundario texto-chico">
             Abierto por {t.creadoPor?.nombre} ({ROLES[t.creadoPor?.rol ?? 'cliente'].toLowerCase()}) {haceCuanto(t.creadoEn)}
-            {t.atendidoPor && <>. Lo atiende {esMio ? 'tú' : t.atendidoPor.nombre}</>}
+            {t.atendidoPor && <>; lo atiende {esMio ? 'tú' : t.atendidoPor.nombre}</>}
           </p>
         </div>
         <div className="acciones">
