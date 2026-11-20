@@ -9,6 +9,7 @@ import { Dialogo, DialogoMotivo } from '../componentes/Dialogo';
 import { MapaPedido } from '../componentes/MapaPedido';
 import { RielEstado } from '../componentes/RielEstado';
 import { useTiempoReal } from '../realtime/TiempoReal';
+import { direccionDe } from '../util/geocodificar';
 import { ACTIVOS, descargarCsv, dinero, ESTADOS_PEDIDO, EVENTOS, fecha, haceCuanto, ROLES, soloHora, textoEstado, tonoEstado } from '../util/formato';
 
 const PAGO: Record<string, { texto: string; tono: 'exito' | 'alerta' | 'error' | 'neutro' }> = {
@@ -514,14 +515,35 @@ function CorregirDireccion({ pedido, abierto, onCerrar, onListo }: { pedido: Ped
   const [punto, setPunto] = useState<Coordenadas | null>(null);
   const [motivo, setMotivo] = useState('');
   const [error, setError] = useState('');
+  const [buscando, setBuscando] = useState<'no' | 'si' | 'sin-resultado'>('no');
+  const busqueda = useRef<AbortController | null>(null);
   useEffect(() => {
     if (abierto) {
       setDireccion(pedido.destino?.direccion ?? '');
       setPunto(pedido.destino?.ubicacion ?? null);
       setMotivo('');
       setError('');
+      setBuscando('no');
     }
+    return () => busqueda.current?.abort();
   }, [abierto, pedido]);
+
+  // Al marcar un punto se busca su dirección; si llega, reemplaza la escrita (se puede corregir a mano).
+  async function elegirPunto(c: Coordenadas) {
+    setPunto(c);
+    busqueda.current?.abort();
+    const control = new AbortController();
+    busqueda.current = control;
+    setBuscando('si');
+    try {
+      const encontrada = await direccionDe(c, control.signal);
+      if (control.signal.aborted) return;
+      if (encontrada) setDireccion(encontrada);
+      setBuscando(encontrada ? 'no' : 'sin-resultado');
+    } catch {
+      if (!control.signal.aborted) setBuscando('sin-resultado');
+    }
+  }
 
   const guardar = useMutation({
     mutationFn: () =>
@@ -547,11 +569,17 @@ function CorregirDireccion({ pedido, abierto, onCerrar, onListo }: { pedido: Ped
     <Dialogo titulo={`Corregir la dirección de ${pedido.folio}`} abierto={abierto} onCerrar={onCerrar} ancho={640}>
       <form className="formulario" onSubmit={enviar}>
         <p className="texto-secundario">Haz clic en el mapa donde está el domicilio correcto. El costo de envío no cambia.</p>
-        <MapaPedido puntos={puntos} onClic={setPunto} alto={300} />
-        <p className="texto-secundario texto-chico">{punto ? `Punto elegido: ${punto.lat}, ${punto.lng}` : 'Sin punto elegido'}</p>
+        <MapaPedido puntos={puntos} onClic={elegirPunto} alto={300} />
         <label className="campo">
-          <span>Dirección escrita</span>
-          <input value={direccion} onChange={(e) => setDireccion(e.target.value)} required maxLength={200} />
+          <span>Dirección del punto</span>
+          <input value={direccion} onChange={(e) => setDireccion(e.target.value)} required maxLength={200} disabled={buscando === 'si'} />
+          <span className="texto-secundario texto-chico" aria-live="polite">
+            {buscando === 'si'
+              ? 'Buscando la dirección del punto…'
+              : buscando === 'sin-resultado'
+                ? 'No se encontró la dirección de ese punto; escríbela a mano.'
+                : 'Revisa el número de casa: el mapa no siempre lo tiene.'}
+          </span>
         </label>
         <label className="campo">
           <span>Motivo (queda en la bitácora)</span>
@@ -562,7 +590,7 @@ function CorregirDireccion({ pedido, abierto, onCerrar, onListo }: { pedido: Ped
           <button type="button" className="boton" onClick={onCerrar}>
             Volver
           </button>
-          <button className="boton boton-primario" disabled={!punto || !direccion.trim() || !motivo.trim() || guardar.isPending}>
+          <button className="boton boton-primario" disabled={!punto || !direccion.trim() || !motivo.trim() || buscando === 'si' || guardar.isPending}>
             {guardar.isPending ? 'Guardando…' : 'Guardar dirección'}
           </button>
         </div>
