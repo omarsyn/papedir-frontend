@@ -11,11 +11,21 @@ const COLORES = { tienda: '#0057C2', destino: '#0A7CFF', repartidor: '#1E9E5A', 
 function Encuadre({ puntos }: { puntos: Punto[] }) {
   const mapa = useMap();
   const clave = puntos.map((p) => `${p.pos.lat},${p.pos.lng}`).join('|');
+  const encuadrar = () => {
+    if (puntos.length) mapa.fitBounds(latLngBounds(puntos.map((p) => [p.pos.lat, p.pos.lng])), { padding: [40, 40], maxZoom: 16 });
+  };
+  useEffect(encuadrar, [clave, mapa]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Dentro de un diálogo el mapa nace casi sin tamaño y Leaflet solo pide las teselas de ese pedacito.
+  // Cuando el contenedor cambia de tamaño, se vuelve a medir y a encuadrar.
   useEffect(() => {
-    if (!puntos.length) return;
-    mapa.fitBounds(latLngBounds(puntos.map((p) => [p.pos.lat, p.pos.lng])), { padding: [40, 40], maxZoom: 16 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clave, mapa]);
+    const observador = new ResizeObserver(() => {
+      mapa.invalidateSize();
+      encuadrar();
+    });
+    observador.observe(mapa.getContainer());
+    return () => observador.disconnect();
+  }, [clave, mapa]); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
 }
 

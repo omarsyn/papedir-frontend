@@ -284,14 +284,19 @@ function Encuadrar({ puntos }: { puntos: Coordenadas[] }) {
   const mapa = useMap();
   const inicio = useRef(puntos);
   useEffect(() => {
-    // Solo al abrir: si luego se marcan puntos nuevos, el mapa no salta.
-    // Dentro de un diálogo el mapa nace sin tamaño; se mide de nuevo antes de encuadrar.
-    const t = setTimeout(() => {
+    // Solo encuadra al abrir: si luego se marcan puntos nuevos, el mapa no salta.
+    // Dentro de un diálogo el mapa nace casi sin tamaño; se vuelve a medir cada vez que cambia.
+    let encuadrado = false;
+    const observador = new ResizeObserver(() => {
       mapa.invalidateSize();
       const p = inicio.current;
-      if (p.length > 1) mapa.fitBounds(p.map((c) => [c.lat, c.lng] as [number, number]), { padding: [24, 24], maxZoom: 15 });
-    }, 50);
-    return () => clearTimeout(t);
+      if (!encuadrado && mapa.getSize().x > 100) {
+        encuadrado = true;
+        if (p.length > 1) mapa.fitBounds(p.map((c) => [c.lat, c.lng] as [number, number]), { padding: [24, 24], maxZoom: 15 });
+      }
+    });
+    observador.observe(mapa.getContainer());
+    return () => observador.disconnect();
   }, [mapa]);
   return null;
 }
