@@ -1270,8 +1270,13 @@ time {
   padding: 10px 0;
   border-top: 1px solid var(--linea);
 }
-.lista-documentos > li > :first-child {
-  flex: 1 1 180px;
+.lista-documentos > li > svg {
+  flex: none;
+  color: var(--pizarra);
+}
+.lista-documentos > li > div {
+  flex: 1 1 140px;
+  min-width: 0;
 }
 .visor-documento {
   display: grid;
