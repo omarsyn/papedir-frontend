@@ -149,11 +149,12 @@ export function FormularioTienda({ abierto, onCerrar, ficha, onGuardada }: Props
       } else avisar(ficha ? 'Cambios guardados' : `${f.nombre} creada`, 'exito');
       onGuardada(f);
     },
-    onError: (e) => setError(e instanceof ErrorApi ? e.message : 'No se pudo guardar'),
+    onError: (e) => setError(explicarError(e)),
   });
 
   const duenoListo = editando || (modoDueno === 'existente' ? !!duenoId : !!(dueno.nombre.trim() && dueno.email.trim() && dueno.telefono.length === 10 && dueno.password.length >= 8));
-  const listo = duenoListo && t.nombre.trim() && t.direccion.trim() && punto;
+  const telefonoOk = !t.telefono || t.telefono.length === 10;
+  const listo = duenoListo && telefonoOk && t.nombre.trim() && t.direccion.trim() && punto;
 
   return (
     <Dialogo titulo={ficha ? `Editar ${ficha.nombre}` : 'Nueva tienda'} abierto={abierto} onCerrar={onCerrar} ancho={720}>
@@ -309,7 +310,8 @@ export function FormularioTienda({ abierto, onCerrar, ficha, onGuardada }: Props
           <div className="campos-en-fila">
             <label className="campo">
               <span>Teléfono del negocio (opcional)</span>
-              <input value={t.telefono} onChange={(e) => setT({ ...t, telefono: e.target.value.replace(/\D/g, '').slice(0, 10) })} inputMode="tel" placeholder={editando ? '10 dígitos' : 'Si lo dejas vacío, usa el del dueño'} />
+              <input value={t.telefono} onChange={(e) => setT({ ...t, telefono: e.target.value.replace(/\D/g, '').slice(0, 10) })} inputMode="tel" placeholder={editando ? '10 dígitos' : 'Si lo dejas vacío, usa el del dueño'} aria-invalid={!telefonoOk} />
+              {!telefonoOk && <small className="texto-error">Faltan {10 - t.telefono.length} dígitos: el teléfono lleva 10 (lada incluida).</small>}
             </label>
             <label className="campo">
               <span>Tiempo de preparación (min)</span>
@@ -354,4 +356,47 @@ export function FormularioTienda({ abierto, onCerrar, ficha, onGuardada }: Props
       </form>
     </Dialogo>
   );
+}
+
+const CAMPOS: Record<string, string> = {
+  nombre: 'Nombre de la tienda',
+  categoria: 'Categoría',
+  descripcion: 'Descripción',
+  telefono: 'Teléfono del negocio',
+  direccion: 'Dirección del local',
+  ubicacion: 'Ubicación',
+  tiempoPreparacionMin: 'Tiempo de preparación',
+  imagenUrl: 'Imagen',
+  duenoId: 'Dueño',
+  'dueno.nombre': 'Nombre del dueño',
+  'dueno.email': 'Correo del dueño',
+  'dueno.telefono': 'Teléfono del dueño',
+  'dueno.password': 'Contraseña del dueño',
+};
+
+/** Convierte un 400 de validación en un mensaje que diga qué campo corregir. */
+function explicarError(e: unknown): string {
+  if (!(e instanceof ErrorApi)) return 'No se pudo guardar';
+  if (e.codigo !== 'VALIDACION' || !e.detalles.length) return e.message;
+  const porCampo = new Map<string, string>();
+  for (const d of e.detalles) {
+    const campo = d.campo ?? '';
+    if (porCampo.has(campo)) continue;
+    const raiz = campo.startsWith('ubicacion') ? 'ubicacion' : campo;
+    const nombre = CAMPOS[raiz] ?? campo;
+    const m = d.mensaje ?? '';
+    const texto = /10 dígitos/.test(m)
+      ? 'debe tener 10 dígitos'
+      : /shorter|longer|max/i.test(m)
+        ? 'es demasiado largo'
+        : /must not be less|min/i.test(m)
+          ? 'es menor al mínimo'
+          : /must not be greater/i.test(m)
+            ? 'es mayor al máximo'
+            : /email/i.test(m)
+              ? 'no es un correo válido'
+              : m;
+    porCampo.set(campo, `${nombre}: ${texto}`);
+  }
+  return `Revisa estos datos. ${[...porCampo.values()].join('. ')}.`;
 }
