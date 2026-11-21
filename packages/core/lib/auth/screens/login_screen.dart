@@ -7,12 +7,14 @@ class LoginScreen extends ConsumerStatefulWidget {
   final AppTipo appTipo;
   final String tituloApp;
   final VoidCallback? onIrARegistro;
+  final Widget? logo;
 
   const LoginScreen({
     super.key,
     required this.appTipo,
     required this.tituloApp,
     this.onIrARegistro,
+    this.logo,
   });
 
   @override
@@ -57,6 +59,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (widget.logo != null) ...[
+                    Center(child: widget.logo!),
+                    const SizedBox(height: 16),
+                  ],
                   Text(
                     widget.tituloApp,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(

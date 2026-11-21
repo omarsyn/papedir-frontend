@@ -2,6 +2,8 @@ import 'package:core/core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:repartidor/features/cartera/screens/cartera_detalle_screen.dart';
+import 'package:repartidor/features/perfil/providers/vehiculo_provider.dart';
 import '../providers/perfil_provider.dart';
 
 class PerfilScreen extends ConsumerStatefulWidget {
@@ -80,6 +82,7 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
   @override
   Widget build(BuildContext context) {
     final estado = ref.watch(perfilProvider);
+    final usuario = ref.watch(authProvider).usuario;
     _sincronizarControladores(estado);
 
     ref.listen<PerfilState>(perfilProvider, (prev, next) {
@@ -210,7 +213,21 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                       estado.guardando ? 'Guardando...' : 'Guardar cambios',
                     ),
                   ),
+                  if (usuario != null)
+                    SeccionDatosSoloSoporte(usuario: usuario),
                   const Divider(height: 36),
+                  ListTile(
+                    leading: const Icon(Icons.account_balance_wallet_outlined),
+                    title: const Text('Mi cartera'),
+                    subtitle:
+                        const Text('Consulta tu saldo, límite y movimientos'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const CarteraDetalleScreen(),
+                      ),
+                    ),
+                  ),
                   ListTile(
                     leading: const Icon(Icons.history),
                     title: const Text('Historial de entregas'),
@@ -239,6 +256,219 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                 ],
               ),
             ),
+    );
+  }
+}
+
+class SeccionDatosSoloSoporte extends ConsumerWidget {
+  final Usuario usuario;
+
+  const SeccionDatosSoloSoporte({super.key, required this.usuario});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final vehiculoAsync = ref.watch(vehiculoRepartidorProvider);
+
+    final String textoCalificacion = usuario.calificacion != null
+        ? '${usuario.calificacion!.toStringAsFixed(1)} ★'
+        : 'Sin calificaciones aún';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            const Text(
+              'Datos de cuenta y vehículo',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(width: 6),
+            Icon(Icons.lock_outline, size: 16, color: Colors.grey.shade600),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Estos datos son de solo lectura. Si requieres modificarlos, abre un ticket con soporte.',
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+        ),
+        const SizedBox(height: 12),
+
+        // 1. Correo (No editable)
+        TextFormField(
+          initialValue: usuario.email,
+          readOnly: true,
+          enabled: false,
+          decoration: const InputDecoration(
+            labelText: 'Correo electrónico',
+            prefixIcon: Icon(Icons.email_outlined),
+            suffixIcon: Icon(Icons.lock_outline, size: 18),
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // 2. Placas del vehículo (No editable)
+        vehiculoAsync.when(
+          loading: () => const LinearProgressIndicator(),
+          error: (_, __) => const Text('No se pudo consultar el vehículo'),
+          data: (vehiculo) {
+            final String textoPlacas;
+            if (vehiculo == null) {
+              textoPlacas = 'Sin vehículo registrado';
+            } else if (vehiculo.tipo == 'bicicleta') {
+              textoPlacas = 'No aplica (Bicicleta)';
+            } else {
+              textoPlacas = vehiculo.placa ?? 'Sin placas';
+            }
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextFormField(
+                  key: ValueKey(textoPlacas),
+                  initialValue: textoPlacas,
+                  readOnly: true,
+                  enabled: false,
+                  decoration: InputDecoration(
+                    labelText: 'Placas del vehículo',
+                    helperText: vehiculo != null
+                        ? '${vehiculo.tipo.toUpperCase()} · ${vehiculo.marca ?? ''} ${vehiculo.modelo ?? ''} (${vehiculo.color})'
+                        : null,
+                    prefixIcon: const Icon(Icons.two_wheeler_outlined),
+                    suffixIcon: const Icon(Icons.lock_outline, size: 18),
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                // Si el repartidor aún no ha registrado su vehículo (204), permitir alta inicial
+                if (vehiculo == null)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () =>
+                          _mostrarDialogoRegistrarVehiculo(context, ref),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Registrar vehículo'),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+
+        // 3. Calificación (No editable)
+        TextFormField(
+          key: ValueKey(textoCalificacion),
+          initialValue: textoCalificacion,
+          readOnly: true,
+          enabled: false,
+          decoration: const InputDecoration(
+            labelText: 'Calificación',
+            prefixIcon: Icon(Icons.star_outline),
+            suffixIcon: Icon(Icons.lock_outline, size: 18),
+            border: OutlineInputBorder(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _mostrarDialogoRegistrarVehiculo(BuildContext context, WidgetRef ref) {
+    final tipoProvider = StateProvider.autoDispose<String>((_) => 'moto');
+    final marcaCtrl = TextEditingController();
+    final modeloCtrl = TextEditingController();
+    final colorCtrl = TextEditingController();
+    final placaCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Consumer(
+        builder: (context, refDialog, _) {
+          final tipo = refDialog.watch(tipoProvider);
+          return AlertDialog(
+            title: const Text('Registrar vehículo'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    initialValue: tipo,
+                    decoration:
+                        const InputDecoration(labelText: 'Tipo de vehículo'),
+                    items: const [
+                      DropdownMenuItem(
+                          value: 'moto', child: Text('Motocicleta')),
+                      DropdownMenuItem(
+                          value: 'auto', child: Text('Automóvil')),
+                      DropdownMenuItem(
+                          value: 'bicicleta', child: Text('Bicicleta')),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) {
+                        refDialog.read(tipoProvider.notifier).state = v;
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: marcaCtrl,
+                    decoration:
+                        const InputDecoration(labelText: 'Marca (ej. Honda)'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: modeloCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'Modelo (ej. CB190R)'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: colorCtrl,
+                    decoration: const InputDecoration(labelText: 'Color *'),
+                  ),
+                  if (tipo != 'bicicleta') ...[
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: placaCtrl,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: const InputDecoration(labelText: 'Placas *'),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  if (colorCtrl.text.trim().isEmpty) return;
+                  if (tipo != 'bicicleta' && placaCtrl.text.trim().isEmpty) {
+                    return;
+                  }
+
+                  await ref
+                      .read(vehiculoRepartidorProvider.notifier)
+                      .registrarVehiculo(
+                        Vehiculo(
+                          tipo: tipo,
+                          marca: marcaCtrl.text,
+                          modelo: modeloCtrl.text,
+                          color: colorCtrl.text,
+                          placa: placaCtrl.text,
+                        ),
+                      );
+                  if (ctx.mounted) Navigator.of(ctx).pop();
+                },
+                child: const Text('Guardar'),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

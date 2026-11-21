@@ -9,6 +9,7 @@ class Usuario {
   final String nombre;
   final String email;
   final String? telefono;
+  final double? calificacion;
   final Rol rol;
   final EstadoCuenta estado;
   final DateTime creadoEn;
@@ -18,6 +19,7 @@ class Usuario {
     required this.nombre,
     required this.email,
     this.telefono,
+    this.calificacion,
     required this.rol,
     required this.estado,
     required this.creadoEn,
@@ -25,7 +27,6 @@ class Usuario {
 
   factory Usuario.fromJson(Map<String, dynamic> json) =>
       _$UsuarioFromJson(json);
-  Map<String, dynamic> toJson() => _$UsuarioToJson(this);
 }
 
 @JsonSerializable()

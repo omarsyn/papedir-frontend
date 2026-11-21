@@ -22,6 +22,9 @@ export 'models/pedido.dart';
 export 'models/ticket.dart';
 export 'models/usuario.dart';
 export 'models/viaje.dart';
+export 'models/cartera_models.dart';
+export 'models/vehiculo_model.dart';
+export 'api/cartera_repository.dart';
 
 // Push & Realtime
 export 'push/fcm_service.dart';

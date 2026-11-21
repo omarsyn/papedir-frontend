@@ -232,8 +232,7 @@ class ViajeActivoNotifier extends StateNotifier<ViajeActivoState> {
   Future<void> _manejarErrorOperacion(DioException e) async {
     final apiErr = ApiException.fromDioException(e);
     final rawData = e.response?.data;
-    final codigoError = apiErr.error ??
-        (rawData is JsonMap ? rawData['error']?.toString() : null);
+    final codigoError = apiErr.error;
 
     debugPrint(
       '[ViajeActivo ERROR] ${e.requestOptions.method} ${e.requestOptions.path} -> $rawData',

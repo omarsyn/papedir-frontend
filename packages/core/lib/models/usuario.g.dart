@@ -16,6 +16,7 @@ Usuario _$UsuarioFromJson(Map<String, dynamic> json) => Usuario(
   creadoEn: DateTime.parse(json['creadoEn'] as String),
 );
 
+// ignore: unused_element
 Map<String, dynamic> _$UsuarioToJson(Usuario instance) => <String, dynamic>{
   'id': instance.id,
   'nombre': instance.nombre,

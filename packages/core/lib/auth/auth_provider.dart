@@ -80,12 +80,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         data: {'email': email.trim(), 'password': password, 'app': app.name},
       );
 
-      final auth = AuthResponse.fromJson(res.data as Map<String, dynamic>);
-      await _tokenStorage.saveTokens(
-        Tokens(accessToken: auth.accessToken, refreshToken: auth.refreshToken),
-      );
-
-      state = state.copyWith(usuario: auth.usuario, isLoading: false);
+      await guardarSesionDesdeRespuesta(res.data as Map<String, dynamic>);
       return true;
     } on DioException catch (e) {
       final apiErr = ApiException.fromDioException(e);
@@ -96,6 +91,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       return false;
     }
+  }
+
+  Future<void> guardarSesionDesdeRespuesta(Map<String, dynamic> data) async {
+    final auth = AuthResponse.fromJson(data);
+    await _tokenStorage.saveTokens(
+      Tokens(accessToken: auth.accessToken, refreshToken: auth.refreshToken),
+    );
+    state = state.copyWith(
+      usuario: auth.usuario,
+      isLoading: false,
+      clearError: true,
+    );
   }
 
   Future<void> logout() async {
@@ -121,6 +128,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         nombre: current.nombre,
         email: current.email,
         telefono: current.telefono,
+        calificacion: current.calificacion,
         rol: current.rol,
         estado: EstadoCuenta.activo,
         creadoEn: current.creadoEn,
