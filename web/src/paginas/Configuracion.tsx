@@ -131,6 +131,8 @@ function Tarifas() {
         </div>
       </form>
 
+      <AjustesCartera />
+
       <form
         className="bloque formulario"
         onSubmit={(e: FormEvent) => {
@@ -186,6 +188,74 @@ function Tarifas() {
         </div>
       </form>
     </div>
+  );
+}
+
+// ───────────────────────── cartera
+
+type CarteraConfig = Esquemas['CarteraConfig'];
+const CAMPOS_CARTERA: { clave: keyof CarteraConfig; texto: string; ayuda: string }[] = [
+  { clave: 'limiteDeudaRepartidor', texto: 'Deuda máxima de un repartidor', ayuda: 'Con más deuda no puede conectarse ni tomar pedidos' },
+  { clave: 'limiteDeudaTienda', texto: 'Deuda máxima de una tienda', ayuda: 'Con más deuda no puede abrir ni aceptar pedidos' },
+  { clave: 'limiteDeudaCliente', texto: 'Deuda máxima de un cliente', ayuda: 'Con más deuda solo puede pagar con tarjeta' },
+  { clave: 'cargoCancelacion', texto: 'Cargo por cancelar tarde', ayuda: 'Al cliente que cancela en efectivo cuando la tienda ya aceptó; se le abona a la tienda' },
+];
+
+/** Límites de deuda de la cartera y tarifa de cancelación tardía. */
+function AjustesCartera() {
+  const cache = useQueryClient();
+  const { avisar } = useAvisos();
+  const config = useQuery({ queryKey: ['configuracion'], queryFn: () => datos(api.GET('/admin/configuracion')) });
+  const [valores, setValores] = useState<Record<keyof CarteraConfig, string> | null>(null);
+  useEffect(() => {
+    const c = config.data?.cartera;
+    if (c) setValores({ limiteDeudaTienda: String(c.limiteDeudaTienda), limiteDeudaRepartidor: String(c.limiteDeudaRepartidor), limiteDeudaCliente: String(c.limiteDeudaCliente), cargoCancelacion: String(c.cargoCancelacion) });
+  }, [config.data]);
+  const guardar = useMutation({
+    mutationFn: () =>
+      datos(
+        api.PUT('/admin/configuracion/cartera', {
+          body: {
+            limiteDeudaTienda: Number(valores!.limiteDeudaTienda),
+            limiteDeudaRepartidor: Number(valores!.limiteDeudaRepartidor),
+            limiteDeudaCliente: Number(valores!.limiteDeudaCliente),
+            cargoCancelacion: Number(valores!.cargoCancelacion),
+          },
+        }),
+      ),
+    onSuccess: () => {
+      cache.invalidateQueries({ queryKey: ['configuracion'] });
+      cache.invalidateQueries({ queryKey: ['saldo'] });
+      avisar('Reglas de la cartera guardadas', 'exito');
+    },
+    onError: (e) => avisar(errorTexto(e, 'No se pudo guardar'), 'error'),
+  });
+  if (!valores) return null;
+  return (
+    <form
+      className="bloque formulario"
+      onSubmit={(e: FormEvent) => {
+        e.preventDefault();
+        guardar.mutate();
+      }}
+    >
+      <h3>Cartera</h3>
+      <p className="texto-secundario">Cada cuenta tiene una cartera como en DiDi: en positivo tiene saldo a favor y en negativo le debe a PaPedir.</p>
+      <div className="campos-en-fila">
+        {CAMPOS_CARTERA.map((c) => (
+          <label key={c.clave} className="campo">
+            <span>{c.texto} ($)</span>
+            <input type="number" min={0} step="1" value={valores[c.clave]} onChange={(e) => setValores({ ...valores, [c.clave]: e.target.value })} required />
+            <small className="texto-secundario">{c.ayuda}</small>
+          </label>
+        ))}
+      </div>
+      <div className="acciones-dialogo">
+        <button className="boton boton-primario" disabled={guardar.isPending}>
+          Guardar cartera
+        </button>
+      </div>
+    </form>
   );
 }
 

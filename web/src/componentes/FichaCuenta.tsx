@@ -1,13 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ExternalLink, FileText, KeyRound, Lock, Pencil, Trash2 } from 'lucide-react';
+import { CheckCircle2, ExternalLink, FileText, KeyRound, Lock, Pencil, Trash2, Undo2 } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import { Usuario } from '../api/cliente';
-import { Link } from 'react-router';
 import { api, datos, ErrorApi, Esquemas } from '../api/cliente';
 import { useSesion } from '../sesion/Sesion';
-import { dinero, ESTADOS_CUENTA, EVENTOS_CUENTA, fecha, PROVEEDORES, ROLES, soloDia } from '../util/formato';
+import { ESTADOS_CUENTA, EVENTOS_CUENTA, fecha, PROVEEDORES, ROLES, soloDia } from '../util/formato';
 import { useAvisos } from './Avisos';
 import { Cargando, Chip, ErrorCarga } from './Basicos';
+import { CarteraCuenta } from './Cartera';
 import { Dialogo, DialogoMotivo } from './Dialogo';
 
 type Documento = Esquemas['Documento'];
@@ -29,11 +29,8 @@ export function FichaCuenta({ id, onCerrar }: { id: string; onCerrar: () => void
     queryFn: () => datos(api.GET('/soporte/usuarios/{id}/documentos', { params: { path: { id } } })),
     enabled: conDocumentos,
   });
-  const saldo = useQuery({
-    queryKey: ['saldo', id],
-    queryFn: () => datos(api.GET('/admin/usuarios/{id}/saldo', { params: { path: { id }, query: { limit: 1 } } })),
-    enabled: esAdmin && conDocumentos,
-  });
+  const conCartera = u?.rol === 'cliente' || conDocumentos;
+  const [regresando, setRegresando] = useState(false);
 
   const recargar = (texto: string) => {
     cache.invalidateQueries({ queryKey: ['usuario', id] });
@@ -61,6 +58,12 @@ export function FichaCuenta({ id, onCerrar }: { id: string; onCerrar: () => void
     onError: (e) => fallo(e, 'No se pudo aprobar'),
   });
 
+  const aprobarCuenta = useMutation({
+    mutationFn: () => datos(api.POST('/soporte/usuarios/{id}/aprobar', { params: { path: { id } } })),
+    onSuccess: () => recargar('Cuenta aprobada: ya puede trabajar'),
+    onError: (e) => fallo(e, 'No se pudo aprobar'),
+  });
+
   const bloqueada = !!u?.bloqueadoHasta;
 
   return (
@@ -85,6 +88,26 @@ export function FichaCuenta({ id, onCerrar }: { id: string; onCerrar: () => void
           {esAdmin && u!.estado !== 'eliminado' && u!.id !== yo?.id && <AccionesAdmin u={u!} onHecho={recargar} onEliminada={onCerrar} />}
 
           {u!.motivoBaneo && <p className="nota">Motivo del baneo: {u!.motivoBaneo}</p>}
+          {u!.estado === 'pendiente_aprobacion' && (
+            <div className="solicitud-cuenta">
+              <div>
+                <strong>Solicitud de {u!.rol === 'repartidor' ? 'repartidor' : 'tienda'} por revisar</strong>
+                <p className="texto-secundario texto-chico">
+                  {u!.motivoRechazo
+                    ? `La regresaste el ${fecha(u!.rechazadaEn)}: ${u!.motivoRechazo}. Revisa si ya corrigió.`
+                    : 'Revisa sus datos y documentos. Mientras no la apruebes no puede conectarse ni recibir pedidos.'}
+                </p>
+              </div>
+              <div className="acciones-encabezado">
+                <button className="boton boton-chico" onClick={() => setRegresando(true)}>
+                  <Undo2 size={14} aria-hidden /> Regresar con motivo
+                </button>
+                <button className="boton boton-primario boton-chico" disabled={aprobarCuenta.isPending} onClick={() => aprobarCuenta.mutate()}>
+                  <CheckCircle2 size={14} aria-hidden /> Aprobar cuenta
+                </button>
+              </div>
+            </div>
+          )}
           {bloqueada && (
             <div className="aviso-linea">
               <p>Se equivocó 5 veces de contraseña. Se desbloquea sola o puedes hacerlo ahora si confirmaste que es la persona.</p>
@@ -131,17 +154,6 @@ export function FichaCuenta({ id, onCerrar }: { id: string; onCerrar: () => void
                     </dd>
                   </>
                 )}
-                {saldo.data && (
-                  <>
-                    <dt>Saldo</dt>
-                    <dd>
-                      {saldo.data.saldo === 0 ? 'Al corriente' : saldo.data.aFavorDe === 'plataforma' ? `Debe ${dinero(saldo.data.saldo)}` : `PaPedir le debe ${dinero(-(saldo.data.saldo ?? 0))}`}{' '}
-                      <Link to="/finanzas" className="texto-chico">
-                        Ver en Finanzas
-                      </Link>
-                    </dd>
-                  </>
-                )}
               </dl>
             </section>
 
@@ -179,6 +191,13 @@ export function FichaCuenta({ id, onCerrar }: { id: string; onCerrar: () => void
               </section>
             )}
           </div>
+
+          {conCartera && (
+            <section className="bloque">
+              <h3>Cartera</h3>
+              <CarteraCuenta usuarioId={id} />
+            </section>
+          )}
 
           <section className="bloque">
             <h3>Historial de la cuenta</h3>
@@ -236,6 +255,18 @@ export function FichaCuenta({ id, onCerrar }: { id: string; onCerrar: () => void
         </Dialogo>
       )}
 
+      <DialogoMotivo
+        abierto={regresando}
+        onCerrar={() => setRegresando(false)}
+        titulo="Regresar la solicitud"
+        descripcion="La cuenta sigue pendiente. Le llega un aviso con el motivo para que corrija sus datos o documentos desde su app."
+        textoBoton="Regresar solicitud"
+        placeholder="Ej. La foto de la licencia está borrosa"
+        onConfirmar={async (motivo) => {
+          await datos(api.POST('/soporte/usuarios/{id}/rechazar', { params: { path: { id } }, body: { motivo } }));
+          recargar('Solicitud regresada con el motivo');
+        }}
+      />
       <DialogoMotivo
         abierto={!!aRechazar}
         onCerrar={() => setARechazar(null)}

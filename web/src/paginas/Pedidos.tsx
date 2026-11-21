@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Bike, CalendarClock, CreditCard, Download, Package, Search, Send, Store, UserRound } from 'lucide-react';
+import { ArrowLeft, Bike, CalendarClock, CreditCard, Download, Package, Search, Send, Store, UserRound, Wallet } from 'lucide-react';
 import { FormEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { api, Coordenadas, datos, ErrorApi, EstadoPedido, Pedido } from '../api/cliente';
@@ -172,7 +172,7 @@ export function Pedidos() {
   );
 }
 
-type Accion = 'cancelar' | 'completar' | 'liberar' | 'ubicacion' | null;
+type Accion = 'cancelar' | 'completar' | 'liberar' | 'ubicacion' | 'reembolso' | null;
 
 function DetallePedido({ id }: { id: string }) {
   const navegar = useNavigate();
@@ -240,6 +240,13 @@ function DetallePedido({ id }: { id: string }) {
             </button>
           </div>
         )}
+        {estado === 'entregado' && p.clienteId && (
+          <div className="acciones">
+            <button className="boton" onClick={() => setAccion('reembolso')}>
+              <Wallet size={16} aria-hidden /> Reembolsar a la cartera
+            </button>
+          </div>
+        )}
       </header>
 
       <RielEstado pedido={p} eventos={eventos.data ?? []} />
@@ -296,6 +303,8 @@ function DetallePedido({ id }: { id: string }) {
               ))}
               {!!p.propina && <Fila dt="Propina al repartidor" dd={dinero(p.propina)} />}
               {!!p.descuento && <Fila dt="Cupón" dd={`−${dinero(p.descuento)}`} />}
+              {!!p.saldoAplicado && <Fila dt="Saldo de su cartera" dd={`−${dinero(p.saldoAplicado)}`} />}
+              {!!p.deudaCobrada && <Fila dt="Adeudo anterior del cliente" dd={`+${dinero(p.deudaCobrada)}`} />}
               <dt className="cuentas-total">{p.metodoPago === 'tarjeta' ? 'Cobrado con tarjeta' : 'Cobra al cliente'}</dt>
               <dd className="cuentas-total">{dinero(p.total)}</dd>
               <dt>{p.metodoPago === 'tarjeta' ? 'Efectivo a la tienda' : 'Paga a la tienda'}</dt>
@@ -508,6 +517,7 @@ function AccionesSoporte({ pedido, accion, onCerrar }: { pedido: Pedido; accion:
         }}
       />
       <CorregirDireccion pedido={pedido} abierto={accion === 'ubicacion'} onCerrar={onCerrar} onListo={() => listo('Dirección corregida')} />
+      <ReembolsoCartera pedido={pedido} abierto={accion === 'reembolso'} onCerrar={onCerrar} onListo={(m) => listo(`${dinero(m)} reembolsados a la cartera del cliente`)} />
     </>
   );
 }
@@ -606,17 +616,29 @@ function CancelarPedido({ pedido, abierto, onCerrar, onListo }: { pedido: Pedido
   const [codigo, setCodigo] = useState('');
   const [motivo, setMotivo] = useState('');
   const [error, setError] = useState('');
+  const [reembolsoA, setReembolsoA] = useState<'tarjeta' | 'cartera'>('tarjeta');
+  const [cobrarCargo, setCobrarCargo] = useState(false);
   useEffect(() => {
     if (abierto) {
       setCodigo('');
       setMotivo('');
       setError('');
+      setReembolsoA('tarjeta');
+      setCobrarCargo(false);
     }
   }, [abierto]);
+  const pagadoConTarjeta = pedido.pagoEstado === 'pagado';
+  // La tienda ya lo preparaba y es en efectivo: se puede cobrar la tarifa al cliente (va a su cartera).
+  const admiteCargo = pedido.metodoPago === 'efectivo' && !!pedido.clienteId && pedido.estado !== 'programado' && pedido.estado !== 'creado';
 
   const cancelar = useMutation({
     mutationFn: () =>
-      datos(api.POST('/soporte/pedidos/{id}/cancelar', { params: { path: { id: pedido.id! } }, body: { codigo, motivo: motivo.trim() || undefined } })),
+      datos(
+        api.POST('/soporte/pedidos/{id}/cancelar', {
+          params: { path: { id: pedido.id! } },
+          body: { codigo, motivo: motivo.trim() || undefined, reembolsoA: pagadoConTarjeta ? reembolsoA : undefined, cobrarCargo: admiteCargo && cobrarCargo ? true : undefined },
+        }),
+      ),
     onSuccess: () => {
       onListo();
       onCerrar();
@@ -636,8 +658,25 @@ function CancelarPedido({ pedido, abierto, onCerrar, onListo }: { pedido: Pedido
       >
         <p className="texto-secundario">
           Se avisará al cliente, a la tienda y al repartidor. No se puede deshacer.
-          {pedido.pagoEstado === 'pagado' && ' El cobro con tarjeta se reembolsa solo.'}
+          {!!pedido.saldoAplicado && ` Los ${dinero(pedido.saldoAplicado)} de saldo que usó regresan a su cartera.`}
         </p>
+        {pagadoConTarjeta && (
+          <fieldset className="opciones opciones-en-fila">
+            <legend>Reembolso de {dinero(pedido.total)}</legend>
+            <label className="opcion">
+              <input type="radio" checked={reembolsoA === 'tarjeta'} onChange={() => setReembolsoA('tarjeta')} /> A su tarjeta (5 a 10 días)
+            </label>
+            <label className="opcion">
+              <input type="radio" checked={reembolsoA === 'cartera'} onChange={() => setReembolsoA('cartera')} /> A su cartera de PaPedir (al momento)
+            </label>
+          </fieldset>
+        )}
+        {admiteCargo && (
+          <label className="opcion">
+            <input type="checkbox" checked={cobrarCargo} onChange={(e) => setCobrarCargo(e.target.checked)} /> Cobrar al cliente la tarifa de cancelación (la tienda ya lo
+            preparaba; se le abona a la tienda)
+          </label>
+        )}
         <fieldset className="opciones">
           <legend>Motivo</legend>
           {motivos?.soporte?.map((m) => (
@@ -658,6 +697,73 @@ function CancelarPedido({ pedido, abierto, onCerrar, onListo }: { pedido: Pedido
           </button>
           <button className="boton boton-peligro" disabled={!codigo || (necesitaTexto && !motivo.trim()) || cancelar.isPending}>
             {cancelar.isPending ? 'Cancelando…' : 'Cancelar pedido'}
+          </button>
+        </div>
+      </form>
+    </Dialogo>
+  );
+}
+
+/** Soporte devuelve dinero a la cartera del cliente por un pedido entregado (faltó algo, llegó mal...). */
+function ReembolsoCartera({ pedido, abierto, onCerrar, onListo }: { pedido: Pedido; abierto: boolean; onCerrar: () => void; onListo: (monto: number) => void }) {
+  const [monto, setMonto] = useState('');
+  const [motivo, setMotivo] = useState('');
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (abierto) {
+      setMonto('');
+      setMotivo('');
+      setError('');
+    }
+  }, [abierto]);
+  const pagado = (pedido.total ?? 0) + (pedido.saldoAplicado ?? 0) - (pedido.deudaCobrada ?? 0);
+  const guardar = useMutation({
+    mutationFn: () => datos(api.POST('/soporte/pedidos/{id}/reembolso', { params: { path: { id: pedido.id! } }, body: { monto: Number(monto), motivo: motivo.trim() } })),
+    onSuccess: () => {
+      onListo(Number(monto));
+      onCerrar();
+    },
+    onError: (e) => setError(e instanceof ErrorApi ? e.message : 'No se pudo reembolsar'),
+  });
+  return (
+    <Dialogo titulo={`Reembolsar ${pedido.folio}`} abierto={abierto} onCerrar={onCerrar}>
+      <form
+        className="formulario"
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault();
+          guardar.mutate();
+        }}
+      >
+        <p className="texto-secundario">
+          El dinero llega al momento a la cartera de {pedido.destino?.nombre ?? 'el cliente'} y se descuenta solo en su siguiente pedido. Lo absorbe PaPedir. Pagó{' '}
+          {dinero(pagado)} por este pedido.
+        </p>
+        <div className="opciones-en-fila">
+          {[25, 50, 100].map((pct) => (
+            <button key={pct} type="button" className="boton boton-chico" onClick={() => setMonto(String(Math.round(pagado * pct) / 100))}>
+              {pct === 100 ? 'Todo' : `${pct} %`}
+            </button>
+          ))}
+        </div>
+        <label className="campo campo-angosto">
+          <span>Monto</span>
+          <input type="number" min="1" step="0.01" max={pagado} value={monto} onChange={(e) => setMonto(e.target.value)} required />
+        </label>
+        <label className="campo">
+          <span>Motivo (lo ve el cliente)</span>
+          <input value={motivo} onChange={(e) => setMotivo(e.target.value)} required maxLength={300} placeholder="Ej. Faltó una bebida" />
+        </label>
+        {error && (
+          <p className="error-formulario" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="acciones-dialogo">
+          <button type="button" className="boton" onClick={onCerrar}>
+            Volver
+          </button>
+          <button className="boton boton-primario" disabled={!Number(monto) || !motivo.trim() || guardar.isPending}>
+            {guardar.isPending ? 'Reembolsando…' : `Reembolsar ${Number(monto) ? dinero(Number(monto)) : ''}`}
           </button>
         </div>
       </form>

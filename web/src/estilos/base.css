@@ -2379,3 +2379,123 @@ time {
   height: 100%;
   object-fit: cover;
 }
+
+/* Cartera */
+.cartera {
+  display: grid;
+  gap: 10px;
+}
+.cartera-cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cartera-cabecera > div {
+  display: grid;
+  gap: 2px;
+}
+.cartera-saldo {
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta);
+}
+.cartera-debe {
+  color: var(--error-texto);
+}
+.cartera-favor {
+  color: var(--exito-texto);
+}
+.cartera-movimientos {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cartera-movimientos li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--linea);
+  font-size: 14px;
+}
+.cartera-movimientos li > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.cartera-monto {
+  flex: none;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Solicitud de cuenta pendiente */
+.solicitud-cuenta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radio);
+  background: var(--alerta-fondo);
+}
+.solicitud-cuenta p {
+  margin: 2px 0 0;
+}
+
+/* Solicitudes de tienda */
+.pestanas-pagina {
+  margin-top: 12px;
+}
+.insignia-en-linea {
+  position: static;
+  display: inline-block;
+  margin-left: 6px;
+  border: 0;
+  vertical-align: 1px;
+}
+.solicitudes {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.solicitud {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  background: var(--blanco);
+}
+.solicitud-datos {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+.solicitud-titulo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.solicitud-titulo h3 {
+  margin: 0;
+}
+.solicitud .datos dd svg {
+  vertical-align: -2px;
+  color: var(--pizarra);
+}
+@media (max-width: 760px) {
+  .solicitud {
+    grid-template-columns: 1fr;
+  }
+}

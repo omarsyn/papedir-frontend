@@ -41,6 +41,12 @@ export function ProveedorTiempoReal({ children }: { children: ReactNode }) {
       avisar(`Ticket nuevo ${t.folio}: ${t.asunto}`);
       sonar('aviso');
     });
+    s.on('solicitud_tienda:nueva', (x: { nombre: string; dueno: string }) => {
+      cache.invalidateQueries({ queryKey: ['solicitudes-tienda'] });
+      cache.invalidateQueries({ queryKey: ['tablero'] });
+      avisar(`${x.dueno} pide una tienda nueva: ${x.nombre}`);
+      sonar('aviso');
+    });
     s.on('ticket:mensaje', (m: { ticketId: string }) => {
       cache.invalidateQueries({ queryKey: ['mensajes', m.ticketId] });
       cache.invalidateQueries({ queryKey: ['tickets'] });

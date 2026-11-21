@@ -4,25 +4,15 @@ import { FormEvent, useEffect, useState } from 'react';
 import { api, datos, ErrorApi } from '../api/cliente';
 import { useAvisos } from '../componentes/Avisos';
 import { Cargando, Chip, ErrorCarga, Paginacion, Vacio } from '../componentes/Basicos';
+import { TIPOS_MOVIMIENTO as MOVIMIENTOS, textoSaldo } from '../componentes/Cartera';
 import { Dialogo } from '../componentes/Dialogo';
 import { descargarCsv, dinero, fecha, ROLES } from '../util/formato';
 
 type Fila = { id?: string; nombre?: string; rol?: 'cliente' | 'tienda' | 'repartidor' | 'soporte' | 'admin'; saldo?: number; ultimoMovimiento?: string };
 
-const MOVIMIENTOS: Record<string, string> = {
-  comision_tienda: 'Comisión de la tienda',
-  comision_envio: 'Comisión del envío',
-  descuento_plataforma: 'Cupón de PaPedir',
-  liquidacion: 'Pago registrado',
-  venta_tarjeta: 'Venta con tarjeta',
-  envio_tarjeta: 'Envío y propina con tarjeta',
-};
-
-/** Saldo en palabras: quién le debe a quién. */
-const textoSaldo = (s = 0) => (s > 0 ? `Debe ${dinero(s)}` : s < 0 ? `PaPedir le debe ${dinero(-s)}` : 'Al corriente');
 
 export function Finanzas() {
-  const [rol, setRol] = useState<'' | 'tienda' | 'repartidor'>('');
+  const [rol, setRol] = useState<'' | 'cliente' | 'tienda' | 'repartidor'>('');
   const [cuenta, setCuenta] = useState<Fila | null>(null);
   const [aPagar, setAPagar] = useState<Fila | null>(null);
   const [pagina, setPagina] = useState(1);
@@ -43,8 +33,9 @@ export function Finanzas() {
       <header className="pagina-cabecera">
         <h1>Finanzas</h1>
         <p className="texto-secundario">
-          En efectivo, tiendas y repartidores se quedan con el dinero y le deben a PaPedir su comisión. Con tarjeta cobra PaPedir y les debe su parte.
-          Aquí se registra cuando se salda.
+          La cartera de cada cuenta, como en DiDi: en positivo tiene saldo a favor y en negativo le debe a PaPedir. En efectivo, tiendas y repartidores
+          se quedan con el dinero y deben su comisión; con tarjeta cobra PaPedir y les abona su parte. Los clientes tienen saldo por reembolsos y deben
+          el cargo por cancelar tarde; se les aplica solo en su siguiente pedido.
         </p>
       </header>
 
@@ -52,20 +43,20 @@ export function Finanzas() {
         <div className="cifra">
           <span className="cifra-texto">Por cobrar</span>
           <span className="cifra-valor">{dinero(saldos.data?.totalPorCobrar ?? 0)}</span>
-          <span className="texto-secundario texto-chico">Comisiones que tiendas y repartidores deben</span>
+          <span className="texto-secundario texto-chico">Lo que deben las carteras en negativo</span>
         </div>
         <div className="cifra">
           <span className="cifra-texto">Por pagar</span>
           <span className="cifra-valor">{dinero(saldos.data?.totalPorPagar ?? 0)}</span>
-          <span className="texto-secundario texto-chico">Ventas con tarjeta y cupones de PaPedir</span>
+          <span className="texto-secundario texto-chico">Saldo a favor de las carteras en positivo</span>
         </div>
       </div>
 
       <div className="barra-herramientas">
         <div className="filtros" role="tablist" aria-label="Rol">
-          {(['', 'tienda', 'repartidor'] as const).map((r) => (
+          {(['', 'cliente', 'tienda', 'repartidor'] as const).map((r) => (
             <button key={r} role="tab" aria-selected={rol === r} className="filtro" onClick={() => setRol(r)}>
-              {r ? `${ROLES[r]}s` : 'Todos'}
+              {r ? { cliente: 'Clientes', tienda: 'Tiendas', repartidor: 'Repartidores' }[r] : 'Todos'}
             </button>
           ))}
         </div>
@@ -75,7 +66,7 @@ export function Finanzas() {
           onClick={() =>
             descargarCsv(
               `saldos-${new Date().toLocaleDateString('en-CA')}.csv`,
-              ['Nombre', 'Rol', 'Saldo (positivo = debe a PaPedir)', 'Último movimiento'],
+              ['Nombre', 'Rol', 'Saldo (positivo = a favor, negativo = debe)', 'Último movimiento'],
               (saldos.data?.usuarios ?? []).map((u) => [u.nombre, ROLES[u.rol!], u.saldo, u.ultimoMovimiento]),
             )
           }
@@ -110,7 +101,7 @@ export function Finanzas() {
                   <td className="celda-fuerte">{u.nombre}</td>
                   <td>{ROLES[u.rol!]}</td>
                   <td>
-                    <Chip tono={u.saldo! > 0 ? 'alerta' : 'activo'}>{textoSaldo(u.saldo)}</Chip>
+                    <Chip tono={u.saldo! < 0 ? 'alerta' : 'activo'}>{textoSaldo(u.saldo)}</Chip>
                   </td>
                   <td className="texto-secundario">{fecha(u.ultimoMovimiento)}</td>
                   <td className="celda-acciones">
@@ -203,12 +194,15 @@ function EstadoDeCuenta({ fila, onCerrar }: { fila: Fila; onCerrar: () => void }
                     {MOVIMIENTOS[m.tipo ?? ''] ?? m.tipo}
                     <div className="texto-secundario texto-chico">{m.descripcion}</div>
                   </td>
-                  <td className={`numero ${m.monto! < 0 ? 'texto-exito' : ''}`}>{dinero(m.monto)}</td>
+                  <td className={`numero ${m.monto! > 0 ? 'texto-exito' : ''}`}>
+                    {m.monto! > 0 ? '+' : '−'}
+                    {dinero(Math.abs(m.monto ?? 0))}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="texto-secundario texto-chico">Positivo: aumenta lo que debe a PaPedir. Negativo: PaPedir le debe.</p>
+          <p className="texto-secundario texto-chico">Positivo: dinero a su favor. Negativo: lo que debe a PaPedir.</p>
           <Paginacion pagina={pagina} total={r.data.movimientos?.meta?.total ?? 0} limite={20} onCambiar={setPagina} />
         </>
       )}
@@ -225,10 +219,10 @@ function RegistrarPago({ fila, onCerrar }: { fila: Fila | null; onCerrar: () => 
   const [referencia, setReferencia] = useState('');
   const [error, setError] = useState('');
 
-  // Propone saldar todo: si debe, un cobro por su saldo; si PaPedir le debe, un pago.
+  // Propone saldar todo: si debe (negativo), un cobro; si tiene saldo a favor, un pago.
   useEffect(() => {
     if (!fila) return;
-    setSentido((fila.saldo ?? 0) >= 0 ? 'cobro' : 'pago');
+    setSentido((fila.saldo ?? 0) <= 0 ? 'cobro' : 'pago');
     setMonto(String(Math.abs(fila.saldo ?? 0)));
     setMetodo('efectivo');
     setReferencia('');

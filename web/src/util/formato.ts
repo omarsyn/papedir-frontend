@@ -110,6 +110,11 @@ export const EVENTOS_CUENTA: Record<string, string> = {
   documento_aprobado: 'Documento aprobado',
   documento_rechazado: 'Documento rechazado',
   ligada_firebase: 'Ligó su cuenta con Firebase',
+  solicitud_rechazada: 'Soporte regresó su solicitud',
+  tienda_creada: 'Se dio de alta una tienda',
+  tienda_editada: 'Se editaron datos de su tienda',
+  tienda_eliminada: 'Se dio de baja una tienda',
+  tienda_restaurada: 'Se restauró una tienda',
 };
 
 export const PROVEEDORES: Record<string, string> = {
