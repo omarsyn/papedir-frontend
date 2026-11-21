@@ -78,7 +78,7 @@ export function Ubicacion({ valor, onCambiar, referencias = [], etiqueta = 'Dire
     setAbierta(false);
     setSugerencias([]);
     setEstado('');
-    onCambiar({ direccion, ubicacion: s.ubicacion ?? null });
+    onCambiar({ direccion: direccion.slice(0, 200), ubicacion: s.ubicacion ?? null });
   }
 
   /** Tocar el mapa: mueve el punto y busca la dirección de ahí. */
@@ -97,7 +97,7 @@ export function Ubicacion({ valor, onCambiar, referencias = [], etiqueta = 'Dire
       if (s) {
         const direccion = unir(s);
         setTexto(direccion);
-        onCambiar({ direccion, ubicacion: c });
+        onCambiar({ direccion: direccion.slice(0, 200), ubicacion: c });
         setEstado('');
       } else setEstado(r.response?.status === 503 ? 'no-disponible' : 'sin-resultados');
     } catch (e) {
