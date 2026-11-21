@@ -8,6 +8,8 @@ import { ESTADOS_CUENTA, EVENTOS_CUENTA, fecha, PROVEEDORES, ROLES, soloDia } fr
 import { useAvisos } from './Avisos';
 import { Cargando, Chip, ErrorCarga } from './Basicos';
 import { CarteraCuenta } from './Cartera';
+import { AjusteCartera, BorrarDocumento, DesconectarRepartidor, DireccionesCliente, PedidosDeCuenta, SubirDocumento, VehiculoRepartidor } from './ControlCuenta';
+import { NuevoPedido } from './NuevoPedido';
 import { Dialogo, DialogoMotivo } from './Dialogo';
 
 type Documento = Esquemas['Documento'];
@@ -31,6 +33,7 @@ export function FichaCuenta({ id, onCerrar }: { id: string; onCerrar: () => void
   });
   const conCartera = u?.rol === 'cliente' || conDocumentos;
   const [regresando, setRegresando] = useState(false);
+  const [nuevoPedido, setNuevoPedido] = useState(false);
 
   const recargar = (texto: string) => {
     cache.invalidateQueries({ queryKey: ['usuario', id] });
@@ -184,20 +187,59 @@ export function FichaCuenta({ id, onCerrar }: { id: string; onCerrar: () => void
                         <button className="boton boton-chico" disabled={ver.isPending} onClick={() => ver.mutate(d)}>
                           Ver
                         </button>
+                        <BorrarDocumento id={d.id!} nombre={d.nombre ?? 'Documento'} onHecho={recargar} />
                       </li>
                     ))}
                   </ul>
                 )}
+                <SubirDocumento usuarioId={id} rol={u!.rol as 'repartidor' | 'tienda'} onHecho={recargar} />
               </section>
             )}
           </div>
 
+          {u!.rol === 'repartidor' && u!.estado !== 'eliminado' && (
+            <div className="acciones-encabezado">
+              <VehiculoRepartidor usuarioId={id} vehiculo={u!.vehiculo} onHecho={recargar} />
+              {u!.disponible && <DesconectarRepartidor usuarioId={id} nombre={u!.nombre ?? 'el repartidor'} onHecho={recargar} />}
+            </div>
+          )}
+
+          {u!.rol === 'cliente' && (
+            <div className="ficha-rejilla">
+              <section className="bloque">
+                <h3>Direcciones</h3>
+                <DireccionesCliente usuarioId={id} />
+              </section>
+              <section className="bloque">
+                <div className="bloque-cabecera">
+                  <h3>Pedidos recientes</h3>
+                  {u!.estado === 'activo' && (
+                    <button className="boton boton-chico boton-primario" onClick={() => setNuevoPedido(true)}>
+                      Pedido a su nombre
+                    </button>
+                  )}
+                </div>
+                <PedidosDeCuenta usuarioId={id} rol="cliente" />
+              </section>
+            </div>
+          )}
+          {u!.rol === 'repartidor' && (
+            <section className="bloque">
+              <h3>Entregas recientes</h3>
+              <PedidosDeCuenta usuarioId={id} rol="repartidor" />
+            </section>
+          )}
+
           {conCartera && (
             <section className="bloque">
-              <h3>Cartera</h3>
+              <div className="bloque-cabecera">
+                <h3>Cartera</h3>
+                {esAdmin && u!.estado !== 'eliminado' && <AjusteCartera usuarioId={id} nombre={u!.nombre ?? 'la cuenta'} />}
+              </div>
               <CarteraCuenta usuarioId={id} />
             </section>
           )}
+          {u?.rol === 'cliente' && <NuevoPedido abierto={nuevoPedido} onCerrar={() => setNuevoPedido(false)} cliente={{ id, nombre: u.nombre ?? '' }} />}
 
           <section className="bloque">
             <h3>Historial de la cuenta</h3>

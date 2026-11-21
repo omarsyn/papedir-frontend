@@ -1,9 +1,11 @@
-import { useMutation } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BellRing, Send } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import { api, datos, ErrorApi } from '../api/cliente';
 import { useAvisos } from '../componentes/Avisos';
 import { Dialogo } from '../componentes/Dialogo';
+import { Cargando, Paginacion } from '../componentes/Basicos';
+import { fecha } from '../util/formato';
 
 const TEMAS = [
   { valor: 'novedades', texto: 'Novedades', ayuda: 'Quien activó "Novedades" en sus preferencias' },
@@ -26,11 +28,19 @@ export function Notificaciones() {
   const [titulo, setTitulo] = useState('');
   const [cuerpo, setCuerpo] = useState('');
   const [confirmar, setConfirmar] = useState(false);
+  const [pagina, setPagina] = useState(1);
+  const cache = useQueryClient();
+  const historial = useQuery({
+    queryKey: ['envios-push', pagina],
+    queryFn: () => datos(api.GET('/admin/notificaciones', { params: { query: { page: pagina, limit: 10 } } })),
+    placeholderData: keepPreviousData,
+  });
 
   const enviar = useMutation({
     mutationFn: () => datos(api.POST('/admin/notificaciones', { body: { destino, tema: destino === 'tema' ? tema : undefined, rol: destino === 'rol' ? rol : undefined, titulo: titulo.trim(), cuerpo: cuerpo.trim() } })),
     onSuccess: (r) => {
       setConfirmar(false);
+      cache.invalidateQueries({ queryKey: ['envios-push'] });
       setTitulo('');
       setCuerpo('');
       const a = r.destino === 'rol' ? `${r.destinatarios} cuentas` : `el tema ${r.tema}`;
@@ -107,6 +117,37 @@ export function Notificaciones() {
           </button>
         </div>
       </form>
+
+      <section className="bloque">
+        <h3>Enviadas</h3>
+        {historial.isPending ? (
+          <Cargando />
+        ) : !historial.data?.data?.length ? (
+          <p className="texto-secundario">Todavía no se ha enviado ninguna desde el panel.</p>
+        ) : (
+          <ul className="historial-push">
+            {historial.data.data.map((n) => (
+              <li key={n.id}>
+                <div className="vista-previa-push">
+                  <BellRing size={18} aria-hidden />
+                  <div>
+                    <strong>{n.titulo}</strong>
+                    <p>{n.cuerpo}</p>
+                  </div>
+                </div>
+                <div className="texto-secundario texto-chico">
+                  {n.destino === 'rol' ? `A todos los ${n.rol === 'cliente' ? 'clientes' : n.rol === 'tienda' ? 'tiendas' : 'repartidores'} (${n.destinatarios ?? 0})` : `Tema ${n.tema}`}
+                  {' · '}
+                  {n.modo === 'simulada' ? 'Simulada (sin Firebase)' : 'Enviada'}
+                  {' · '}
+                  {n.actor?.nombre ?? 'Alguien del equipo'}, {fecha(n.creadoEn)}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        <Paginacion pagina={pagina} total={historial.data?.meta?.total ?? 0} limite={10} onCambiar={setPagina} />
+      </section>
 
       <Dialogo titulo="¿Enviar la notificación?" abierto={confirmar} onCerrar={() => setConfirmar(false)}>
         <div className="formulario">

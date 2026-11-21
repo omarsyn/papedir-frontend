@@ -41,7 +41,10 @@ Web Admin/Soporte (React) ─┘          │
 | Push | Firebase Cloud Messaging | — |
 | Web admin/soporte | React + Vite + TypeScript | Vercel (Root Directory = `web`) |
 | Apps móviles | Flutter (Dart 3.6+), Riverpod, dio | APK (`flutter build apk --release`) |
-| Mapas | Mapbox o Google Maps (se decide antes de la semana 6) | — |
+| Mapas (apps) | Google Maps nativo (`google_maps_flutter`) | — |
+| Login de las apps | Firebase Authentication (Google, GitHub, correo) | — |
+| Preferencias y foto de perfil | Cloud Firestore y Firebase Storage | — |
+| Pagos | Stripe (modo prueba) | — |
 
 ### Regla de oro
 
@@ -51,6 +54,8 @@ Web Admin/Soporte (React) ─┘          │
 - La única configuración que conocen los clientes es la URL de la API (`API_URL` / `VITE_API_URL`).
 - La `DATABASE_URL` y el `JWT_SECRET` solo viven en las variables de entorno de Render y en el `.env` local del backend.
 - La única llave permitida en las apps es la del proveedor de mapas, restringida por `applicationId`.
+
+**Excepción (Firebase, solo datos que no son del negocio):** las apps sí usan directo **Firestore** para las preferencias del usuario y **Firebase Storage** para su foto de perfil, siempre con reglas de seguridad por usuario. Pedidos, tiendas, productos, dinero y todo lo demás sigue pasando por la API. La justificación está en la sección 13.
 
 ---
 
@@ -121,6 +126,8 @@ El mock acepta cualquier token y devuelve los ejemplos del contrato (montos y co
 
 El mock **no guarda estado ni tiene Socket.IO**: sirve para construir pantallas. Los flujos entre apps y el tiempo real se prueban con el backend real desde la semana 5.
 
+**Versión vigente del contrato: 1.10.0** (`info.version` de `docs/openapi.yaml`). Las apps deben trabajar con esa misma copia en `papedir-frontend/docs/openapi.yaml`; si su rama tiene una versión anterior, la actualizan desde `main` antes de programar algo nuevo.
+
 ### Cómo se cambia el contrato
 
 1. Quien necesite el cambio abre un **issue** en `papedir-backend` con la etiqueta `contrato`, explicando qué necesita y por qué.
@@ -164,7 +171,7 @@ Todas las respuestas de error tienen la misma forma:
 
 | Código | Significado | Qué hace la app |
 |---|---|---|
-| 400 | Datos inválidos | Mostrar `detalles` junto a cada campo |
+| 400 | Datos inválidos (`error: "VALIDACION"`) | Mostrar `detalles` junto a cada campo |
 | 401 | Token expirado o inválido | Llamar `/auth/refresh` una vez y reintentar; si falla, mandar al login |
 | 403 | Sin permiso, app equivocada o cuenta baneada | Mostrar `message` y cerrar sesión si está baneado |
 | 404 | No existe | Mensaje y regresar |
@@ -183,23 +190,106 @@ El campo `error` es un código estable; las apps deciden con él, no con el text
 | `FUERA_DE_RANGO` | Marca de llegada a más de 150 m | "Acércate a la ubicación" |
 | `CODIGO_INCORRECTO` | El código de entrega no coincide | Pedirlo de nuevo |
 | `TRANSICION_INVALIDA` | El estado ya cambió (otro actor o soporte) | Refrescar el pedido |
+| `CUENTA_BLOQUEADA` | 5 contraseñas equivocadas seguidas; dura 15 min | Ofrecer "¿Olvidaste tu contraseña?" |
+| `CODIGO_INVALIDO` | Código de correo incorrecto, vencido o ya usado | Pedir que lo revise o enviar otro |
+| `PASSWORD_INCORRECTA` | Contraseña actual equivocada al cambiarla o al eliminar la cuenta | Marcar el campo |
+| `TIENE_PEDIDOS_ACTIVOS` | Quiere eliminar su cuenta con pedidos en curso | Aviso: terminar o cancelar primero |
+| `TIENDA_CERRADA` | Tienda cerrada, en pausa o fuera de horario | Mostrar `message` y regresar al listado |
+| `DOCUMENTO_APROBADO` | Quiere reemplazar un documento ya aprobado | Aviso: pedirlo a soporte |
+| `LIMITE_SUCURSALES` | Ya tiene 10 tiendas, contando sus solicitudes en revisión | Aviso |
+| `DEUDA_EXCEDIDA` | Su cartera pasó el límite de deuda: el repartidor no puede conectarse ni tomar pedidos, la tienda no puede abrir ni aceptar, el cliente no puede pagar en efectivo | Mostrar `message` y llevar a la pantalla de cartera |
+| `SALDO_CAMBIO` | La cartera del cliente cambió entre cotizar y confirmar | Volver a cotizar |
+| `CUPON_INVALIDO` | Cupón inexistente, vencido, agotado, ya usado o con compra mínima | Mostrar `message` junto al campo del cupón |
+| `CHAT_CERRADO` | Chat de un pedido que ya no está en camino | Deshabilitar el chat |
+| `REGISTRO_REQUERIDO` | Primera vez con Firebase | Mostrar "Completa tu registro" (teléfono, términos, datos de la tienda) |
+| `CORREO_NO_VERIFICADO` | Cuenta de correo de Firebase sin verificar | Pantalla "Revisa tu correo" con botón Reenviar |
+| `FOTO_DEL_PROVEEDOR` | Cuenta de Google/GitHub quiere cambiar su foto | Ocultar el botón (usar `puedeCambiarFoto`) |
+| `CUENTA_FIREBASE` | Cuenta de Firebase usando rutas de contraseña de PaPedir | Usar el SDK de Firebase |
+| `PAGO_PENDIENTE` (402) | La tarjeta no se ha confirmado | Volver a mostrar el formulario de pago |
+| `PAGO_NO_COINCIDE` | El total cambió desde que se autorizó | Volver a pedir el intento y pagar otra vez |
+| `PAGO_RECHAZADO` (402) | El banco rechazó el cobro | Ofrecer otra tarjeta o efectivo |
+| `PAGOS_NO_CONFIGURADO` (503) | Stripe no está configurado | Ocultar la opción de tarjeta |
 
 La lista completa está en el schema `Error` de `openapi.yaml`. Todos los valores numéricos (montos, distancias, tiempos) están en la sección de reglas de negocio de la Definición del proyecto.
 
 ### Sesión en las apps
 
-- `POST /auth/login` siempre envía `app` (`cliente`, `tienda`, `repartidor` o `web`). El backend rechaza con 403 si el rol no corresponde a la app.
+- **Las 3 apps móviles entran con Firebase Authentication** (`POST /auth/firebase`, flujo completo en la sección 13). `POST /auth/login` con correo y contraseña de PaPedir queda para la web y para pruebas.
+- Las dos rutas envían `app` (`cliente`, `tienda`, `repartidor` o `web`). El backend rechaza con 403 si el rol no corresponde a la app.
 - `accessToken` dura 15 min y `refreshToken` 7 días.
 - Los tokens se guardan con `flutter_secure_storage`, nunca en `SharedPreferences`.
 - Un interceptor de `dio` en `core` agrega el token y maneja el refresh automáticamente.
 - Después del login se registra el token de FCM con `PUT /usuarios/me/dispositivo`.
+- El registro envía `aceptoTerminos: true` después de mostrar las ligas de `GET /legal`. Si `usuario.terminosPendientes` es `true`, la app pide aceptar los nuevos con `POST /usuarios/me/terminos`.
+- Cuentas (las 3 apps): cerrar sesión en todos lados y eliminar cuenta (`DELETE /usuarios/me` con `{ idToken }`). Las tiendas de Apple y Google exigen poder eliminar la cuenta desde la app. Contraseña, verificación del correo y recuperación se hacen con el SDK de Firebase (sección 13); las rutas `/auth/recuperar`, `/auth/verificar-correo` y `PUT /usuarios/me/password` son para cuentas de PaPedir (la web) y a las cuentas de Firebase les responden `CUENTA_FIREBASE`.
+
+### Sucursales (App Tienda)
+
+- Un dueño puede tener varias sucursales: `GET /tiendas/mias`. Una sucursal nueva **se pide** con `POST /tiendas/solicitudes` y queda en revisión hasta que soporte o admin la aprueben (ver "Fase 4"). `POST /tiendas/mias` es un alias de la solicitud.
+- Para trabajar con una sucursal, la app manda el header `X-Tienda-Id` en las rutas `/tiendas/mia...`, `GET /pedidos` y los pedidos manuales. Sin header se usa la primera sucursal, así que una app que no maneje sucursales sigue funcionando igual.
+- Mostrar `abiertaAhora` (no `abierta`): considera el interruptor de la tienda, la pausa temporal (`/tiendas/mia/pausa`) y el horario semanal (`/tiendas/mia/horario`).
+- Productos: varias fotos (`imagenes`), inventario (`stock`, `null` = sin control) y opciones (`PUT /productos/{id}/opciones`). Para mostrar "Agotado" usar `agotado`.
+
+### Opciones en el carrito (App Cliente)
+
+Cada producto del menú trae `grupos` (por ejemplo "Salsa: elige 1", "Extras: hasta 3"). En el carrito cada elemento manda `opciones: [ids]`; el mismo producto con opciones distintas va en elementos separados. Si una opción obligatoria falta, el backend responde 400 con el grupo en `message`. El pedido muestra `etaMin` (minutos aproximados de llegada) y, con repartidor, su `vehiculo`, `fotoUrl` y `calificacion`.
+
+### Repartidor (App Repartidor)
+
+Vehículo (`/repartidor/vehiculo`), documentos (`GET/POST /documentos`: INE y licencia obligatorias), ganancias y corte de efectivo del día (`/repartidor/ganancias`), y `etaMin` en cada parada del viaje.
+
+### Fase 3: cliente y negocio
+
+App Cliente (Omar):
+- Carrito: `cupon` y `propina` en cotizar/crear; la cotización devuelve `descuento`, `recargos` (lluvia, nocturno, zona…) y el `total` final.
+- Pedido programado: `programadoPara` (hora de entrega, de 45 min a 7 días). Nace en estado `programado` y pasa a `creado` solo.
+- Carrito de 2 o 3 tiendas: `POST /pedidos/grupo` crea un pedido por tienda unidos por `grupoId`.
+- `POST /pedidos/{id}/repetir`, favoritos (`/favoritos`), búsqueda de productos (`/productos/buscar`), reseñas (`/tiendas/{id}/resenas`).
+- Cancelar con motivo del catálogo: `GET /catalogos/motivos-cancelacion` y mandar `{ codigo }`.
+
+Las 3 apps:
+- Bandeja de notificaciones: `GET /notificaciones` (con `noLeidas`), marcar leídas. Todo push también queda ahí.
+- Chat del pedido entre cliente y repartidor: `GET/POST /pedidos/{id}/mensajes` mientras va en camino.
+
+App Tienda: cupones propios (`/tiendas/mia/cupones`), responder reseñas (`POST /pedidos/{id}/calificacion/respuesta`), rechazar con `{ codigo }`, y su cartera (`GET /cartera`). El `montoAPagarTienda` ya descuenta sus cupones.
+
+App Repartidor: `propina` en el pedido y el viaje, `gananciaNeta` en ganancias, su cartera (`GET /cartera`) y la ruta por calles del viaje (`GET /repartidor/viaje-actual/ruta`, dibujar sus `puntos` en vez de líneas rectas).
+
+Dinero en efectivo: el repartidor cobra el `total`, paga `montoAPagarTienda` a la tienda y se queda con envío + propina. PaPedir lleva la cuenta en la **cartera** de cada uno (ver "Fase 4"). Admin registra los pagos en la web (liquidaciones).
+
+### Fase 4: cartera, solicitudes y aprobación de cuentas
+
+**Cartera (como DiDi), para las 3 apps:** `GET /cartera` (alias `/saldo`) devuelve `saldo`, `estado` (`a_favor`, `debe`, `en_cero`), `limiteDeuda`, `bloqueado` y los `movimientos` paginados.
+
+- Signo: **positivo = dinero a favor; negativo = lo que debe a PaPedir.** Mostrar "Tienes $X a favor" o "Debes $X".
+- Tienda: en efectivo debe la comisión; con tarjeta se le abona su venta; se le abona la tarifa cuando un cliente cancela tarde.
+- Repartidor: debe la comisión del envío y el adeudo de clientes que cobró en efectivo; se le abona lo cobrado con tarjeta, los cupones de PaPedir y el saldo que usó el cliente en efectivo (cobró de menos).
+- Cliente: suma por reembolsos de soporte; resta por cancelar tarde en efectivo. **Se aplica sola al pedir:** la cotización y el pedido traen `saldoAplicado` (saldo a favor que se descontó) y `deudaCobrada` (adeudo que se sumó). El `total` ya los incluye; la app solo los muestra como renglones del resumen. Si el pedido no se entrega, se devuelven solos.
+- Con `bloqueado = true` la cuenta pasó su límite (admin lo fija en la web) y las acciones responden `DEUDA_EXCEDIDA`.
+
+**Cancelación del cliente:** puede cancelar hasta antes de que un repartidor tome el pedido. Si el pedido es en efectivo y la tienda ya lo aceptó, cuesta la tarifa de cancelación (va a su cartera y se le abona a la tienda). Cada pedido trae `cancelacion: { permitida, cargo }` solo para el cliente: el botón se muestra con `permitida` y, si `cargo > 0`, la app avisa el monto antes de confirmar.
+
+**Solicitud de cuenta (tienda y repartidor):** al registrarse quedan en `pendiente_aprobacion` (`CUENTA_PENDIENTE` al intentar trabajar). Soporte o admin la aprueban (`cuenta:aprobada`) o la regresan con motivo (`cuenta:rechazada`); el motivo viene en `motivoRechazo` de `GET /auth/me`. La app muestra la pantalla "Tu cuenta está en revisión" y, si hay `motivoRechazo`, qué debe corregir (por ejemplo, volver a subir un documento).
+
+**Solicitudes de tienda (App Tienda):** un dueño ya aprobado pide otra tienda o sucursal con `POST /tiendas/solicitudes` (mismos campos que antes, más `imagenUrl` y `copiarMenuDe` opcionales). Ve el estado de las suyas con `GET /tiendas/solicitudes` (`pendiente`, `aprobada`, `rechazada` con `motivo`, `cancelada`) y puede cancelar una pendiente con `DELETE /tiendas/solicitudes/{id}`. Al aprobarse llega `solicitud_tienda:aprobada` con el `tiendaId`; la tienda nace cerrada y aparece en `GET /tiendas/mias`.
+
+### Fase 5: ubicaciones y catálogos
+
+**Capturar una ubicación (las 3 apps y la web):** siempre con el mismo patrón.
+1. Campo de texto con sugerencias mientras se escribe: `GET /geo/sugerencias?q=...&lat=&lng=` (mínimo 3 letras, esperar ~300 ms entre teclas; mandar la posición del teléfono para priorizar lo cercano). Cada sugerencia trae `texto`, `detalle` y `ubicacion`.
+2. Al elegir una, se mueve el marcador del mapa a esa `ubicacion` y el texto queda en el campo.
+3. El usuario puede afinar arrastrando o tocando el mapa; con el punto nuevo se pide `GET /geo/direccion?lat=&lng=` para actualizar el texto (si `resultado` es `null`, se deja escribir a mano).
+4. Si responde `GEO_NO_DISPONIBLE` (503), se oculta la lista y se pide marcar el punto en el mapa.
+Aplica a direcciones del cliente, la tienda (registro, edición, solicitud de sucursal) y cualquier ubicación nueva. El backend usa Photon (OpenStreetMap); si después se cambia a Google Places, las apps no cambian.
+
+**Catálogos:** `GET /catalogos` (público) trae las categorías de tienda, los motivos de cancelación, los documentos por rol y la versión de términos vigentes. Admin los edita en la web, así que las apps **no** deben tener esas listas fijas en el código: las leen de aquí (por ejemplo, el selector de categoría del registro de tienda y la lista de documentos del repartidor). `CategoriaTienda` y `TipoDocumento` ya no son enums cerrados en el contrato.
 
 ### Estados del pedido
 
 ```
 creado → aceptado_tienda → listo_para_recoger → asignado → en_tienda → en_camino → en_domicilio → entregado
    │            │                  │
-   └→ rechazado └──── cancelado ───┘   (después de "asignado" solo soporte cancela)
+   └→ rechazado └──── cancelado ───┘   (después de "asignado" solo soporte cancela; ver tarifa en "Fase 4")
 ```
 
 Los pedidos manuales de la tienda nacen directamente en `listo_para_recoger`. Si la tienda no responde en 5 minutos, el backend cancela el pedido solo.
@@ -209,12 +299,13 @@ Los pedidos manuales de la tienda nacen directamente en `listo_para_recoger`. Si
 | Cotizar | Cliente · Tienda (manual) | `POST /pedidos/cotizar` · `/pedidos/cotizar-manual` |
 | Aceptar / rechazar | Tienda | `POST /pedidos/{id}/aceptar` · `/rechazar` |
 | Marcar listo | Tienda | `POST /pedidos/{id}/listo` |
-| Cancelar | Cliente (solo `creado`) · Tienda (antes de `asignado`) | `POST /pedidos/{id}/cancelar` |
+| Cancelar | Cliente y tienda (antes de `asignado`; el cliente paga tarifa si es efectivo y la tienda ya aceptó) | `POST /pedidos/{id}/cancelar` |
 | Tomar (máx. 4 por viaje) | Repartidor | `POST /repartidor/pedidos/{id}/tomar` |
 | Llegada / salida tienda (geocerca 150 m) | Repartidor | `POST /repartidor/pedidos/{id}/llegada-tienda` · `/salida-tienda` |
-| Llegada / entrega con código (geocerca 150 m) | Repartidor | `POST /repartidor/pedidos/{id}/llegada-cliente` · `/entregado` |
+| Llegada / entrega con código (geocerca 150 m) | Repartidor | `POST /repartidor/pedidos/{id}/llegada-cliente` · `/entregado` (todas mandan `{ "ubicacion": { "lat", "lng" } }`; la entrega además `codigoEntrega`) |
+| Ruta por calles del viaje | Repartidor | `GET /repartidor/viaje-actual/ruta` |
 | Calificar (hasta 24 h después) | Cliente | `POST /pedidos/{id}/calificar` |
-| Cancelar, completar, corregir ubicación, liberar | Soporte | `/soporte/pedidos/{id}/...` |
+| Cancelar (reembolso a tarjeta o cartera, con o sin cargo), completar, corregir ubicación, liberar, reembolsar a la cartera | Soporte | `/soporte/pedidos/{id}/...` |
 
 ---
 
@@ -250,6 +341,14 @@ Los eventos que emiten las apps responden con un *ack*: `{ ok: true }` o `{ ok: 
 | `ticket:actualizado` | Creador del ticket | `{ ticketId, estado }` |
 | `cuenta:baneada` | El usuario baneado | `{ motivo }` → la app cierra sesión |
 | `cuenta:aprobada` | Tienda o repartidor aprobado | `{}` → la app quita el aviso de cuenta en revisión |
+| `cuenta:rechazada` | Tienda o repartidor cuya solicitud regresó soporte | `{ motivo }` → mostrar qué debe corregir |
+| `solicitud_tienda:aprobada` | El dueño | `{ solicitudId, tiendaId }` → recargar `GET /tiendas/mias` |
+| `solicitud_tienda:rechazada` | El dueño | `{ solicitudId, motivo }` |
+| `solicitud_tienda:nueva` | Soporte (web) | `{ solicitudId, nombre, dueno }` |
+| `tienda:actualizada` | Sala de la tienda | `{ tiendaId, eliminada? }` → admin editó o dio de baja la tienda; recargar `GET /tiendas/mia` |
+| `mapa:repartidor` | Soporte (web) | `{ repartidorId, lat, lng, actualizadoEn }` → mapa en vivo |
+| `notificacion:nueva` | El usuario | `{ id, titulo, cuerpo, datos, creadoEn }` → sumar 1 al globito de la campana |
+| `pedido:mensaje` | Cliente y repartidor del pedido | `MensajePedido` (chat del pedido) |
 
 ### Eventos que emiten las apps
 
@@ -281,7 +380,7 @@ Acuerdos:
 
 - Cambios en `core` van en su propio PR y requieren la aprobación de Omar, porque afectan sus apps.
 - Si Omar necesita algo en `core` y Dennis está ocupado, Omar puede hacer el PR y Dennis lo revisa.
-- Gestión de estado: **Riverpod** en las 3 apps. HTTP: **dio**. Modelos: `json_serializable`.
+- Gestión de estado: **Riverpod** en las 3 apps. **Prohibido `setState` y `ValueNotifier`** (lo pide la materia): todo estado, aunque sea de un solo widget, va en un provider (`NotifierProvider`, `StateProvider`, `StreamProvider`...). HTTP: **dio**. Modelos: `json_serializable`.
 - Cada app tiene su `applicationId`, nombre e ícono propios para poder instalarse las 3 en el mismo celular.
 
 Estructura recomendada dentro de cada app:
@@ -490,3 +589,130 @@ Una tarea está terminada cuando:
 | Mendoza Lara Victor Manuel | ☐ | |
 | Mandujano Ávila Omar | ☐ | |
 | Quintana Lazgare Dennis Adrián | ☐ | |
+
+---
+
+## 13. Requisitos de la parte móvil (Desarrollo de Aplicaciones Móviles)
+
+La guía de la materia pide Firebase (Auth, Database, Storage y Cloud Messaging), pagos, sensores y otros puntos de UI. Así se cumplen sin cambiar la arquitectura: Supabase sigue siendo la base del negocio.
+
+### Quién hace qué
+
+Las piezas compartidas van en `core` (Dennis) para no hacerlas 3 veces. Cada quien hace commits de lo suyo: la materia evalúa la autoría en GitHub.
+
+| Requisito | Victor (backend y Firebase) | Dennis (`core` + Repartidor) | Omar (Cliente + Tienda) |
+|---|---|---|---|
+| Firebase Authentication | `POST /auth/firebase` ✅. Activar Google, GitHub y correo en la consola | Login con Google, GitHub y correo; verificar correo, reenviar y recuperar contraseña; pantalla "Completa tu registro" | Usar el login de `core`; en Tienda, los datos de la tienda en el registro |
+| Perfil y foto | Foto del proveedor y regla `puedeCambiarFoto` ✅ | Pantalla de perfil en `core`: avatar del proveedor; subir foto a Firebase Storage solo si `puedeCambiarFoto` | Mostrar el avatar en el dashboard de Cliente y Tienda |
+| Firebase Database | Crear Firestore y pegar las reglas | Repositorio de preferencias en `core` con un `StreamProvider` en tiempo real | Pantalla de ajustes en sus apps (tema, fuente, notificaciones) |
+| Firebase Storage | Crear Storage y pegar las reglas | Subida del avatar en `core` | — |
+| Cloud Messaging | Crear los temas y enviar desde la consola | Listener global y los 3 estados (primer plano, segundo plano, cerrada); suscribirse a temas según las preferencias | Elegir a qué temas se suscribe cada app |
+| Estado sin `setState` | — | Riverpod en `core` y Repartidor | Riverpod en Cliente y Tienda |
+| Fuentes y tema claro/oscuro | — | `theme/` con `google_fonts` y `ThemeMode` leído de las preferencias | Usarlo |
+| Onboarding | — | Widget de onboarding reutilizable en `core` | Pantallas de onboarding de Cliente y Tienda |
+| Responsivo (móvil y escritorio) | — | Repartidor con `LayoutBuilder` | Cliente y Tienda con `LayoutBuilder` (menú lateral en escritorio) |
+| Widget avanzado | — | `DraggableScrollableSheet` sobre el mapa del repartidor | Cliente: `Hero` + `SliverAppBar` en el menú; Tienda: `Slidable` en productos |
+| Caché de imágenes sin conexión | — | `cached_network_image` en los widgets comunes | Usarlo en menú y productos |
+| Sensor | — | Huella (`local_auth`) para confirmar la entrega | Cliente: huella para confirmar el pago. Tienda: agitar el celular (`sensors_plus`) para pausar pedidos |
+| Mapa nativo (sin WebView) | — | `google_maps_flutter`: pedidos disponibles y ruta del viaje | Cliente: tienda y repartidor en vivo. Tienda: su ubicación |
+| Pagos | Stripe en modo prueba: pago de pedidos y planes de tienda ✅ | — | Cliente: pago con tarjeta (`flutter_stripe`). Tienda: pantalla de planes |
+| Reporte técnico | Arquitectura, backend y la justificación de la sección "Por qué Firebase y Supabase" | Su app y `core` | Sus apps |
+
+### Orden
+
+1. **Victor:** activa Firebase (Auth, Firestore y Storage) y pega las reglas de abajo. ✅ `POST /auth/firebase` ya está.
+2. **Dennis:** login con Firebase, preferencias y push en `core`. Omar y él lo usan en cuanto esté.
+3. **Omar y Dennis:** onboarding, mapa, sensor, widget avanzado y responsivo. No dependen del backend.
+4. **Victor:** pagos con Stripe ✅. **Omar:** pantallas de pago y planes (flujo abajo).
+
+### Pago con tarjeta (App Cliente)
+
+```dart
+// main(): Stripe.publishableKey = (await api.get('/pagos/config')).data['publishableKey'];
+// 1. Pedir el intento con el mismo cuerpo de /pedidos/cotizar
+final r = (await api.post('/pagos/intento', data: carrito)).data;
+// 2. Formulario nativo de tarjeta (CardField o PaymentSheet de flutter_stripe) y confirmar
+await Stripe.instance.initPaymentSheet(paymentSheetParameters: SetupPaymentSheetParameters(
+  paymentIntentClientSecret: r['clientSecret'], merchantDisplayName: 'PaPedir'));
+await Stripe.instance.presentPaymentSheet();     // aquí va la confirmación con huella (sensor)
+// 3. Crear el pedido: el backend verifica el monto y cobra
+await api.post('/pedidos', data: {...carrito, 'metodoPago': 'tarjeta', 'paymentIntentId': r['paymentIntentId']});
+```
+
+- Tarjeta de prueba: `4242 4242 4242 4242`, cualquier fecha futura y CVC. Fondos insuficientes: `4000 0000 0000 9995`.
+- Si el pedido se cancela o rechaza, el backend reembolsa solo (`pagoEstado: reembolsado`).
+- Con tarjeta, `montoAPagarTienda` y `totalACobrar` son 0: el repartidor no maneja efectivo en ese pedido.
+- Los carritos de varias tiendas (`/pedidos/grupo`) son solo en efectivo.
+
+### Planes de tienda (App Tienda)
+
+- `GET /planes`: Básico (gratis, comisión general), Pro ($199/mes, 7 %) y Premium ($399/mes, 4 % y primero en búsquedas).
+- `POST /tiendas/mia/plan { plan }` → si cuesta, devuelve `clientSecret`; se paga con PaymentSheet y luego `POST /tiendas/mia/plan/confirmar { paymentIntentId }`.
+- `GET /tiendas/mia/plan`: plan vigente, vencimiento, comisión que se aplica y pagos. Cada pago da 30 días; al vencer vuelve a Básico y llega una notificación.
+
+### Dinero con tarjeta
+
+PaPedir cobra el total. Al entregarse, la tienda recibe a su favor su venta (`venta_tarjeta`) menos su comisión, y el repartidor su envío y propina (`envio_tarjeta`) menos la comisión del envío; se salda en las liquidaciones de admin como el resto.
+
+### Login con Firebase: flujo en la app
+
+```dart
+// 1. Iniciar sesión con Firebase (Google, GitHub o correo)
+final cred = await FirebaseAuth.instance.signInWithProvider(GoogleAuthProvider()); // o GithubAuthProvider(), o signInWithEmailAndPassword
+// 2. Cuentas de correo: si no ha verificado, no dejar pasar
+if (cred.user!.providerData.first.providerId == 'password' && !cred.user!.emailVerified) {
+  await cred.user!.sendEmailVerification();   // botón "Reenviar" = llamar esto otra vez
+  // mostrar "Revisa tu correo"; al volver: await user.reload()
+}
+// 3. Cambiar el token de Firebase por la sesión de PaPedir
+final idToken = await cred.user!.getIdToken();
+final r = await api.post('/auth/firebase', data: {'idToken': idToken, 'app': 'cliente'});
+// 404 REGISTRO_REQUERIDO → pantalla "Completa tu registro" y repetir con:
+//   {'idToken': ..., 'app': 'cliente', 'registro': {'telefono': '4611234567', 'aceptoTerminos': true}}
+// 200 → guardar accessToken y refreshToken como siempre
+```
+
+- Registro con correo: `createUserWithEmailAndPassword` + `sendEmailVerification()`.
+- Recuperar contraseña: `FirebaseAuth.instance.sendPasswordResetEmail(email: ...)`.
+- Eliminar cuenta: `DELETE /usuarios/me` con `{ "idToken": <token reciente> }`; el backend también la borra de Firebase.
+- Cerrar sesión: `POST /auth/logout` y `FirebaseAuth.instance.signOut()`.
+
+### Firestore: preferencias del usuario
+
+Un documento por usuario de Firebase (`uid`):
+
+```
+usuarios/{uid}
+  tema: "sistema" | "claro" | "oscuro"
+  fuente: "normal" | "grande"
+  onboardingVisto: true
+  temasFCM: ["promociones", "novedades"]
+  notificaciones: { pedidos: true, promociones: false, chat: true }
+  busquedasRecientes: ["tacos", "farmacia"]     // solo Cliente, máximo 10
+```
+
+- Se escucha con `snapshots()` en un `StreamProvider`: si cambia en un dispositivo, se ve en el otro al instante (sirve para la demo).
+- Firestore guarda una copia en el dispositivo, así que el tema y el onboarding funcionan sin internet y antes de iniciar sesión (con el último usuario).
+- Aquí **nunca** van datos del negocio (pedidos, direcciones, carrito, dinero).
+
+### Firebase Storage: foto de perfil
+
+- Ruta: `avatares/{uid}.jpg`. Solo si `usuario.puedeCambiarFoto` es `true` (cuentas de correo).
+- Después de subirla: `PATCH /usuarios/me` con `{ "fotoUrl": await ref.getDownloadURL() }`.
+- Las fotos de productos, tiendas, evidencias y documentos siguen yendo por `POST /uploads` y `POST /documentos`.
+
+### Cloud Messaging: temas
+
+| Tema | Quién se suscribe | Para qué (se envía desde la consola de Firebase) |
+|---|---|---|
+| `novedades` | Todas las apps | Avisos generales de PaPedir |
+| `promociones` | Cliente, si lo activa en ajustes | Cupones y promociones |
+| `tiendas` | App Tienda | Avisos para tiendas |
+| `repartidores` | App Repartidor | Avisos para repartidores (lluvia, alta demanda) |
+
+- Listener global en la raíz de la app: `FirebaseMessaging.onMessage` (primer plano, mostrar con `flutter_local_notifications`), `onMessageOpenedApp` (segundo plano) y `getInitialMessage()` (app cerrada). Más `onBackgroundMessage` como función de nivel superior.
+- Los avisos de pedidos que manda el backend (aceptado, en camino...) siguen llegando por token de dispositivo; se manejan con el mismo listener y abren la pantalla del pedido con `data.pedidoId`.
+
+### Por qué Firebase y Supabase (para el reporte)
+
+Los datos del negocio (pedidos, tiendas, productos, dinero) necesitan transacciones, relaciones, reglas validadas en el servidor y consultas geográficas: viven en PostgreSQL (Supabase) y solo se tocan por la API. Las preferencias son un documento pequeño por usuario, sin relaciones, que se lee al arrancar la app, debe sincronizarse en tiempo real entre dispositivos y funcionar sin conexión: Firestore lo resuelve con su SDK y con reglas por usuario ligadas a Firebase Auth, sin cargar la API. Ningún dato se duplica entre las dos bases.

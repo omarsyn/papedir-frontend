@@ -1872,11 +1872,31 @@ export interface paths {
         /** Buscar cualquier pedido (rol soporte/admin) */
         get: operations["listarSoportePedidos"];
         put?: never;
-        post?: never;
+        /** Crear un pedido a nombre de un cliente (efectivo) */
+        post: operations["crearPedidoPorCliente"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/soporte/pedidos/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Editar notas, datos de entrega o propina */
+        patch: operations["editarPedidoPanel"];
         trace?: never;
     };
     "/soporte/pedidos/{id}/cancelar": {
@@ -1999,6 +2019,462 @@ export interface paths {
         patch: operations["soporteActualizarTicket"];
         trace?: never;
     };
+    "/geo/sugerencias": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sugerencias de direcciones mientras se escribe
+         * @description Para autocompletar al capturar una ubicación (tiendas, direcciones de clientes, correcciones). Prioriza resultados cerca de lat/lng (por omisión, Celaya). Cualquier usuario con sesión.
+         */
+        get: operations["sugerenciasDireccion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/geo/direccion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Dirección de un punto marcado en el mapa */
+        get: operations["direccionDePunto"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/catalogos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Categorías, motivos, documentos y versión de términos vigentes
+         * @description Público. Lo edita admin; las apps lo leen en vez de tener las listas fijas.
+         */
+        get: operations["catalogosVigentes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalogos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Catálogos completos (incluye lo desactivado) */
+        get: operations["catalogosAdmin"];
+        /**
+         * Guardar catálogos
+         * @description Los códigos que ya existen no se quitan, solo se desactivan. El motivo otro debe seguir activo. Cambiar versionTerminos obliga a todos a aceptar los términos otra vez.
+         */
+        put: operations["guardarCatalogos"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/usuarios/{id}/direcciones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** Direcciones de un cliente */
+        get: operations["direccionesDeCliente"];
+        put?: never;
+        /** Agregar dirección a un cliente */
+        post: operations["crearDireccionDeCliente"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/usuarios/{id}/direcciones/{dir}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+                dir: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Borrar dirección de un cliente */
+        delete: operations["borrarDireccionDeCliente"];
+        options?: never;
+        head?: never;
+        /** Editar dirección de un cliente */
+        patch: operations["editarDireccionDeCliente"];
+        trace?: never;
+    };
+    "/soporte/usuarios/{id}/vehiculo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Editar el vehículo de un repartidor */
+        put: operations["vehiculoDeRepartidor"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/repartidores/{id}/desconectar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Desconectar a un repartidor */
+        post: operations["desconectarRepartidor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/pedidos/cotizar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cotizar a nombre de un cliente (efectivo) */
+        post: operations["cotizarPorCliente"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/pedidos/{id}/asignar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Asignar un pedido listo a un repartidor
+         * @description Solo pedidos listos para recoger y repartidores conectados. No revisa distancia; respeta el máximo de pedidos por viaje.
+         */
+        post: operations["asignarPedido"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/pedidos/{id}/avanzar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mover el pedido al siguiente estado
+         * @description programado → creado → aceptado_tienda → listo_para_recoger; asignado → en_tienda → en_camino → en_domicilio. Listo se asigna y en domicilio se completa con sus propias rutas.
+         */
+        post: operations["avanzarPedido"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Abrir un ticket a nombre de alguien */
+        post: operations["ticketANombre"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/tiendas/{id}/categorias": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** Categorías del menú de una tienda */
+        get: operations["categoriasDeTienda"];
+        put?: never;
+        /** Crear categoría en el menú de una tienda */
+        post: operations["crearCategoriaDeTienda"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/categorias/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Borrar categoría del menú */
+        delete: operations["borrarCategoriaPanel"];
+        options?: never;
+        head?: never;
+        /** Editar categoría del menú */
+        patch: operations["editarCategoriaPanel"];
+        trace?: never;
+    };
+    "/soporte/tiendas/{id}/productos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** Productos de una tienda */
+        get: operations["productosDeTienda"];
+        put?: never;
+        /** Crear producto en una tienda */
+        post: operations["crearProductoDeTienda"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/productos/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Borrar producto */
+        delete: operations["borrarProductoPanel"];
+        options?: never;
+        head?: never;
+        /** Editar producto */
+        patch: operations["editarProductoPanel"];
+        trace?: never;
+    };
+    "/soporte/productos/{id}/opciones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Reemplazar las opciones de un producto */
+        put: operations["opcionesProductoPanel"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/tiendas/{id}/horario": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** Horario de una tienda */
+        get: operations["horarioDeTienda"];
+        /** Reemplazar el horario de una tienda */
+        put: operations["guardarHorarioDeTienda"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/documentos/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Borrar un documento */
+        delete: operations["borrarDocumento"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/tickets/{id}/mensajes/{mensaje}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+                mensaje: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Borrar un mensaje inapropiado de un ticket */
+        delete: operations["borrarMensajeTicket"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/usuarios/{id}/ajuste": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Abonar o cargar a mano en una cartera */
+        post: operations["ajusteCartera"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/liquidaciones/{id}/anular": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Anular una liquidación mal capturada
+         * @description Registra el movimiento contrario; la liquidación queda marcada como anulada.
+         */
+        post: operations["anularLiquidacion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/resenas/{pedidoId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pedidoId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Borrar una reseña falsa
+         * @description Deja de contar en los promedios de la tienda y del repartidor.
+         */
+        delete: operations["borrarResena"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/soporte/usuarios": {
         parameters: {
             query?: never;
@@ -2072,7 +2548,8 @@ export interface paths {
         /** Documentos subidos por una cuenta */
         get: operations["documentosDeUsuario"];
         put?: never;
-        post?: never;
+        /** Subir un documento a nombre de una tienda o repartidor */
+        post: operations["documentoANombre"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2230,7 +2707,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Crear cuentas de soporte o admin */
+        /**
+         * Crear cuentas del equipo, clientes o repartidores
+         * @description Nacen activas y con el correo verificado; clientes y repartidores aceptan los términos al entrar. Las tiendas se crean con POST /admin/tiendas.
+         */
         post: operations["crearUsuarioInterno"];
         delete?: never;
         options?: never;
@@ -2780,7 +3260,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Notificaciones generales enviadas */
+        get: operations["historialPush"];
         put?: never;
         /**
          * Enviar una notificación push general
@@ -2957,6 +3438,8 @@ export interface components {
             vehiculo?: components["schemas"]["Vehiculo"] | null;
             /** @description Repartidor y tienda; true si sus documentos requeridos están aprobados */
             documentosCompletos?: boolean | null;
+            /** @description Repartidor: si está conectado ahora */
+            disponible?: boolean | null;
         };
         EventoCuenta: {
             /** Format: uuid */
@@ -3072,8 +3555,11 @@ export interface components {
             /** Format: uuid */
             id?: string;
         } & components["schemas"]["DireccionInput"];
-        /** @enum {string} */
-        CategoriaTienda: "comida" | "abarrotes" | "farmacia" | "materiales" | "otros";
+        /**
+         * @description Código del catálogo de categorías (GET /catalogos). Base: comida, abarrotes, farmacia, materiales, otros; admin puede agregar más.
+         * @example comida
+         */
+        CategoriaTienda: string;
         Tienda: {
             /** Format: uuid */
             id?: string;
@@ -3825,7 +4311,7 @@ export interface components {
             pedidosEnCurso: number;
             entregasHoy: number;
             entregasTotales: number;
-            /** @description Positivo: le debe a PaPedir */
+            /** @description Cartera: positivo a su favor, negativo lo que debe */
             saldo: number;
             /** Format: date-time */
             creadoEn: string;
@@ -4079,8 +4565,11 @@ export interface components {
                 kmRecorridos?: number;
             }[];
         };
-        /** @enum {string} */
-        TipoDocumento: "ine" | "licencia" | "tarjeta_circulacion" | "comprobante_domicilio" | "constancia_fiscal";
+        /**
+         * @description Tipo del catálogo de documentos (GET /catalogos). Base: ine, licencia, tarjeta_circulacion, comprobante_domicilio, constancia_fiscal.
+         * @example ine
+         */
+        TipoDocumento: string;
         Documento: {
             /** Format: uuid */
             id?: string;
@@ -4342,7 +4831,87 @@ export interface components {
             registradoPor?: string;
             /** Format: date-time */
             creadoEn?: string;
+            /** Format: date-time */
+            anuladaEn?: string | null;
+            anuladaMotivo?: string | null;
         } & components["schemas"]["LiquidacionInput"];
+        Sugerencia: {
+            /** @example Instituto Tecnológico de Celaya, Av. Tecnológico */
+            texto?: string;
+            /** @example Celaya, Gto. */
+            detalle?: string | null;
+            ubicacion?: components["schemas"]["Coordenadas"];
+            /** @example university */
+            tipo?: string | null;
+        };
+        MotivoCatalogo: {
+            codigo: string;
+            texto: string;
+            activo: boolean;
+        };
+        Catalogos: {
+            motivos: {
+                cliente?: components["schemas"]["MotivoCatalogo"][];
+                tienda?: components["schemas"]["MotivoCatalogo"][];
+                soporte?: components["schemas"]["MotivoCatalogo"][];
+                sistema?: components["schemas"]["MotivoCatalogo"][];
+            };
+            categorias: {
+                codigo: string;
+                nombre: string;
+                activa: boolean;
+            }[];
+            documentos: {
+                repartidor?: components["schemas"]["DocumentoCatalogo"][];
+                tienda?: components["schemas"]["DocumentoCatalogo"][];
+                exigirParaAprobar?: boolean;
+            };
+            legal: {
+                /** @example 2026-11 */
+                versionTerminos?: string;
+            };
+        };
+        DocumentoCatalogo: {
+            tipo: string;
+            nombre: string;
+            obligatorio: boolean;
+        };
+        CatalogosPublicos: {
+            categorias?: {
+                codigo?: string;
+                nombre?: string;
+            }[];
+            motivos?: {
+                cliente?: components["schemas"]["Motivo"][];
+                tienda?: components["schemas"]["Motivo"][];
+                soporte?: components["schemas"]["Motivo"][];
+            };
+            documentos?: {
+                repartidor?: components["schemas"]["DocumentoCatalogo"][];
+                tienda?: components["schemas"]["DocumentoCatalogo"][];
+            };
+            versionTerminos?: string;
+        };
+        EnvioPush: {
+            /** Format: uuid */
+            id?: string;
+            /** @enum {string} */
+            destino?: "tema" | "rol";
+            tema?: string | null;
+            rol?: string | null;
+            titulo?: string;
+            cuerpo?: string;
+            destinatarios?: number | null;
+            /** @example enviada */
+            modo?: string;
+            /** Format: date-time */
+            creadoEn?: string;
+            actor?: {
+                /** Format: uuid */
+                id?: string;
+                nombre?: string | null;
+            } | null;
+        };
         Plan: {
             /** @enum {string} */
             codigo?: "basico" | "pro" | "premium";
@@ -4393,6 +4962,8 @@ export interface components {
             asunto?: string;
             descripcion?: string;
             estado?: components["schemas"]["EstadoTicket"];
+            /** @enum {string} */
+            prioridad?: "baja" | "normal" | "alta" | "urgente";
             /** Format: uuid */
             pedidoId?: string | null;
             creadoPor?: {
@@ -7641,6 +8212,9 @@ export interface operations {
     listarSoportePedidos: {
         parameters: {
             query?: {
+                clienteId?: string;
+                repartidorId?: string;
+                tiendaId?: string;
                 estado?: string;
                 /** @description Folio, nombre o teléfono */
                 q?: string;
@@ -7663,6 +8237,77 @@ export interface operations {
                         data?: components["schemas"]["Pedido"][];
                         meta?: components["schemas"]["PaginaMeta"];
                     };
+                };
+            };
+        };
+    };
+    crearPedidoPorCliente: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CrearPedidoRequest"] & {
+                    /** Format: uuid */
+                    clienteId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pedido"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+        };
+    };
+    editarPedidoPanel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    notas?: string | null;
+                    destinoNombre?: string;
+                    destinoTelefono?: string;
+                    destinoReferencias?: string | null;
+                    /** @description Solo efectivo y sin terminar; ajusta el total */
+                    propina?: number;
+                    motivo: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pedido"];
+                };
+            };
+            /** @description El pedido terminó o se pagó con tarjeta */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
@@ -7844,6 +8489,9 @@ export interface operations {
                      * @description Pasar el ticket a otra persona del equipo (soporte o admin)
                      */
                     atendidoPor?: string;
+                    asunto?: string;
+                    /** @enum {string} */
+                    prioridad?: "baja" | "normal" | "alta" | "urgente";
                 };
             };
         };
@@ -7857,6 +8505,865 @@ export interface operations {
                     "application/json": components["schemas"]["Ticket"];
                 };
             };
+        };
+    };
+    sugerenciasDireccion: {
+        parameters: {
+            query: {
+                q: string;
+                lat?: number;
+                lng?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sugerencia"][];
+                };
+            };
+            /** @description GEO_NO_DISPONIBLE; marcar el punto en el mapa */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    direccionDePunto: {
+        parameters: {
+            query: {
+                lat: number;
+                lng: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        resultado?: components["schemas"]["Sugerencia"] | null;
+                    };
+                };
+            };
+            /** @description GEO_NO_DISPONIBLE */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    catalogosVigentes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogosPublicos"];
+                };
+            };
+        };
+    };
+    catalogosAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Catalogos"];
+                };
+            };
+        };
+    };
+    guardarCatalogos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Catalogos"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Catalogos"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+        };
+    };
+    direccionesDeCliente: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Direccion"][];
+                };
+            };
+        };
+    };
+    crearDireccionDeCliente: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DireccionInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Direccion"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+        };
+    };
+    borrarDireccionDeCliente: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+                dir: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Hecho */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    editarDireccionDeCliente: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+                dir: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DireccionInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Direccion"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    vehiculoDeRepartidor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Vehiculo"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Vehiculo"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+        };
+    };
+    desconectarRepartidor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    motivo: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ya desconectado o con viaje activo (VIAJE_ACTIVO) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    cotizarPorCliente: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CotizarPedidoRequest"] & {
+                    /** Format: uuid */
+                    clienteId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Cotizacion"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+        };
+    };
+    asignarPedido: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    repartidorId: string;
+                    motivo: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pedido"];
+                };
+            };
+            /** @description REPARTIDOR_DESCONECTADO, VIAJE_LLENO, CUENTA_PENDIENTE o TRANSICION_INVALIDA */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    avanzarPedido: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    motivo: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pedido"];
+                };
+            };
+            /** @description TRANSICION_INVALIDA */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    ticketANombre: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TicketInput"] & {
+                    /** Format: uuid */
+                    usuarioId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ticket"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+        };
+    };
+    categoriasDeTienda: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoriaProducto"][];
+                };
+            };
+        };
+    };
+    crearCategoriaDeTienda: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoriaProductoInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoriaProducto"];
+                };
+            };
+        };
+    };
+    borrarCategoriaPanel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Hecho */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description CATEGORIA_CON_PRODUCTOS */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    editarCategoriaPanel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoriaProductoInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoriaProducto"];
+                };
+            };
+        };
+    };
+    productosDeTienda: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Producto"][];
+                };
+            };
+        };
+    };
+    crearProductoDeTienda: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductoInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Producto"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+        };
+    };
+    borrarProductoPanel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Hecho */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    editarProductoPanel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductoInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Producto"];
+                };
+            };
+        };
+    };
+    opcionesProductoPanel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    grupos: components["schemas"]["GrupoOpcionesInput"][];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Producto"];
+                };
+            };
+        };
+    };
+    horarioDeTienda: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Horario"];
+                };
+            };
+        };
+    };
+    guardarHorarioDeTienda: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Horario"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Horario"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+        };
+    };
+    borrarDocumento: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    motivo: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Hecho */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    borrarMensajeTicket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+                mensaje: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    motivo: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Hecho */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    ajusteCartera: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description + abona, − carga
+                     * @example 50
+                     */
+                    monto: number;
+                    motivo: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EstadoDeCuenta"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+        };
+    };
+    anularLiquidacion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    motivo: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id?: string;
+                        /** Format: date-time */
+                        anuladaEn?: string;
+                        anuladaMotivo?: string;
+                        saldo?: number;
+                    };
+                };
+            };
+            /** @description LIQUIDACION_ANULADA */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    borrarResena: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pedidoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    motivo: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Hecho */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     listarSoporteUsuarios: {
@@ -7953,6 +9460,43 @@ export interface operations {
                     "application/json": components["schemas"]["Documento"][];
                 };
             };
+        };
+    };
+    documentoANombre: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** @description Tipo del catálogo de documentos */
+                    tipo: string;
+                    /**
+                     * @description true = queda aprobado al subirlo
+                     * @enum {string}
+                     */
+                    aprobar?: "true" | "false";
+                    /** Format: binary */
+                    archivo: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Documento"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
         };
     };
     enlaceDocumento: {
@@ -8177,7 +9721,9 @@ export interface operations {
                     email: string;
                     password: string;
                     /** @enum {string} */
-                    rol: "soporte" | "admin";
+                    rol: "soporte" | "admin" | "cliente" | "repartidor";
+                    /** @description Obligatorio para cliente y repartidor */
+                    telefono?: string;
                 };
             };
         };
@@ -9175,6 +10721,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SeriesMetricas"];
+                };
+            };
+        };
+    };
+    historialPush: {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["EnvioPush"][];
+                        meta?: components["schemas"]["PaginaMeta"];
+                    };
                 };
             };
         };

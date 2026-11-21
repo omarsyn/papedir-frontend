@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-query";
 import {
   ArchiveRestore,
+  Clock,
   Download,
   PauseCircle,
   Pencil,
@@ -13,11 +14,13 @@ import {
   Plus,
   Search,
   Star,
+  UtensilsCrossed,
   Trash2,
 } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { SolicitudesTienda } from "./SolicitudesTienda";
+import { HorarioTienda, MenuTienda } from "../componentes/MenuTienda";
 import { api, datos, ErrorApi, Esquemas } from "../api/cliente";
 import { useAvisos } from "../componentes/Avisos";
 import {
@@ -28,7 +31,7 @@ import {
   Vacio,
 } from "../componentes/Basicos";
 import { Dialogo, DialogoMotivo } from "../componentes/Dialogo";
-import { CATEGORIAS, FormularioTienda } from "../componentes/FormularioTienda";
+import { FormularioTienda, useCategorias } from "../componentes/FormularioTienda";
 import { useSesion } from "../sesion/Sesion";
 import {
   descargarCsv,
@@ -370,6 +373,7 @@ export function Tiendas() {
 }
 
 function FilaTienda({ t, onAbrir }: { t: TiendaPanel; onAbrir: () => void }) {
+  const { nombre: nombreCategoria } = useCategorias();
   const estado = estadoTienda(t);
   return (
     <tr>
@@ -385,8 +389,7 @@ function FilaTienda({ t, onAbrir }: { t: TiendaPanel; onAbrir: () => void }) {
               {t.nombre}
             </button>
             <div className="texto-secundario texto-chico">
-              {CATEGORIAS[t.categoria as keyof typeof CATEGORIAS] ??
-                t.categoria}
+              {nombreCategoria(t.categoria)}
             </div>
           </div>
         </div>
@@ -421,6 +424,7 @@ function FilaTienda({ t, onAbrir }: { t: TiendaPanel; onAbrir: () => void }) {
 }
 
 function FichaTienda({ id, onCerrar }: { id: string; onCerrar: () => void }) {
+  const { nombre: nombreCategoria } = useCategorias();
   const { esAdmin } = useSesion();
   const { avisar } = useAvisos();
   const cache = useQueryClient();
@@ -428,6 +432,8 @@ function FichaTienda({ id, onCerrar }: { id: string; onCerrar: () => void }) {
   const [comision, setComision] = useState(false);
   const [editando, setEditando] = useState(false);
   const [eliminando, setEliminando] = useState(false);
+  const [editandoMenu, setEditandoMenu] = useState(false);
+  const [editandoHorario, setEditandoHorario] = useState(false);
   const ficha = useQuery({
     queryKey: ["tienda-panel", id],
     queryFn: () =>
@@ -516,8 +522,7 @@ function FichaTienda({ id, onCerrar }: { id: string; onCerrar: () => void }) {
               </Chip>
             )}
             <Chip>
-              {CATEGORIAS[f.categoria as keyof typeof CATEGORIAS] ??
-                f.categoria}
+              {nombreCategoria(f.categoria)}
             </Chip>
           </div>
           <div className="acciones-encabezado">
@@ -651,7 +656,14 @@ function FichaTienda({ id, onCerrar }: { id: string; onCerrar: () => void }) {
             </dl>
           </section>
           <section className="bloque">
-            <h3>Horario</h3>
+            <div className="bloque-cabecera">
+              <h3>Horario</h3>
+              {!f.eliminadaEn && (
+                <button className="boton boton-chico" onClick={() => setEditandoHorario(true)}>
+                  <Clock size={14} aria-hidden /> Editar horario
+                </button>
+              )}
+            </div>
             {!horario?.usarHorario ? (
               <p className="texto-secundario">
                 Recibe pedidos siempre que la tienda esté abierta en su app.
@@ -711,7 +723,14 @@ function FichaTienda({ id, onCerrar }: { id: string; onCerrar: () => void }) {
         </section>
 
         <section className="bloque">
-          <h3>Menú</h3>
+          <div className="bloque-cabecera">
+            <h3>Menú</h3>
+            {!f.eliminadaEn && (
+              <button className="boton boton-chico" onClick={() => setEditandoMenu(true)}>
+                <UtensilsCrossed size={14} aria-hidden /> Editar menú
+              </button>
+            )}
+          </div>
           {!f.menu.length ? (
             <p className="texto-secundario">Sin productos.</p>
           ) : (
@@ -791,6 +810,8 @@ function FichaTienda({ id, onCerrar }: { id: string; onCerrar: () => void }) {
         )}
       </div>
 
+      <MenuTienda tiendaId={id} nombre={f.nombre!} abierto={editandoMenu} onCerrar={() => setEditandoMenu(false)} />
+      <HorarioTienda tiendaId={id} nombre={f.nombre!} abierto={editandoHorario} onCerrar={() => setEditandoHorario(false)} />
       <FormularioTienda
         abierto={editando}
         ficha={f}

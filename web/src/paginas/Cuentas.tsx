@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, Search } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Download, Plus, Search } from 'lucide-react';
+import { FormEvent, useEffect, useState } from 'react';
 import { api, datos, ErrorApi, EstadoCuenta, Rol, Usuario } from '../api/cliente';
 import { useAvisos } from '../componentes/Avisos';
 import { Cargando, Chip, ErrorCarga, Paginacion, Vacio } from '../componentes/Basicos';
-import { DialogoMotivo } from '../componentes/Dialogo';
+import { Dialogo, DialogoMotivo } from '../componentes/Dialogo';
+import { Link } from 'react-router';
 import { FichaCuenta } from '../componentes/FichaCuenta';
 import { useNavigate, useParams } from 'react-router';
 import { useSesion } from '../sesion/Sesion';
@@ -31,6 +32,8 @@ export function Cuentas() {
   const [pagina, setPagina] = useState(1);
   const [aBanear, setABanear] = useState<Usuario | null>(null);
   const [aRegresar, setARegresar] = useState<Usuario | null>(null);
+  const [creandoCuenta, setCreandoCuenta] = useState(false);
+  const { esAdmin: esAdminC } = useSesion();
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -81,12 +84,20 @@ export function Cuentas() {
 
   return (
     <div className="pagina">
-      <header className="pagina-cabecera">
-        <h1>Cuentas</h1>
-        <p className="texto-secundario">
-          Tiendas y repartidores nuevos esperan aquí a que alguien de soporte los apruebe. Abre una cuenta para ver sus documentos y su historial.
-        </p>
+      <header className="pagina-cabecera pagina-cabecera-acciones">
+        <div>
+          <h1>Cuentas</h1>
+          <p className="texto-secundario">
+            Tiendas y repartidores nuevos esperan aquí a que alguien de soporte los apruebe. Abre una cuenta para ver sus documentos y su historial.
+          </p>
+        </div>
+        {esAdminC && (
+          <button className="boton boton-primario" onClick={() => setCreandoCuenta(true)}>
+            <Plus size={16} aria-hidden /> Nueva cuenta
+          </button>
+        )}
       </header>
+      <NuevaCuenta abierto={creandoCuenta} onCerrar={() => setCreandoCuenta(false)} />
 
       <div className="barra-herramientas">
         <div className="filtros" role="tablist" aria-label="Estado de la cuenta">
@@ -232,5 +243,96 @@ export function Cuentas() {
         }}
       />
     </div>
+  );
+}
+
+function contrasenaTemporal() {
+  const letras = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const v = new Uint32Array(12);
+  crypto.getRandomValues(v);
+  return Array.from(v, (n) => letras[n % letras.length]).join('');
+}
+
+/** Admin da de alta un cliente o un repartidor (las tiendas se crean en Tiendas y el equipo en Equipo). */
+function NuevaCuenta({ abierto, onCerrar }: { abierto: boolean; onCerrar: () => void }) {
+  const cache = useQueryClient();
+  const { avisar } = useAvisos();
+  const [f, setF] = useState({ rol: 'cliente' as 'cliente' | 'repartidor', nombre: '', email: '', telefono: '', password: '' });
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (abierto) {
+      setError('');
+      setF({ rol: 'cliente', nombre: '', email: '', telefono: '', password: contrasenaTemporal() });
+    }
+  }, [abierto]);
+  const crear = useMutation({
+    mutationFn: () => datos(api.POST('/admin/usuarios', { body: { rol: f.rol, nombre: f.nombre.trim(), email: f.email.trim().toLowerCase(), telefono: f.telefono, password: f.password } })),
+    onSuccess: (u) => {
+      cache.invalidateQueries({ queryKey: ['usuarios'] });
+      avisar(`Cuenta de ${u.nombre} creada. Compártele su correo y la contraseña temporal por un medio privado.`, 'exito');
+      onCerrar();
+    },
+    onError: (e) => setError(e instanceof ErrorApi ? e.message : 'No se pudo crear la cuenta'),
+  });
+  return (
+    <Dialogo titulo="Nueva cuenta" abierto={abierto} onCerrar={onCerrar}>
+      <form
+        className="formulario"
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault();
+          crear.mutate();
+        }}
+      >
+        <fieldset className="opciones opciones-en-fila">
+          <legend>Tipo de cuenta</legend>
+          <label className="opcion">
+            <input type="radio" checked={f.rol === 'cliente'} onChange={() => setF({ ...f, rol: 'cliente' })} /> Cliente
+          </label>
+          <label className="opcion">
+            <input type="radio" checked={f.rol === 'repartidor'} onChange={() => setF({ ...f, rol: 'repartidor' })} /> Repartidor
+          </label>
+        </fieldset>
+        <p className="texto-secundario texto-chico">
+          Las tiendas se dan de alta en <Link to="/tiendas">Tiendas</Link> y el equipo de soporte en <Link to="/equipo">Equipo</Link>. La cuenta nace activa y con el correo
+          verificado; acepta los términos al entrar por primera vez.
+        </p>
+        <label className="campo">
+          <span>Nombre</span>
+          <input value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} required maxLength={80} />
+        </label>
+        <div className="campos-en-fila">
+          <label className="campo">
+            <span>Correo</span>
+            <input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} required />
+          </label>
+          <label className="campo">
+            <span>Teléfono</span>
+            <input value={f.telefono} onChange={(e) => setF({ ...f, telefono: e.target.value.replace(/\D/g, '').slice(0, 10) })} inputMode="tel" required pattern="[0-9]{10}" placeholder="10 dígitos" />
+          </label>
+        </div>
+        <label className="campo">
+          <span>Contraseña temporal</span>
+          <span className="campo-con-boton">
+            <input value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} required minLength={8} maxLength={72} spellCheck={false} autoComplete="off" />
+            <button type="button" className="boton boton-chico" onClick={() => setF({ ...f, password: contrasenaTemporal() })}>
+              Generar otra
+            </button>
+          </span>
+        </label>
+        {error && (
+          <p className="error-formulario" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="acciones-dialogo">
+          <button type="button" className="boton" onClick={onCerrar}>
+            Cancelar
+          </button>
+          <button className="boton boton-primario" disabled={crear.isPending}>
+            Crear cuenta
+          </button>
+        </div>
+      </form>
+    </Dialogo>
   );
 }

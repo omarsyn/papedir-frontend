@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Bike, CalendarClock, CreditCard, Download, Package, Search, Send, Store, UserRound, Wallet } from 'lucide-react';
+import { ArrowLeft, Bike, CalendarClock, CreditCard, Download, Package, Pencil, Plus, Search, Send, SkipForward, Store, UserRound, Wallet } from 'lucide-react';
 import { FormEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { api, Coordenadas, datos, ErrorApi, EstadoPedido, Pedido } from '../api/cliente';
@@ -7,9 +7,10 @@ import { useAvisos } from '../componentes/Avisos';
 import { Cargando, Chip, ErrorCarga, Paginacion, Vacio } from '../componentes/Basicos';
 import { Dialogo, DialogoMotivo } from '../componentes/Dialogo';
 import { MapaPedido } from '../componentes/MapaPedido';
+import { NuevoPedido } from '../componentes/NuevoPedido';
 import { RielEstado } from '../componentes/RielEstado';
 import { useTiempoReal } from '../realtime/TiempoReal';
-import { direccionDe } from '../util/geocodificar';
+import { Ubicacion, ValorUbicacion } from '../componentes/Ubicacion';
 import { ACTIVOS, descargarCsv, dinero, ESTADOS_PEDIDO, EVENTOS, fecha, haceCuanto, ROLES, soloHora, textoEstado, tonoEstado } from '../util/formato';
 
 const PAGO: Record<string, { texto: string; tono: 'exito' | 'alerta' | 'error' | 'neutro' }> = {
@@ -24,6 +25,7 @@ type Filtro = 'activos' | 'todos' | EstadoPedido;
 export function Pedidos() {
   const { id } = useParams();
   const [busqueda, setBusqueda] = useState(() => new URLSearchParams(window.location.search).get('q') ?? '');
+  const [creando, setCreando] = useState(false);
   const [q, setQ] = useState('');
   const [parametros] = useSearchParams();
   // El inicio enlaza aquí con ?estado=… o ?q=… para abrir la lista ya filtrada.
@@ -91,7 +93,12 @@ export function Pedidos() {
     <div className="vista-dividida" data-detalle={id ? 'si' : 'no'}>
       <section className="panel-lista" aria-label="Pedidos">
         <header className="panel-cabecera">
-          <h1>Pedidos</h1>
+          <div className="panel-cabecera-titulo">
+            <h1>Pedidos</h1>
+            <button className="boton boton-chico boton-primario" onClick={() => setCreando(true)} title="Pedido a nombre de un cliente">
+              <Plus size={14} aria-hidden /> Nuevo
+            </button>
+          </div>
           <label className="buscador">
             <Search size={16} aria-hidden />
             <input
@@ -168,11 +175,22 @@ export function Pedidos() {
           </Vacio>
         )}
       </section>
+      <NuevoPedido abierto={creando} onCerrar={() => setCreando(false)} />
     </div>
   );
 }
 
-type Accion = 'cancelar' | 'completar' | 'liberar' | 'ubicacion' | 'reembolso' | null;
+type Accion = 'cancelar' | 'completar' | 'liberar' | 'ubicacion' | 'reembolso' | 'editar' | 'avanzar' | 'asignar' | null;
+
+/** Siguiente estado que soporte puede forzar (igual que el backend). */
+const SIGUIENTE: Record<string, string> = {
+  programado: 'creado',
+  creado: 'aceptado_tienda',
+  aceptado_tienda: 'listo_para_recoger',
+  asignado: 'en_tienda',
+  en_tienda: 'en_camino',
+  en_camino: 'en_domicilio',
+};
 
 function DetallePedido({ id }: { id: string }) {
   const navegar = useNavigate();
@@ -224,6 +242,19 @@ function DetallePedido({ id }: { id: string }) {
         </div>
         {!final && (
           <div className="acciones">
+            <button className="boton" onClick={() => setAccion('editar')}>
+              <Pencil size={16} aria-hidden /> Editar
+            </button>
+            {SIGUIENTE[estado] && (
+              <button className="boton" onClick={() => setAccion('avanzar')} title={`Pasar a "${textoEstado(SIGUIENTE[estado] as never)}"`}>
+                <SkipForward size={16} aria-hidden /> Avanzar
+              </button>
+            )}
+            {estado === 'listo_para_recoger' && (
+              <button className="boton" onClick={() => setAccion('asignar')}>
+                <Bike size={16} aria-hidden /> Asignar repartidor
+              </button>
+            )}
             <button className="boton" onClick={() => setAccion('ubicacion')}>
               Corregir dirección
             </button>
@@ -518,48 +549,39 @@ function AccionesSoporte({ pedido, accion, onCerrar }: { pedido: Pedido; accion:
       />
       <CorregirDireccion pedido={pedido} abierto={accion === 'ubicacion'} onCerrar={onCerrar} onListo={() => listo('Dirección corregida')} />
       <ReembolsoCartera pedido={pedido} abierto={accion === 'reembolso'} onCerrar={onCerrar} onListo={(m) => listo(`${dinero(m)} reembolsados a la cartera del cliente`)} />
+      <EditarPedido pedido={pedido} abierto={accion === 'editar'} onCerrar={onCerrar} onListo={() => listo(`${pedido.folio} actualizado`)} />
+      <DialogoMotivo
+        abierto={accion === 'avanzar'}
+        onCerrar={onCerrar}
+        titulo={`Pasar ${pedido.folio} a "${SIGUIENTE[pedido.estado!] ? textoEstado(SIGUIENTE[pedido.estado!] as never) : ''}"`}
+        descripcion="Úsalo cuando la tienda o el repartidor hicieron el paso pero su app no lo registró. Se avisa a todos como un cambio normal."
+        textoBoton="Avanzar"
+        placeholder="Ej. La tienda confirmó por teléfono que ya está listo"
+        onConfirmar={async (motivo) => {
+          await datos(api.POST('/soporte/pedidos/{id}/avanzar', { params: path, body: { motivo } }));
+          listo(`${pedido.folio} avanzó de estado`);
+        }}
+      />
+      <AsignarPedido pedido={pedido} abierto={accion === 'asignar'} onCerrar={onCerrar} onListo={(n) => listo(`${pedido.folio} asignado a ${n}`)} />
     </>
   );
 }
 
 function CorregirDireccion({ pedido, abierto, onCerrar, onListo }: { pedido: Pedido; abierto: boolean; onCerrar: () => void; onListo: () => void }) {
-  const [direccion, setDireccion] = useState('');
-  const [punto, setPunto] = useState<Coordenadas | null>(null);
+  const [valor, setValor] = useState<ValorUbicacion>({ direccion: '', ubicacion: null });
   const [motivo, setMotivo] = useState('');
   const [error, setError] = useState('');
-  const [buscando, setBuscando] = useState<'no' | 'si' | 'sin-resultado'>('no');
-  const busqueda = useRef<AbortController | null>(null);
   useEffect(() => {
     if (abierto) {
-      setDireccion(pedido.destino?.direccion ?? '');
-      setPunto(pedido.destino?.ubicacion ?? null);
+      setValor({ direccion: pedido.destino?.direccion ?? '', ubicacion: pedido.destino?.ubicacion ?? null });
       setMotivo('');
       setError('');
-      setBuscando('no');
     }
-    return () => busqueda.current?.abort();
   }, [abierto, pedido]);
-
-  // Al marcar un punto se busca su dirección; si llega, reemplaza la escrita (se puede corregir a mano).
-  async function elegirPunto(c: Coordenadas) {
-    setPunto(c);
-    busqueda.current?.abort();
-    const control = new AbortController();
-    busqueda.current = control;
-    setBuscando('si');
-    try {
-      const encontrada = await direccionDe(c, control.signal);
-      if (control.signal.aborted) return;
-      if (encontrada) setDireccion(encontrada);
-      setBuscando(encontrada ? 'no' : 'sin-resultado');
-    } catch {
-      if (!control.signal.aborted) setBuscando('sin-resultado');
-    }
-  }
 
   const guardar = useMutation({
     mutationFn: () =>
-      datos(api.PATCH('/soporte/pedidos/{id}/ubicacion', { params: { path: { id: pedido.id! } }, body: { direccion: direccion.trim(), ubicacion: punto!, motivo: motivo.trim() } })),
+      datos(api.PATCH('/soporte/pedidos/{id}/ubicacion', { params: { path: { id: pedido.id! } }, body: { direccion: valor.direccion.trim(), ubicacion: valor.ubicacion!, motivo: motivo.trim() } })),
     onSuccess: () => {
       onListo();
       onCerrar();
@@ -567,42 +589,38 @@ function CorregirDireccion({ pedido, abierto, onCerrar, onListo }: { pedido: Ped
     onError: (e) => setError(e instanceof ErrorApi ? e.message : 'No se pudo corregir la dirección'),
   });
 
-  function enviar(e: FormEvent) {
-    e.preventDefault();
-    if (punto) guardar.mutate();
-  }
-
-  const puntos = [
-    pedido.tienda?.ubicacion && { pos: pedido.tienda.ubicacion, texto: pedido.tienda.nombre ?? 'Tienda', tipo: 'tienda' as const },
-    punto && { pos: punto, texto: 'Nueva ubicación', tipo: 'nuevo' as const },
-  ].filter(Boolean) as { pos: Coordenadas; texto: string; tipo: 'tienda' | 'nuevo' }[];
-
   return (
     <Dialogo titulo={`Corregir la dirección de ${pedido.folio}`} abierto={abierto} onCerrar={onCerrar} ancho={640}>
-      <form className="formulario" onSubmit={enviar}>
-        <p className="texto-secundario">Haz clic en el mapa donde está el domicilio correcto. El costo de envío no cambia.</p>
-        <MapaPedido puntos={puntos} onClic={elegirPunto} alto={300} />
-        <label className="campo">
-          <span>Dirección del punto</span>
-          <input value={direccion} onChange={(e) => setDireccion(e.target.value)} required maxLength={200} disabled={buscando === 'si'} />
-          <span className="texto-secundario texto-chico" aria-live="polite">
-            {buscando === 'si'
-              ? 'Buscando la dirección del punto…'
-              : buscando === 'sin-resultado'
-                ? 'No se encontró la dirección de ese punto; escríbela a mano.'
-                : 'Revisa el número de casa: el mapa no siempre lo tiene.'}
-          </span>
-        </label>
+      <form
+        className="formulario"
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault();
+          if (valor.ubicacion) guardar.mutate();
+        }}
+      >
+        <p className="texto-secundario">Busca la dirección correcta o toca el mapa donde está el domicilio. El costo de envío no cambia.</p>
+        <Ubicacion
+          valor={valor}
+          onCambiar={setValor}
+          etiqueta="Dirección correcta"
+          nombrePunto="Nueva ubicación"
+          referencias={pedido.tienda?.ubicacion ? [{ pos: pedido.tienda.ubicacion, texto: pedido.tienda.nombre ?? 'Tienda', tipo: 'tienda' }] : []}
+          alto={280}
+        />
         <label className="campo">
           <span>Motivo (queda en la bitácora)</span>
           <input value={motivo} onChange={(e) => setMotivo(e.target.value)} required maxLength={500} placeholder="Ej. El cliente dio mal el número de casa" />
         </label>
-        {error && <p className="error-formulario" role="alert">{error}</p>}
+        {error && (
+          <p className="error-formulario" role="alert">
+            {error}
+          </p>
+        )}
         <div className="acciones-dialogo">
           <button type="button" className="boton" onClick={onCerrar}>
             Volver
           </button>
-          <button className="boton boton-primario" disabled={!punto || !direccion.trim() || !motivo.trim() || buscando === 'si' || guardar.isPending}>
+          <button className="boton boton-primario" disabled={!valor.ubicacion || !valor.direccion.trim() || !motivo.trim() || guardar.isPending}>
             {guardar.isPending ? 'Guardando…' : 'Guardar dirección'}
           </button>
         </div>
@@ -764,6 +782,172 @@ function ReembolsoCartera({ pedido, abierto, onCerrar, onListo }: { pedido: Pedi
           </button>
           <button className="boton boton-primario" disabled={!Number(monto) || !motivo.trim() || guardar.isPending}>
             {guardar.isPending ? 'Reembolsando…' : `Reembolsar ${Number(monto) ? dinero(Number(monto)) : ''}`}
+          </button>
+        </div>
+      </form>
+    </Dialogo>
+  );
+}
+
+/** Notas, datos de quien recibe y propina (solo efectivo). */
+function EditarPedido({ pedido, abierto, onCerrar, onListo }: { pedido: Pedido; abierto: boolean; onCerrar: () => void; onListo: () => void }) {
+  const [f, setF] = useState({ notas: '', destinoNombre: '', destinoTelefono: '', destinoReferencias: '', propina: '0', motivo: '' });
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (abierto) {
+      setError('');
+      setF({
+        notas: pedido.notas ?? '',
+        destinoNombre: pedido.destino?.nombre ?? '',
+        destinoTelefono: pedido.destino?.telefono ?? '',
+        destinoReferencias: pedido.destino?.referencias ?? '',
+        propina: String(pedido.propina ?? 0),
+        motivo: '',
+      });
+    }
+  }, [abierto, pedido]);
+  const propinaEditable = pedido.metodoPago !== 'tarjeta';
+  const guardar = useMutation({
+    mutationFn: () => {
+      const body: Record<string, unknown> = { motivo: f.motivo.trim() };
+      if (f.notas !== (pedido.notas ?? '')) body.notas = f.notas.trim() || null;
+      if (f.destinoNombre.trim() && f.destinoNombre !== pedido.destino?.nombre) body.destinoNombre = f.destinoNombre.trim();
+      if (f.destinoTelefono && f.destinoTelefono !== pedido.destino?.telefono) body.destinoTelefono = f.destinoTelefono;
+      if (f.destinoReferencias !== (pedido.destino?.referencias ?? '')) body.destinoReferencias = f.destinoReferencias.trim() || null;
+      if (propinaEditable && Number(f.propina) !== pedido.propina) body.propina = Number(f.propina);
+      return datos(api.PATCH('/soporte/pedidos/{id}', { params: { path: { id: pedido.id! } }, body: body as never }));
+    },
+    onSuccess: () => {
+      onListo();
+      onCerrar();
+    },
+    onError: (e) => setError(e instanceof ErrorApi ? e.message : 'No se pudo guardar'),
+  });
+  return (
+    <Dialogo titulo={`Editar ${pedido.folio}`} abierto={abierto} onCerrar={onCerrar}>
+      <form
+        className="formulario"
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault();
+          guardar.mutate();
+        }}
+      >
+        <div className="campos-en-fila">
+          <label className="campo">
+            <span>Quién recibe</span>
+            <input value={f.destinoNombre} onChange={(e) => setF({ ...f, destinoNombre: e.target.value })} maxLength={80} />
+          </label>
+          <label className="campo">
+            <span>Teléfono</span>
+            <input value={f.destinoTelefono} onChange={(e) => setF({ ...f, destinoTelefono: e.target.value.replace(/\D/g, '').slice(0, 10) })} inputMode="tel" />
+          </label>
+        </div>
+        <label className="campo">
+          <span>Referencias del domicilio</span>
+          <input value={f.destinoReferencias} onChange={(e) => setF({ ...f, destinoReferencias: e.target.value })} maxLength={200} />
+        </label>
+        <label className="campo">
+          <span>Notas para la tienda</span>
+          <input value={f.notas} onChange={(e) => setF({ ...f, notas: e.target.value })} maxLength={300} />
+        </label>
+        <label className="campo campo-angosto">
+          <span>Propina</span>
+          <input type="number" min={0} max={1000} step="1" value={f.propina} onChange={(e) => setF({ ...f, propina: e.target.value })} disabled={!propinaEditable} />
+          <small className="texto-secundario">{propinaEditable ? 'El total que cobra el repartidor se ajusta solo.' : 'Con tarjeta el cobro ya se hizo.'}</small>
+        </label>
+        <label className="campo">
+          <span>Motivo (queda en la bitácora)</span>
+          <input value={f.motivo} onChange={(e) => setF({ ...f, motivo: e.target.value })} required maxLength={500} placeholder="Ej. El cliente llamó para cambiar quién recibe" />
+        </label>
+        {error && (
+          <p className="error-formulario" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="acciones-dialogo">
+          <button type="button" className="boton" onClick={onCerrar}>
+            Cancelar
+          </button>
+          <button className="boton boton-primario" disabled={!f.motivo.trim() || guardar.isPending}>
+            Guardar cambios
+          </button>
+        </div>
+      </form>
+    </Dialogo>
+  );
+}
+
+/** Soporte elige a qué repartidor conectado le da un pedido listo. */
+function AsignarPedido({ pedido, abierto, onCerrar, onListo }: { pedido: Pedido; abierto: boolean; onCerrar: () => void; onListo: (nombre: string) => void }) {
+  const [repartidorId, setRepartidorId] = useState('');
+  const [motivo, setMotivo] = useState('');
+  const [error, setError] = useState('');
+  const lista = useQuery({
+    queryKey: ['repartidores-panel', 'asignar'],
+    queryFn: () => datos(api.GET('/soporte/repartidores', { params: { query: { estado: 'activo', limit: 100 } } })),
+    enabled: abierto,
+  });
+  const disponibles = (lista.data?.data ?? []).filter((r) => r.disponible);
+  useEffect(() => {
+    if (abierto) {
+      setRepartidorId('');
+      setMotivo('');
+      setError('');
+    }
+  }, [abierto]);
+  const asignar = useMutation({
+    mutationFn: () => datos(api.POST('/soporte/pedidos/{id}/asignar', { params: { path: { id: pedido.id! } }, body: { repartidorId, motivo: motivo.trim() } })),
+    onSuccess: () => {
+      onListo(disponibles.find((r) => r.id === repartidorId)?.nombre ?? 'el repartidor');
+      onCerrar();
+    },
+    onError: (e) => setError(e instanceof ErrorApi ? e.message : 'No se pudo asignar'),
+  });
+  return (
+    <Dialogo titulo={`Asignar ${pedido.folio}`} abierto={abierto} onCerrar={onCerrar}>
+      <form
+        className="formulario"
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault();
+          asignar.mutate();
+        }}
+      >
+        <p className="texto-secundario">Solo aparecen los repartidores conectados. Le llega un aviso y el pedido se suma a su viaje.</p>
+        {lista.isPending ? (
+          <Cargando />
+        ) : !disponibles.length ? (
+          <p className="nota">No hay repartidores conectados ahora.</p>
+        ) : (
+          <fieldset className="opciones">
+            <legend>Repartidor</legend>
+            {disponibles.map((r) => (
+              <label key={r.id} className="opcion">
+                <input type="radio" name="rep" checked={repartidorId === r.id} onChange={() => setRepartidorId(r.id!)} required />
+                {r.nombre}
+                <span className="texto-secundario texto-chico">
+                  {r.vehiculo?.tipo ? ` · ${r.vehiculo.tipo}` : ''}
+                  {r.pedidosEnCurso ? ` · lleva ${r.pedidosEnCurso}` : ' · libre'}
+                  {r.calificacion != null ? ` · ★ ${r.calificacion}` : ''}
+                </span>
+              </label>
+            ))}
+          </fieldset>
+        )}
+        <label className="campo">
+          <span>Motivo (queda en la bitácora)</span>
+          <input value={motivo} onChange={(e) => setMotivo(e.target.value)} required maxLength={500} placeholder="Ej. Lleva 20 minutos sin que nadie lo tome" />
+        </label>
+        {error && (
+          <p className="error-formulario" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="acciones-dialogo">
+          <button type="button" className="boton" onClick={onCerrar}>
+            Cancelar
+          </button>
+          <button className="boton boton-primario" disabled={!repartidorId || !motivo.trim() || asignar.isPending}>
+            Asignar
           </button>
         </div>
       </form>

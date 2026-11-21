@@ -1,11 +1,12 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Eye, EyeOff, Search } from 'lucide-react';
+import { Eye, EyeOff, Search, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { api, datos, ErrorApi, Esquemas } from '../api/cliente';
 import { useAvisos } from '../componentes/Avisos';
 import { Cargando, Chip, ErrorCarga, Paginacion, Vacio } from '../componentes/Basicos';
 import { DialogoMotivo } from '../componentes/Dialogo';
+import { useSesion } from '../sesion/Sesion';
 import { fecha, haceCuanto } from '../util/formato';
 
 type Resena = Esquemas['ResenaPanel'];
@@ -20,6 +21,8 @@ export function Resenas() {
   const [filtros, setFiltros] = useState({ q: '', estrellas: '', ocultas: '' });
   const [pagina, setPagina] = useState(1);
   const [aOcultar, setAOcultar] = useState<Resena | null>(null);
+  const [aBorrar, setABorrar] = useState<Resena | null>(null);
+  const { esAdmin } = useSesion();
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -155,6 +158,11 @@ export function Resenas() {
                     </button>
                   )
                 )}
+                {esAdmin && (
+                  <button className="boton boton-chico boton-peligro-suave" onClick={() => setABorrar(r)}>
+                    <Trash2 size={14} aria-hidden /> Borrar
+                  </button>
+                )}
               </div>
             </li>
           ))}
@@ -162,6 +170,21 @@ export function Resenas() {
       )}
       <Paginacion pagina={pagina} total={lista.data?.meta.total ?? 0} limite={LIMITE} onCambiar={setPagina} />
 
+      <DialogoMotivo
+        abierto={!!aBorrar}
+        onCerrar={() => setABorrar(null)}
+        titulo="Borrar reseña"
+        descripcion="Para reseñas falsas o de pedidos que no existieron. Se borran las estrellas y el texto, y se recalculan los promedios de la tienda y del repartidor. No se puede deshacer."
+        textoBoton="Borrar reseña"
+        peligro
+        placeholder="Ej. El cliente confirmó que no hizo esa reseña"
+        onConfirmar={async (motivo) => {
+          await datos(api.DELETE('/admin/resenas/{pedidoId}', { params: { path: { pedidoId: aBorrar!.pedidoId } }, body: { motivo } }));
+          cache.invalidateQueries({ queryKey: ['resenas-panel'] });
+          cache.invalidateQueries({ queryKey: ['tienda-panel'] });
+          avisar('Reseña borrada', 'exito');
+        }}
+      />
       <DialogoMotivo
         abierto={!!aOcultar}
         onCerrar={() => setAOcultar(null)}

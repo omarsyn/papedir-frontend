@@ -2,15 +2,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ImagePlus, RefreshCw, Trash2 } from 'lucide-react';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { api, Coordenadas, datos, ErrorApi, Esquemas } from '../api/cliente';
-import { direccionDe } from '../util/geocodificar';
 import { useAvisos } from './Avisos';
 import { Dialogo } from './Dialogo';
-import { MapaPedido } from './MapaPedido';
+import { Ubicacion } from './Ubicacion';
 
 type Ficha = Esquemas['FichaTienda'];
 type Categoria = Esquemas['CategoriaTienda'];
 
-export const CATEGORIAS: Record<Categoria, string> = {
+/** Nombres base por si el catálogo todavía no carga. */
+export const CATEGORIAS: Record<string, string> = {
   comida: 'Comida',
   abarrotes: 'Abarrotes',
   farmacia: 'Farmacia',
@@ -18,7 +18,14 @@ export const CATEGORIAS: Record<Categoria, string> = {
   otros: 'Otros',
 };
 
-const CELAYA = { lat: 20.5222, lng: -100.8123 };
+/** Categorías activas del catálogo que edita admin (GET /catalogos). */
+export function useCategorias() {
+  const r = useQuery({ queryKey: ['catalogos'], queryFn: () => datos(api.GET('/catalogos')), staleTime: 5 * 60_000 });
+  const activas = r.data?.categorias?.map((c) => ({ codigo: c.codigo!, nombre: c.nombre! })) ?? Object.entries(CATEGORIAS).map(([codigo, nombre]) => ({ codigo, nombre }));
+  const nombre = (codigo?: string) => activas.find((c) => c.codigo === codigo)?.nombre ?? CATEGORIAS[codigo ?? ''] ?? codigo ?? '';
+  return { activas, nombre };
+}
+
 
 function passwordTemporal() {
   const letras = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -41,7 +48,7 @@ export function FormularioTienda({ abierto, onCerrar, ficha, onGuardada }: Props
   const { avisar } = useAvisos();
   const cache = useQueryClient();
   const archivo = useRef<HTMLInputElement>(null);
-  const busqueda = useRef<AbortController | null>(null);
+  const categorias = useCategorias();
 
   const [modoDueno, setModoDueno] = useState<'nuevo' | 'existente'>('nuevo');
   const [dueno, setDueno] = useState({ nombre: '', email: '', telefono: '', password: '' });
@@ -49,13 +56,11 @@ export function FormularioTienda({ abierto, onCerrar, ficha, onGuardada }: Props
   const [textoDueno, setTextoDueno] = useState('');
   const [t, setT] = useState({ nombre: '', categoria: 'comida' as Categoria, descripcion: '', telefono: '', direccion: '', tiempoPreparacionMin: 20, imagenUrl: '', abierta: false });
   const [punto, setPunto] = useState<Coordenadas | null>(null);
-  const [buscando, setBuscando] = useState<'no' | 'si' | 'sin-resultado'>('no');
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!abierto) return;
     setError('');
-    setBuscando('no');
     if (ficha) {
       setT({
         nombre: ficha.nombre ?? '',
@@ -76,7 +81,6 @@ export function FormularioTienda({ abierto, onCerrar, ficha, onGuardada }: Props
       setT({ nombre: '', categoria: 'comida', descripcion: '', telefono: '', direccion: '', tiempoPreparacionMin: 20, imagenUrl: '', abierta: false });
       setPunto(null);
     }
-    return () => busqueda.current?.abort();
   }, [abierto, ficha]);
 
   // Dueños existentes: cuentas de tienda activas que coinciden con lo escrito.
@@ -90,22 +94,6 @@ export function FormularioTienda({ abierto, onCerrar, ficha, onGuardada }: Props
     queryFn: () => datos(api.GET('/soporte/usuarios', { params: { query: { rol: 'tienda', estado: 'activo', q: qDueno || undefined, limit: 8 } } })),
     enabled: abierto && !editando && modoDueno === 'existente',
   });
-
-  async function elegirPunto(c: Coordenadas) {
-    setPunto(c);
-    busqueda.current?.abort();
-    const control = new AbortController();
-    busqueda.current = control;
-    setBuscando('si');
-    try {
-      const d = await direccionDe(c, control.signal);
-      if (control.signal.aborted) return;
-      if (d) setT((x) => ({ ...x, direccion: d }));
-      setBuscando(d ? 'no' : 'sin-resultado');
-    } catch {
-      if (!control.signal.aborted) setBuscando('sin-resultado');
-    }
-  }
 
   const foto = useMutation({
     mutationFn: async (f: File) => {
@@ -153,7 +141,7 @@ export function FormularioTienda({ abierto, onCerrar, ficha, onGuardada }: Props
   });
 
   const duenoListo = editando || (modoDueno === 'existente' ? !!duenoId : !!(dueno.nombre.trim() && dueno.email.trim() && dueno.telefono.length === 10 && dueno.password.length >= 8));
-  const listo = duenoListo && t.nombre.trim() && t.direccion.trim() && punto && buscando !== 'si';
+  const listo = duenoListo && t.nombre.trim() && t.direccion.trim() && punto;
 
   return (
     <Dialogo titulo={ficha ? `Editar ${ficha.nombre}` : 'Nueva tienda'} abierto={abierto} onCerrar={onCerrar} ancho={720}>
@@ -257,7 +245,7 @@ export function FormularioTienda({ abierto, onCerrar, ficha, onGuardada }: Props
             <label className="campo">
               <span>Categoría</span>
               <select className="selector" value={t.categoria} onChange={(e) => setT({ ...t, categoria: e.target.value as Categoria })}>
-                {Object.entries(CATEGORIAS).map(([v, x]) => (
+                {[...categorias.activas, ...(categorias.activas.some((c) => c.codigo === t.categoria) ? [] : [{ codigo: t.categoria, nombre: categorias.nombre(t.categoria) }])].map(({ codigo: v, nombre: x }) => (
                   <option key={v} value={v}>
                     {x}
                   </option>
@@ -288,21 +276,17 @@ export function FormularioTienda({ abierto, onCerrar, ficha, onGuardada }: Props
 
         <fieldset className="formulario grupo-campos">
           <legend>Ubicación</legend>
-          <p className="texto-secundario texto-chico">Haz clic en el mapa donde está el local; de ahí salen los repartidores.</p>
-          <MapaPedido puntos={punto ? [{ pos: punto, texto: t.nombre || 'Tienda', tipo: 'tienda' }] : []} onClic={elegirPunto} alto={260} centro={CELAYA} />
-          <label className="campo">
-            <span>Dirección</span>
-            <input value={t.direccion} onChange={(e) => setT({ ...t, direccion: e.target.value })} required maxLength={200} disabled={buscando === 'si'} />
-            <span className="texto-secundario texto-chico" aria-live="polite">
-              {!punto
-                ? 'Marca el punto en el mapa para continuar.'
-                : buscando === 'si'
-                  ? 'Buscando la dirección del punto…'
-                  : buscando === 'sin-resultado'
-                    ? 'No se encontró la dirección; escríbela a mano.'
-                    : 'Revisa el número: el mapa no siempre lo tiene.'}
-            </span>
-          </label>
+          <p className="texto-secundario texto-chico">De ahí salen los repartidores: el punto debe quedar en la entrada del local.</p>
+          <Ubicacion
+            valor={{ direccion: t.direccion, ubicacion: punto }}
+            onCambiar={(v) => {
+              setT((x) => ({ ...x, direccion: v.direccion }));
+              setPunto(v.ubicacion);
+            }}
+            etiqueta="Dirección del local"
+            nombrePunto={t.nombre || 'Tienda'}
+            tipoPunto="tienda"
+          />
         </fieldset>
 
         {error && (
