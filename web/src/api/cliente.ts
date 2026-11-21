@@ -140,5 +140,124 @@ export async function datos<T>(p: Promise<{ data?: T; error?: unknown; response:
   }
   if (r.response.ok) return r.data as T;
   const e = (r.error ?? {}) as { error?: string; message?: string; detalles?: { campo?: string; mensaje?: string }[] };
-  throw new ErrorApi(r.response.status, e.error ?? 'ERROR', e.message ?? `Error ${r.response.status}`, e.detalles);
+  const codigo = e.error ?? 'ERROR';
+  const detalles = e.detalles ?? [];
+  const mensaje = codigo === 'VALIDACION' && detalles.length ? mensajeValidacion(detalles) : (e.message ?? `Error ${r.response.status}`);
+  throw new ErrorApi(r.response.status, codigo, mensaje, detalles);
+}
+
+/** Nombres legibles de los campos que devuelve la API en `detalles`. */
+const CAMPOS: Record<string, string> = {
+  nombre: 'Nombre',
+  email: 'Correo',
+  telefono: 'Teléfono',
+  password: 'Contraseña',
+  passwordNueva: 'Contraseña nueva',
+  descripcion: 'Descripción',
+  direccion: 'Dirección',
+  referencias: 'Referencias',
+  etiqueta: 'Etiqueta',
+  ubicacion: 'Ubicación',
+  lat: 'Latitud',
+  lng: 'Longitud',
+  categoria: 'Categoría',
+  tiempoPreparacionMin: 'Tiempo de preparación',
+  imagenUrl: 'Imagen',
+  fotoUrl: 'Foto',
+  precio: 'Precio',
+  orden: 'Orden',
+  motivo: 'Motivo',
+  monto: 'Monto',
+  asunto: 'Asunto',
+  mensaje: 'Mensaje',
+  titulo: 'Título',
+  cuerpo: 'Texto',
+  codigo: 'Código',
+  valor: 'Valor',
+  usosMax: 'Usos máximos',
+  propina: 'Propina',
+  notas: 'Notas',
+  cantidad: 'Cantidad',
+  placa: 'Placa',
+  marca: 'Marca',
+  modelo: 'Modelo',
+  color: 'Color',
+  tipo: 'Tipo',
+  rol: 'Rol',
+  dueno: 'Dueño',
+  duenoId: 'Dueño',
+  clienteId: 'Cliente',
+  tiendaId: 'Tienda',
+  repartidorId: 'Repartidor',
+  direccionId: 'Dirección',
+  pedidoId: 'Pedido',
+  usuarioId: 'Cuenta',
+  items: 'Productos',
+  opciones: 'Opciones',
+  turnos: 'Turnos',
+  abre: 'Hora de apertura',
+  cierra: 'Hora de cierre',
+  limiteDeuda: 'Límite de deuda',
+  minimo: 'Mínimo',
+  maximo: 'Máximo',
+  precioExtra: 'Precio extra',
+  grupos: 'Grupos de opciones',
+  categoriaId: 'Categoría',
+  stock: 'Existencias',
+  imagenes: 'Fotos',
+  disponible: 'Disponible',
+  alias: 'Nombre de la dirección',
+  texto: 'Texto',
+  destinoNombre: 'Quién recibe',
+  destinoTelefono: 'Teléfono de quien recibe',
+  destinoReferencias: 'Referencias',
+  sentido: 'Tipo',
+  metodo: 'Método',
+  referencia: 'Referencia',
+  nota: 'Nota',
+  comisionPct: 'Comisión',
+  tiendaPct: 'Comisión a tiendas',
+  envioPct: 'Comisión de envío',
+  minutos: 'Duración',
+  maximoDescuento: 'Descuento máximo',
+  minimoCompra: 'Compra mínima',
+  usosMaximos: 'Usos máximos',
+  usosPorCliente: 'Usos por cliente',
+  fin: 'Vence',
+  puntos: 'Puntos de la zona',
+  recargo: 'Recargo',
+  versionTerminos: 'Versión de términos',
+  tema: 'Tema',
+  destino: 'Destino',
+  prioridad: 'Prioridad',
+  estado: 'Estado',
+  dia: 'Día',
+  desde: 'Desde',
+  hasta: 'Hasta',
+  version: 'Versión',
+};
+
+function etiquetaCampo(campo: string) {
+  const partes = campo.split('.').filter((p) => !/^\d+$/.test(p));
+  const ultimo = partes[partes.length - 1] ?? campo;
+  const base = CAMPOS[ultimo] ?? ultimo;
+  // dueno.telefono → "Teléfono del dueño"
+  if (partes.length > 1 && partes[0] === 'dueno' && ultimo !== 'dueno') return `${base} del dueño`;
+  return base;
+}
+
+/** Arma un mensaje que diga qué campo corregir, con nombres legibles y sin repetir campos. */
+export function mensajeValidacion(detalles: { campo?: string; mensaje?: string }[]) {
+  const vistos = new Map<string, string>();
+  for (const d of detalles) {
+    const campo = d.campo ?? '';
+    if (vistos.has(campo)) continue;
+    const ultimo = campo.split('.').pop() ?? '';
+    let texto = (d.mensaje ?? '').trim();
+    // El backend escribe "telefono debe tener 10 dígitos": quitamos el nombre técnico del inicio.
+    if (ultimo && texto.toLowerCase().startsWith(ultimo.toLowerCase() + ' ')) texto = texto.slice(ultimo.length + 1);
+    vistos.set(campo, campo ? `${etiquetaCampo(campo)}: ${texto}` : texto);
+  }
+  const lista = [...vistos.values()];
+  return lista.length === 1 ? `Revisa este dato. ${lista[0]}` : `Revisa estos datos. ${lista.join('. ')}`;
 }

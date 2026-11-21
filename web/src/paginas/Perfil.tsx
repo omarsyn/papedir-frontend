@@ -117,7 +117,7 @@ export function Perfil() {
         </label>
         <label className="campo">
           <span>Teléfono</span>
-          <input value={telefono} onChange={(e) => setTelefono(e.target.value)} inputMode="tel" pattern="[0-9 +]{10,15}" placeholder="10 dígitos" />
+          <input value={telefono} onChange={(e) => setTelefono(e.target.value.replace(/\D/g, '').slice(0, 10))} inputMode="tel" pattern="[0-9]{10}" title="10 dígitos, lada incluida" placeholder="10 dígitos" />
         </label>
         <label className="campo">
           <span>Correo</span>

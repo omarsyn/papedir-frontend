@@ -11,7 +11,7 @@ import { NuevoPedido } from '../componentes/NuevoPedido';
 import { RielEstado } from '../componentes/RielEstado';
 import { useTiempoReal } from '../realtime/TiempoReal';
 import { Ubicacion, ValorUbicacion } from '../componentes/Ubicacion';
-import { ACTIVOS, descargarCsv, dinero, ESTADOS_PEDIDO, EVENTOS, fecha, haceCuanto, ROLES, soloHora, textoEstado, tonoEstado } from '../util/formato';
+import { ACTIVOS, descargarCsv, detalleEvento, dinero, ESTADOS_PEDIDO, EVENTOS, fecha, haceCuanto, ROLES, soloHora, textoEstado, tonoEstado } from '../util/formato';
 
 const PAGO: Record<string, { texto: string; tono: 'exito' | 'alerta' | 'error' | 'neutro' }> = {
   pagado: { texto: 'Pagado con tarjeta', tono: 'exito' },
@@ -106,7 +106,7 @@ export function Pedidos() {
               placeholder="Folio, nombre o teléfono"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              aria-label="Buscar pedidos"
+              aria-label="Buscar pedidos" maxLength={60}
             />
           </label>
           <select
@@ -233,7 +233,7 @@ function DetallePedido({ id }: { id: string }) {
             <p className="texto-secundario texto-chico aviso-linea">
               {p.programadoPara && (
                 <>
-                  <CalendarClock size={14} aria-hidden /> Programado para {fecha(p.programadoPara)}.{' '}
+                  <CalendarClock size={14} aria-hidden /> Programado para {fecha(p.programadoPara)}{p.grupoId ? '. ' : ''}
                 </>
               )}
               {p.grupoId && <>Va junto con otros pedidos del mismo carrito (grupo {p.grupoId.slice(0, 8)}).</>}
@@ -378,7 +378,7 @@ function DetallePedido({ id }: { id: string }) {
                       <p>{EVENTOS[e.tipo ?? ''] ?? e.tipo}</p>
                       <p className="texto-secundario texto-chico">
                         {e.rol ? ROLES[e.rol] : 'Sistema'}
-                        {e.detalle && <>: {e.detalle}</>}
+                        {e.detalle && <>: {detalleEvento(e.detalle)}</>}
                       </p>
                     </div>
                   </li>
@@ -839,7 +839,7 @@ function EditarPedido({ pedido, abierto, onCerrar, onListo }: { pedido: Pedido; 
           </label>
           <label className="campo">
             <span>Teléfono</span>
-            <input value={f.destinoTelefono} onChange={(e) => setF({ ...f, destinoTelefono: e.target.value.replace(/\D/g, '').slice(0, 10) })} inputMode="tel" />
+            <input value={f.destinoTelefono} onChange={(e) => setF({ ...f, destinoTelefono: e.target.value.replace(/\D/g, '').slice(0, 10) })} inputMode="tel" pattern="[0-9]{10}" title="10 dígitos, lada incluida" />
           </label>
         </div>
         <label className="campo">
@@ -852,7 +852,7 @@ function EditarPedido({ pedido, abierto, onCerrar, onListo }: { pedido: Pedido; 
         </label>
         <label className="campo campo-angosto">
           <span>Propina</span>
-          <input type="number" min={0} max={1000} step="1" value={f.propina} onChange={(e) => setF({ ...f, propina: e.target.value })} disabled={!propinaEditable} />
+          <input type="number" min={0} max={500} step="1" value={f.propina} onChange={(e) => setF({ ...f, propina: e.target.value })} disabled={!propinaEditable} />
           <small className="texto-secundario">{propinaEditable ? 'El total que cobra el repartidor se ajusta solo.' : 'Con tarjeta el cobro ya se hizo.'}</small>
         </label>
         <label className="campo">

@@ -119,11 +119,11 @@ function Tarifas() {
         <div className="campos-en-fila">
           <label className="campo">
             <span>Sobre ventas de la tienda (%)</span>
-            <input type="number" min={0} max={50} step="0.5" value={comision.tiendaPct} onChange={(e) => setComision({ ...comision, tiendaPct: e.target.value })} required />
+            <input type="number" min={0} max={50} step="0.01" value={comision.tiendaPct} onChange={(e) => setComision({ ...comision, tiendaPct: e.target.value })} required />
           </label>
           <label className="campo">
             <span>Sobre el envío (%)</span>
-            <input type="number" min={0} max={50} step="0.5" value={comision.envioPct} onChange={(e) => setComision({ ...comision, envioPct: e.target.value })} required />
+            <input type="number" min={0} max={50} step="0.01" value={comision.envioPct} onChange={(e) => setComision({ ...comision, envioPct: e.target.value })} required />
           </label>
         </div>
         <div className="acciones-dialogo">
@@ -196,11 +196,11 @@ function Tarifas() {
 // ───────────────────────── cartera
 
 type CarteraConfig = Esquemas['CarteraConfig'];
-const CAMPOS_CARTERA: { clave: keyof CarteraConfig; texto: string; ayuda: string }[] = [
-  { clave: 'limiteDeudaRepartidor', texto: 'Deuda máxima de un repartidor', ayuda: 'Con más deuda no puede conectarse ni tomar pedidos' },
-  { clave: 'limiteDeudaTienda', texto: 'Deuda máxima de una tienda', ayuda: 'Con más deuda no puede abrir ni aceptar pedidos' },
-  { clave: 'limiteDeudaCliente', texto: 'Deuda máxima de un cliente', ayuda: 'Con más deuda solo puede pagar con tarjeta' },
-  { clave: 'cargoCancelacion', texto: 'Cargo por cancelar tarde', ayuda: 'Al cliente que cancela en efectivo cuando la tienda ya aceptó; se le abona a la tienda' },
+const CAMPOS_CARTERA: { clave: keyof CarteraConfig; texto: string; ayuda: string; max: number }[] = [
+  { clave: 'limiteDeudaRepartidor', texto: 'Deuda máxima de un repartidor', ayuda: 'Con más deuda no puede conectarse ni tomar pedidos', max: 100000 },
+  { clave: 'limiteDeudaTienda', texto: 'Deuda máxima de una tienda', ayuda: 'Con más deuda no puede abrir ni aceptar pedidos', max: 100000 },
+  { clave: 'limiteDeudaCliente', texto: 'Deuda máxima de un cliente', ayuda: 'Con más deuda solo puede pagar con tarjeta', max: 100000 },
+  { clave: 'cargoCancelacion', texto: 'Cargo por cancelar tarde', ayuda: 'Al cliente que cancela en efectivo cuando la tienda ya aceptó; se le abona a la tienda', max: 1000 },
 ];
 
 /** Límites de deuda de la cartera y tarifa de cancelación tardía. */
@@ -247,7 +247,7 @@ function AjustesCartera() {
         {CAMPOS_CARTERA.map((c) => (
           <label key={c.clave} className="campo">
             <span>{c.texto} ($)</span>
-            <input type="number" min={0} step="1" value={valores[c.clave]} onChange={(e) => setValores({ ...valores, [c.clave]: e.target.value })} required />
+            <input type="number" min={0} max={c.max} step="0.01" value={valores[c.clave]} onChange={(e) => setValores({ ...valores, [c.clave]: e.target.value })} required />
             <small className="texto-secundario">{c.ayuda}</small>
           </label>
         ))}
@@ -366,7 +366,7 @@ function Encuadrar({ puntos }: { puntos: Coordenadas[] }) {
       const p = inicio.current;
       if (!encuadrado && mapa.getSize().x > 100) {
         encuadrado = true;
-        if (p.length > 1) mapa.fitBounds(p.map((c) => [c.lat, c.lng] as [number, number]), { padding: [24, 24], maxZoom: 15 });
+        if (p.length > 1) mapa.fitBounds(p.map((c) => [c.lat, c.lng] as [number, number]), { padding: [24, 24], maxZoom: 15, animate: false });
       }
     });
     observador.observe(mapa.getContainer());

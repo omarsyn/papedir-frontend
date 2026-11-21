@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ImagePlus, ListPlus, Pencil, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { Check, ImagePlus, ListPlus, Pencil, Plus, SlidersHorizontal, Star, Trash2, X } from 'lucide-react';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { api, datos, ErrorApi, Esquemas } from '../api/cliente';
 import { dinero } from '../util/formato';
@@ -83,7 +83,7 @@ export function MenuTienda({ tiendaId, nombre, abierto, onCerrar }: { tiendaId: 
             if (nuevaCat.trim()) crearCat.mutate();
           }}
         >
-          <input value={nuevaCat} onChange={(e) => setNuevaCat(e.target.value)} placeholder="Nueva categoría, por ejemplo Bebidas" maxLength={60} aria-label="Nueva categoría" />
+          <input value={nuevaCat} onChange={(e) => setNuevaCat(e.target.value)} placeholder="Nueva categoría, por ejemplo Bebidas" maxLength={40} aria-label="Nueva categoría" />
           <button className="boton boton-chico" disabled={!nuevaCat.trim() || crearCat.isPending}>
             <Plus size={14} aria-hidden /> Agregar categoría
           </button>
@@ -107,7 +107,7 @@ export function MenuTienda({ tiendaId, nombre, abierto, onCerrar }: { tiendaId: 
                         renombrar.mutate(renombrando!);
                       }}
                     >
-                      <input value={renombrando!.nombre} onChange={(e) => setRenombrando({ ...renombrando!, nombre: e.target.value })} autoFocus maxLength={60} aria-label="Nombre de la categoría" />
+                      <input value={renombrando!.nombre} onChange={(e) => setRenombrando({ ...renombrando!, nombre: e.target.value })} autoFocus maxLength={40} aria-label="Nombre de la categoría" />
                       <button className="boton-icono" aria-label="Guardar nombre">
                         <Check size={16} />
                       </button>
@@ -174,12 +174,16 @@ export function MenuTienda({ tiendaId, nombre, abierto, onCerrar }: { tiendaId: 
   );
 }
 
+/** Igual que T.maxFotosProducto en el backend. */
+const MAX_FOTOS = 5;
+
 function EditorProducto({
   tiendaId, categorias, producto, onCerrar, onGuardado,
 }: { tiendaId: string; categorias: Categoria[]; producto: Producto | { categoriaId: string } | null; onCerrar: () => void; onGuardado: (t: string) => void }) {
   const { avisar } = useAvisos();
   const existente = producto && 'id' in producto ? (producto as Producto) : null;
-  const [f, setF] = useState({ nombre: '', descripcion: '', precio: '', categoriaId: '', stock: '', imagenUrl: '' });
+  const [f, setF] = useState({ nombre: '', descripcion: '', precio: '', categoriaId: '', stock: '', imagenes: [] as string[] });
+  const [arrastrando, setArrastrando] = useState(false);
   const [error, setError] = useState('');
   const archivo = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -191,7 +195,8 @@ function EditorProducto({
       precio: existente ? String(existente.precio) : '',
       categoriaId: producto.categoriaId ?? '',
       stock: existente?.stock != null ? String(existente.stock) : '',
-      imagenUrl: existente?.imagenUrl ?? '',
+      // Todas las fotos: la tienda puede tener hasta 5 desde su app y no deben perderse al editar aquí.
+      imagenes: existente?.imagenes?.length ? [...existente.imagenes] : existente?.imagenUrl ? [existente.imagenUrl] : [],
     });
   }, [producto]); // eslint-disable-line react-hooks/exhaustive-deps
   const foto = useMutation({
@@ -201,9 +206,16 @@ function EditorProducto({
       form.append('tipo', 'producto');
       return datos(api.POST('/uploads', { body: form as never, bodySerializer: (b) => b as unknown as FormData }));
     },
-    onSuccess: (r) => setF((x) => ({ ...x, imagenUrl: r.url ?? '' })),
+    onSuccess: (r) => r.url && setF((x) => ({ ...x, imagenes: [...x.imagenes, r.url!].slice(0, MAX_FOTOS) })),
     onError: (e) => avisar(errorTexto(e, 'No se pudo subir la foto'), 'error'),
   });
+  const subir = (file: File | undefined) => {
+    if (!file || foto.isPending) return;
+    if (f.imagenes.length >= MAX_FOTOS) return avisar(`Máximo ${MAX_FOTOS} fotos por producto`, 'error');
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return avisar('Usa una imagen JPG, PNG o WebP', 'error');
+    if (file.size > 5 * 1024 * 1024) return avisar('La imagen pesa más de 5 MB', 'error');
+    foto.mutate(file);
+  };
   const guardar = useMutation({
     mutationFn: () => {
       const body = {
@@ -212,7 +224,7 @@ function EditorProducto({
         precio: Number(f.precio),
         categoriaId: f.categoriaId,
         stock: f.stock === '' ? null : Number(f.stock),
-        imagenes: f.imagenUrl ? [f.imagenUrl] : [],
+        imagenes: f.imagenes,
       };
       return existente
         ? datos(api.PATCH('/soporte/productos/{id}', { params: { path: { id: existente.id! } }, body: body as never }))
@@ -233,15 +245,45 @@ function EditorProducto({
           guardar.mutate();
         }}
       >
-        <div className="tienda-imagen">
-          <div className="miniatura tienda-imagen-vista">{f.imagenUrl ? <img src={f.imagenUrl} alt="" /> : <ImagePlus size={22} aria-hidden />}</div>
-          <button type="button" className="boton boton-chico" onClick={() => archivo.current?.click()} disabled={foto.isPending}>
-            {foto.isPending ? 'Subiendo…' : f.imagenUrl ? 'Cambiar foto' : 'Subir foto'}
-          </button>
-          {f.imagenUrl && (
-            <button type="button" className="boton boton-chico" onClick={() => setF({ ...f, imagenUrl: '' })}>
-              Quitar
-            </button>
+        <div
+          className={`fotos-producto zona-soltar${arrastrando ? ' arrastrando' : ''}`}
+          onDragOver={(e) => {
+            if (!e.dataTransfer.types.includes('Files')) return;
+            e.preventDefault();
+            setArrastrando(true);
+          }}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setArrastrando(false);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setArrastrando(false);
+            subir(e.dataTransfer.files?.[0]);
+          }}
+        >
+          {f.imagenes.map((url, i) => (
+            <div key={url + i} className="foto-producto">
+              <img className="miniatura tienda-imagen-vista" src={url} alt={i === 0 ? 'Foto principal' : `Foto ${i + 1}`} />
+              {i === 0 && f.imagenes.length > 1 && <span className="texto-chico texto-secundario">Principal</span>}
+              <div className="foto-producto-acciones">
+                {i > 0 && (
+                  <button type="button" className="boton-icono" onClick={() => setF({ ...f, imagenes: [url, ...f.imagenes.filter((_, k) => k !== i)] })} aria-label={`Hacer principal la foto ${i + 1}`} title="Hacer principal">
+                    <Star size={14} />
+                  </button>
+                )}
+                <button type="button" className="boton-icono" onClick={() => setF({ ...f, imagenes: f.imagenes.filter((_, k) => k !== i) })} aria-label={`Quitar foto ${i + 1}`} title="Quitar">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
+          ))}
+          {f.imagenes.length < MAX_FOTOS && (
+            <div className="foto-producto-agregar">
+              <button type="button" className="boton boton-chico" onClick={() => archivo.current?.click()} disabled={foto.isPending}>
+                <ImagePlus size={14} aria-hidden /> {foto.isPending ? 'Subiendo…' : f.imagenes.length ? 'Agregar foto' : 'Subir foto'}
+              </button>
+              <span className="texto-chico texto-secundario">{arrastrando ? 'Suelta la imagen aquí' : `o arrástrala aquí · ${f.imagenes.length}/${MAX_FOTOS}`}</span>
+            </div>
           )}
           <input
             ref={archivo}
@@ -251,7 +293,7 @@ function EditorProducto({
             onChange={(e) => {
               const file = e.target.files?.[0];
               e.target.value = '';
-              if (file) foto.mutate(file);
+              subir(file);
             }}
           />
         </div>
@@ -278,11 +320,11 @@ function EditorProducto({
         <div className="campos-en-fila">
           <label className="campo">
             <span>Precio</span>
-            <input type="number" min={0} step="0.5" value={f.precio} onChange={(e) => setF({ ...f, precio: e.target.value })} required />
+            <input type="number" min={0} max={99999} step="0.01" value={f.precio} onChange={(e) => setF({ ...f, precio: e.target.value })} required />
           </label>
           <label className="campo">
             <span>Existencias (vacío = sin control)</span>
-            <input type="number" min={0} step="1" value={f.stock} onChange={(e) => setF({ ...f, stock: e.target.value })} />
+            <input type="number" min={0} max={100000} step="1" value={f.stock} onChange={(e) => setF({ ...f, stock: e.target.value })} />
           </label>
         </div>
         {error && (
@@ -334,6 +376,13 @@ function EditorOpciones({ producto, onCerrar, onGuardado }: { producto: Producto
         className="formulario"
         onSubmit={(e: FormEvent) => {
           e.preventDefault();
+          for (const [i, g] of grupos.entries()) {
+            const nombre = g.nombre.trim() || `Grupo ${i + 1}`;
+            if (!g.opciones.length) return setError(`${nombre}: agrega al menos una opción o quita el grupo.`);
+            if (g.minimo > g.maximo) return setError(`${nombre}: el mínimo (${g.minimo}) no puede ser mayor que el máximo (${g.maximo}).`);
+            if (g.maximo > g.opciones.length) return setError(`${nombre}: el máximo (${g.maximo}) no puede ser mayor que las opciones que tiene (${g.opciones.length}).`);
+          }
+          setError('');
           guardar.mutate();
         }}
       >
@@ -361,7 +410,8 @@ function EditorOpciones({ producto, onCerrar, onGuardado }: { producto: Producto
                 <input
                   type="number"
                   min={0}
-                  step="0.5"
+                  max={9999}
+                  step="0.01"
                   className="campo-precio"
                   value={o.precioExtra}
                   onChange={(e) => cambiar(i, { opciones: g.opciones.map((x, k) => (k === j ? { ...x, precioExtra: Number(e.target.value) } : x)) })}
@@ -371,13 +421,17 @@ function EditorOpciones({ producto, onCerrar, onGuardado }: { producto: Producto
                 <label className="opcion">
                   <input type="checkbox" checked={o.disponible} onChange={(e) => cambiar(i, { opciones: g.opciones.map((x, k) => (k === j ? { ...x, disponible: e.target.checked } : x)) })} /> Hay
                 </label>
-                <button type="button" className="boton-icono" onClick={() => cambiar(i, { opciones: g.opciones.filter((_, k) => k !== j) })} aria-label="Quitar opción">
+                <button type="button" className="boton-icono" onClick={() => {
+                    const resto = g.opciones.filter((_, k) => k !== j);
+                    const maximo = Math.max(1, Math.min(g.maximo, resto.length));
+                    cambiar(i, { opciones: resto, maximo, minimo: Math.min(g.minimo, maximo) });
+                  }} aria-label="Quitar opción">
                   <X size={15} />
                 </button>
               </div>
             ))}
             <div className="acciones-encabezado">
-              <button type="button" className="boton boton-chico" onClick={() => cambiar(i, { opciones: [...g.opciones, { nombre: '', precioExtra: 0, disponible: true }] })}>
+              <button type="button" className="boton boton-chico" disabled={g.opciones.length >= 20} title={g.opciones.length >= 20 ? 'Máximo 20 opciones por grupo' : undefined} onClick={() => cambiar(i, { opciones: [...g.opciones, { nombre: '', precioExtra: 0, disponible: true }] })}>
                 <Plus size={14} aria-hidden /> Opción
               </button>
               <button type="button" className="boton boton-chico boton-peligro-suave" onClick={() => setGrupos((x) => x.filter((_, k) => k !== i))}>
@@ -386,7 +440,7 @@ function EditorOpciones({ producto, onCerrar, onGuardado }: { producto: Producto
             </div>
           </fieldset>
         ))}
-        <button type="button" className="boton boton-chico" onClick={() => setGrupos((x) => [...x, { nombre: '', minimo: 0, maximo: 1, opciones: [{ nombre: '', precioExtra: 0, disponible: true }] }])}>
+        <button type="button" className="boton boton-chico" disabled={grupos.length >= 10} title={grupos.length >= 10 ? 'Máximo 10 grupos por producto' : undefined} onClick={() => setGrupos((x) => [...x, { nombre: '', minimo: 0, maximo: 1, opciones: [{ nombre: '', precioExtra: 0, disponible: true }] }])}>
           <Plus size={14} aria-hidden /> Agregar grupo
         </button>
         {error && (
@@ -451,6 +505,10 @@ export function HorarioTienda({ tiendaId, nombre, abierto, onCerrar }: { tiendaI
           className="formulario"
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
+            if (usar && !turnos.length) return setError('Agrega al menos un turno o desactiva "Usar horario".');
+            const igual = turnos.find((t) => t.abre === t.cierra);
+            if (igual) return setError(`${DIAS[igual.dia]}: un turno no puede abrir y cerrar a la misma hora.`);
+            setError('');
             guardar.mutate();
           }}
         >

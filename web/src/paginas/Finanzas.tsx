@@ -300,7 +300,7 @@ function RegistrarPago({ fila, onCerrar }: { fila: Fila | null; onCerrar: () => 
         </fieldset>
         <label className="campo">
           <span>Monto</span>
-          <input type="number" min="0.01" step="0.01" value={monto} onChange={(e) => setMonto(e.target.value)} required />
+          <input type="number" min="0.01" max="1000000" step="0.01" value={monto} onChange={(e) => setMonto(e.target.value)} required />
         </label>
         <label className="campo">
           <span>Método</span>
