@@ -2182,6 +2182,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/tiendas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dar de alta una tienda
+         * @description Con duenoId se agrega como sucursal de una cuenta de tienda existente; con dueno se crea la cuenta (activa y con el correo verificado). La tienda nace cerrada: el dueño decide cuándo abrir.
+         */
+        post: operations["crearTiendaAdmin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/tiendas/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Dar de baja una tienda
+         * @description Baja lógica. Deja de verse y de recibir pedidos; sus pedidos, pagos y reseñas se conservan y se puede restaurar.
+         */
+        delete: operations["eliminarTiendaAdmin"];
+        options?: never;
+        head?: never;
+        /** Corregir los datos de una tienda */
+        patch: operations["editarTiendaAdmin"];
+        trace?: never;
+    };
+    "/admin/tiendas/{id}/restaurar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deshacer la baja de una tienda */
+        post: operations["restaurarTiendaAdmin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/tiendas/{id}/comision": {
         parameters: {
             query?: never;
@@ -2891,6 +2953,28 @@ export interface components {
              */
             copiarMenuDe?: string;
         };
+        /** @description Envía duenoId (cuenta de tienda existente) o dueno (cuenta nueva). */
+        TiendaAdminInput: {
+            /** Format: uuid */
+            duenoId?: string;
+            dueno?: {
+                nombre: string;
+                /** Format: email */
+                email: string;
+                telefono: string;
+                /** @description Contraseña temporal para compartir con el dueño */
+                password: string;
+            };
+            /** @example Tacos Don Pepe */
+            nombre: string;
+            categoria: components["schemas"]["CategoriaTienda"];
+            descripcion?: string;
+            imagenUrl?: string;
+            telefono?: string;
+            direccion: string;
+            ubicacion: components["schemas"]["Coordenadas"];
+            tiempoPreparacionMin?: number;
+        };
         Turno: {
             /** @description 0 = domingo … 6 = sábado */
             dia: number;
@@ -3399,6 +3483,9 @@ export interface components {
             pausadaHasta?: string | null;
             /** @description Comisión propia; null usa la general */
             comisionPct?: number | null;
+            /** Format: date-time */
+            eliminadaEn?: string | null;
+            eliminadaMotivo?: string | null;
             dueno: {
                 /** Format: uuid */
                 id: string;
@@ -3417,6 +3504,13 @@ export interface components {
         FichaTienda: components["schemas"]["Tienda"] & {
             /** Format: date-time */
             pausadaHasta?: string | null;
+            /**
+             * Format: date-time
+             * @description Fecha de baja; null = activa
+             */
+            eliminadaEn?: string | null;
+            eliminadaMotivo?: string | null;
+            tiempoPreparacionMin?: number;
             dueno: components["schemas"]["Usuario"];
             comision: {
                 propia?: number | null;
@@ -7744,6 +7838,145 @@ export interface operations {
             400: components["responses"]["ValidationError"];
         };
     };
+    crearTiendaAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TiendaAdminInput"];
+            };
+        };
+        responses: {
+            /** @description Creada */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FichaTienda"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            /** @description EMAIL_REGISTRADO, DUENO_INACTIVO o LIMITE_SUCURSALES */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    eliminarTiendaAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    motivo: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Dada de baja */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+            /** @description TIENE_PEDIDOS_ACTIVOS o TIENDA_ELIMINADA */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    editarTiendaAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TiendaUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FichaTienda"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            404: components["responses"]["NotFound"];
+            /** @description TIENDA_ELIMINADA */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    restaurarTiendaAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FichaTienda"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description TIENDA_ACTIVA o LIMITE_SUCURSALES */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     comisionTienda: {
         parameters: {
             query?: never;
@@ -8040,6 +8273,8 @@ export interface operations {
                 plan?: "basico" | "pro" | "premium";
                 /** @description Si recibe pedidos ahora */
                 abierta?: "si" | "no";
+                /** @description si = solo las dadas de baja (por omisión no aparecen) */
+                eliminadas?: "si" | "no";
                 page?: components["parameters"]["Page"];
                 limit?: components["parameters"]["Limit"];
             };

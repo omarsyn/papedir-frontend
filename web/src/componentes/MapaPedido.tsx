@@ -35,8 +35,8 @@ function AlHacerClic({ onClic }: { onClic: (c: Coordenadas) => void }) {
 }
 
 /** Mapa de OpenStreetMap con la tienda, el destino y el repartidor. Con onClic sirve para elegir un punto. */
-export function MapaPedido({ puntos, onClic, alto = 260 }: { puntos: Punto[]; onClic?: (c: Coordenadas) => void; alto?: number }) {
-  const centro = puntos[0]?.pos ?? { lat: 20.5222, lng: -100.8123 };
+export function MapaPedido({ puntos, onClic, alto = 260, centro: inicial }: { puntos: Punto[]; onClic?: (c: Coordenadas) => void; alto?: number; centro?: Coordenadas }) {
+  const centro = puntos[0]?.pos ?? inicial ?? { lat: 20.5222, lng: -100.8123 };
   return (
     <div className="mapa" style={{ height: alto }}>
       <MapContainer center={[centro.lat, centro.lng]} zoom={14} scrollWheelZoom={false} style={{ height: '100%' }}>
