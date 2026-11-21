@@ -9,6 +9,7 @@ import { Dialogo, DialogoMotivo } from '../componentes/Dialogo';
 import { MapaPedido } from '../componentes/MapaPedido';
 import { NuevoPedido } from '../componentes/NuevoPedido';
 import { RielEstado } from '../componentes/RielEstado';
+import { ReembolsoFallido, ResolucionPedido } from '../componentes/ResolverCancelacion';
 import { useTiempoReal } from '../realtime/TiempoReal';
 import { Ubicacion, ValorUbicacion } from '../componentes/Ubicacion';
 import { ACTIVOS, descargarCsv, detalleEvento, dinero, ESTADOS_PEDIDO, EVENTOS, fecha, haceCuanto, ROLES, soloHora, textoEstado, tonoEstado } from '../util/formato';
@@ -281,6 +282,7 @@ function DetallePedido({ id }: { id: string }) {
       </header>
 
       <RielEstado pedido={p} eventos={eventos.data ?? []} />
+      {(estado === 'cancelado' || estado === 'rechazado') && <ResolucionPedido pedido={p} />}
 
       <div className="detalle-rejilla">
         <div className="columna">
@@ -307,9 +309,7 @@ function DetallePedido({ id }: { id: string }) {
               <Chip tono="neutro">{p.metodoPago === 'tarjeta' ? 'Tarjeta' : 'Efectivo al recibir'}</Chip>
               {p.pagoEstado && <Chip tono={PAGO[p.pagoEstado]?.tono ?? 'neutro'}>{PAGO[p.pagoEstado]?.texto ?? p.pagoEstado}</Chip>}
             </div>
-            {p.pagoEstado === 'reembolso_fallido' && (
-              <p className="nota nota-error">Stripe no pudo devolver el cobro. Revísalo en el panel de Stripe y avisa al cliente.</p>
-            )}
+            {p.pagoEstado === 'reembolso_fallido' && <ReembolsoFallido pedido={p} />}
             {!!p.items?.length && (
               <table className="tabla tabla-compacta">
                 <tbody>

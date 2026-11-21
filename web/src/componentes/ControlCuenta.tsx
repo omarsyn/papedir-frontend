@@ -375,7 +375,7 @@ export function BorrarDocumento({ id, nombre, onHecho }: { id: string; nombre: s
   );
 }
 
-// ───────────────────────── cartera: ajuste manual (admin)
+// ───────────────────────── cartera: ajuste manual (soporte con tope, admin sin tope)
 
 export function AjusteCartera({ usuarioId, nombre }: { usuarioId: string; nombre: string }) {
   const cache = useQueryClient();
@@ -395,7 +395,7 @@ export function AjusteCartera({ usuarioId, nombre }: { usuarioId: string; nombre
   }, [abierto]);
   const guardar = useMutation({
     mutationFn: () =>
-      datos(api.POST('/admin/usuarios/{id}/ajuste', { params: { path: { id: usuarioId } }, body: { monto: (sentido === 'abono' ? 1 : -1) * Number(monto), motivo: motivo.trim() } })),
+      datos(api.POST('/soporte/usuarios/{id}/ajuste', { params: { path: { id: usuarioId } }, body: { monto: (sentido === 'abono' ? 1 : -1) * Number(monto), motivo: motivo.trim() } })),
     onSuccess: () => {
       cache.invalidateQueries({ queryKey: ['saldo', usuarioId] });
       cache.invalidateQueries({ queryKey: ['saldos'] });

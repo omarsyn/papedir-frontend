@@ -1491,7 +1491,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Pedidos entregados por mí */
+        /**
+         * Pedidos entregados por mí
+         * @description Pedidos ya terminados, del más reciente al más antiguo. En pedidos terminados `tienda.telefono` y
+         *     `destino.telefono` vienen en `null` (privacidad). `resumen` es de toda la vida del repartidor:
+         *     úsalo para el encabezado en vez de sumar la página cargada.
+         */
         get: operations["listarRepartidorHistorial"];
         put?: never;
         post?: never;
@@ -2425,6 +2430,72 @@ export interface paths {
         put?: never;
         /** Abonar o cargar a mano en una cartera */
         post: operations["ajusteCartera"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/usuarios/{id}/ajuste": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Abonar o cargar a mano en una cartera (soporte con tope, admin sin tope)
+         * @description Soporte puede mover hasta `cartera.ajusteMaxSoporte` por movimiento; si pasa, responde 403 `TOPE_SOPORTE`. Mismo cuerpo que /admin/usuarios/{id}/ajuste.
+         */
+        post: operations["ajusteCarteraSoporte"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/pedidos/{id}/resolucion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** Cómo se cerró una cancelación, o las compensaciones sugeridas según de quién fue la culpa */
+        get: operations["verResolucion"];
+        put?: never;
+        /**
+         * Resolver una cancelación (una sola vez)
+         * @description Registra de quién fue la culpa, la nota, el acuerdo con las personas (si lo hubo) y aplica cada acción
+         *     como movimiento `resolucion` en la cartera de quien corresponda (solo participantes del pedido).
+         *     Soporte tiene el tope `cartera.ajusteMaxSoporte` por acción (403 `TOPE_SOPORTE`). 409 `YA_RESUELTO` si ya se resolvió.
+         */
+        post: operations["resolverCancelacion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/pedidos/{id}/reembolso/reintentar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reembolso que falló en Stripe; reintentarlo a la tarjeta o mandarlo a la cartera del cliente */
+        post: operations["reintentarReembolso"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3440,6 +3511,11 @@ export interface components {
             documentosCompletos?: boolean | null;
             /** @description Repartidor: si está conectado ahora */
             disponible?: boolean | null;
+            /** @description Cliente, tienda o repartidor: cancelaciones resueltas en las que tuvo la culpa */
+            cancelacionesAtribuidas?: {
+                total?: number;
+                ultimos30?: number;
+            } | null;
         };
         EventoCuenta: {
             /** Format: uuid */
@@ -3569,7 +3645,7 @@ export interface components {
             descripcion?: string | null;
             imagenUrl?: string | null;
             /** @example 4615550000 */
-            telefono?: string;
+            telefono?: string | null;
             /** @example Calle Hidalgo 120, Celaya */
             direccion?: string;
             ubicacion?: components["schemas"]["Coordenadas"];
@@ -3965,7 +4041,7 @@ export interface components {
             }[];
         };
         PedidoManualRequest: {
-            destino: components["schemas"]["Destino"];
+            destino: components["schemas"]["DestinoInput"];
             /** @example 1 paquete de ropa */
             descripcion: string;
             /**
@@ -3976,6 +4052,19 @@ export interface components {
             notas?: string | null;
         };
         Destino: {
+            /** @example Luis Hernández */
+            nombre: string;
+            /**
+             * @description null cuando el pedido ya terminó o quien consulta no debe verlo
+             * @example 4619876543
+             */
+            telefono: string | null;
+            /** @example Av. Irrigación 300, Celaya */
+            direccion: string;
+            referencias?: string | null;
+            ubicacion: components["schemas"]["Coordenadas"];
+        };
+        DestinoInput: {
             /** @example Luis Hernández */
             nombre: string;
             /** @example 4619876543 */
@@ -3990,8 +4079,11 @@ export interface components {
             id?: string;
             /** @example Tacos Don Pepe */
             nombre?: string;
-            /** @example 4615550000 */
-            telefono?: string;
+            /**
+             * @description null cuando el pedido ya terminó o quien consulta no debe verlo
+             * @example 4615550000
+             */
+            telefono?: string | null;
             direccion?: string;
             ubicacion?: components["schemas"]["Coordenadas"];
         };
@@ -4001,7 +4093,7 @@ export interface components {
             /** @example Carlos Ruiz */
             nombre?: string;
             /** @example 4611112233 */
-            telefono?: string;
+            telefono?: string | null;
             ubicacion?: components["schemas"]["Coordenadas"] | null;
             fotoUrl?: string | null;
             /** @example 4.8 */
@@ -4706,6 +4798,58 @@ export interface components {
             recargos?: components["schemas"]["Recargos"];
             cartera?: components["schemas"]["CarteraConfig"];
         };
+        AccionResolucion: {
+            /** Format: uuid */
+            usuarioId: string;
+            /** @enum {string} */
+            readonly rol?: "cliente" | "tienda" | "repartidor";
+            readonly nombre?: string;
+            /** @description + abona a su cartera, − le carga */
+            monto: number;
+            /** @example Crédito de disculpa */
+            concepto: string;
+        };
+        ResolucionInput: {
+            /** @enum {string} */
+            culpable: "cliente" | "tienda" | "repartidor" | "plataforma";
+            nota: string;
+            /** @description Lo que se acordó con la persona si ninguna sugerencia convenció */
+            acuerdo?: string;
+            acciones: components["schemas"]["AccionResolucion"][];
+        };
+        ResolucionVista: {
+            resolucion?: {
+                /** @enum {string} */
+                culpable?: "cliente" | "tienda" | "repartidor" | "plataforma";
+                nota?: string;
+                acuerdo?: string | null;
+                acciones?: components["schemas"]["AccionResolucion"][];
+                resueltoPor?: {
+                    /** Format: uuid */
+                    id?: string;
+                    nombre?: string;
+                };
+                /** Format: date-time */
+                creadoEn?: string;
+            } | null;
+            /** @description Lo que se le abonó solo al repartidor al cancelarse con el pedido en mano */
+            compensacionRepartidor?: number;
+            participantes?: {
+                /** Format: uuid */
+                usuarioId?: string;
+                /** @enum {string} */
+                rol?: "cliente" | "tienda" | "repartidor";
+                nombre?: string;
+            }[];
+            /** @description Acciones sugeridas para cada posible culpable; soporte las edita o agrega las que acuerde */
+            sugerencias?: {
+                cliente?: components["schemas"]["AccionResolucion"][];
+                tienda?: components["schemas"]["AccionResolucion"][];
+                repartidor?: components["schemas"]["AccionResolucion"][];
+                plataforma?: components["schemas"]["AccionResolucion"][];
+            };
+            topeSoporte?: number;
+        };
         CarteraConfig: {
             /**
              * @description Con más deuda no puede abrir ni aceptar pedidos
@@ -4727,6 +4871,16 @@ export interface components {
              * @example 25
              */
             cargoCancelacion: number;
+            /**
+             * @description Tope por movimiento que soporte puede abonar o cargar a mano (ajustes y resoluciones). Admin no tiene tope
+             * @example 500
+             */
+            ajusteMaxSoporte?: number;
+            /**
+             * @description Crédito que se sugiere al cliente cuando la cancelación no fue su culpa
+             * @example 30
+             */
+            creditoDisculpa?: number;
         };
         CuponInput: {
             /** @example BIENVENIDA */
@@ -4780,9 +4934,11 @@ export interface components {
              *     pago_con_saldo / pago_deuda: el cliente usó su saldo o pagó su adeudo en un pedido; reverso_saldo lo deshace si no se entregó.
              *     saldo_cliente / deuda_cobrada: en efectivo el repartidor cobró de menos (saldo del cliente) o de más (adeudo del cliente).
              *     reembolso: soporte devolvió dinero a la cartera. cargo_cancelacion / compensacion_cancelacion: cancelación tardía en efectivo.
+             *     compensacion_repartidor: el pedido se canceló cuando el repartidor ya lo llevaba; se le abona su envío y, en efectivo, lo que pagó a la tienda.
+             *     resolucion: abono o cargo que soporte aplicó al resolver una cancelación (según de quién fue la culpa o lo acordado).
              * @enum {string}
              */
-            tipo?: "comision_tienda" | "comision_envio" | "descuento_plataforma" | "liquidacion" | "venta_tarjeta" | "envio_tarjeta" | "pago_con_saldo" | "reverso_saldo" | "saldo_cliente" | "pago_deuda" | "deuda_cobrada" | "reembolso" | "cargo_cancelacion" | "compensacion_cancelacion" | "ajuste";
+            tipo?: "comision_tienda" | "comision_envio" | "descuento_plataforma" | "liquidacion" | "venta_tarjeta" | "envio_tarjeta" | "pago_con_saldo" | "reverso_saldo" | "saldo_cliente" | "pago_deuda" | "deuda_cobrada" | "reembolso" | "cargo_cancelacion" | "compensacion_cancelacion" | "ajuste" | "compensacion_repartidor" | "resolucion";
             /** @description > 0 a tu favor; < 0 lo que debes */
             monto?: number;
             /** @example Comisión 10% del pedido R-000123 */
@@ -7607,8 +7763,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data?: components["schemas"]["Pedido"][];
-                        meta?: components["schemas"]["PaginaMeta"];
+                        data: components["schemas"]["Pedido"][];
+                        meta: components["schemas"]["PaginaMeta"];
+                        resumen: {
+                            /** @description Pedidos entregados en total */
+                            entregas: number;
+                            propinas: number;
+                            /** @description Envío + propinas − comisión de PaPedir + cupones que PaPedir le reembolsa */
+                            gananciaNeta: number;
+                        };
                     };
                 };
             };
@@ -9293,6 +9456,135 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationError"];
+        };
+    };
+    ajusteCarteraSoporte: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description + abona, − carga
+                     * @example 50
+                     */
+                    monto: number;
+                    motivo: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EstadoDeCuenta"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    verResolucion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResolucionVista"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    resolverCancelacion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolucionInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResolucionVista"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            403: components["responses"]["Forbidden"];
+            /** @description `YA_RESUELTO` si ya se resolvió; `TRANSICION_INVALIDA` si el pedido no está cancelado ni rechazado */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    reintentarReembolso: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    destino: "tarjeta" | "cartera";
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pedido"];
+                };
+            };
+            /** @description `SIN_REEMBOLSO_PENDIENTE` si el pedido no tiene un reembolso fallido */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     anularLiquidacion: {
