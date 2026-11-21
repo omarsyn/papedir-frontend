@@ -96,6 +96,8 @@ export const EVENTOS: Record<string, string> = {
   avanzado_por_soporte: 'Soporte avanzó el estado',
   asignado_por_soporte: 'Soporte asignó un repartidor',
   resena_eliminada: 'Se borró la reseña',
+  repartidor_compensado: 'Se compensó al repartidor',
+  cancelacion_resuelta: 'Soporte resolvió la cancelación',
 };
 
 /** Texto de cada evento de la bitácora de una cuenta. */

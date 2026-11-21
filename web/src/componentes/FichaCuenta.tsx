@@ -136,6 +136,17 @@ export function FichaCuenta({ id, onCerrar }: { id: string; onCerrar: () => void
                 <dd>{soloDia(u!.creadoEn)}</dd>
                 <dt>Términos</dt>
                 <dd>{u!.terminosVersion ? `Versión ${u!.terminosVersion}, ${soloDia(u!.terminosAceptadosEn)}` : 'Sin aceptar'}</dd>
+                {u!.cancelacionesAtribuidas && (
+                  <>
+                    <dt>Cancelaciones</dt>
+                    <dd>
+                      {u!.cancelacionesAtribuidas.total
+                        ? `${u!.cancelacionesAtribuidas.total} por su culpa (${u!.cancelacionesAtribuidas.ultimos30} en los últimos 30 días)`
+                        : 'Ninguna por su culpa'}
+                      {(u!.cancelacionesAtribuidas.ultimos30 ?? 0) >= 3 && <> <Chip tono="alerta">Revisar</Chip></>}
+                    </dd>
+                  </>
+                )}
                 {u!.vehiculo && (
                   <>
                     <dt>Vehículo</dt>
@@ -234,7 +245,7 @@ export function FichaCuenta({ id, onCerrar }: { id: string; onCerrar: () => void
             <section className="bloque">
               <div className="bloque-cabecera">
                 <h3>Cartera</h3>
-                {esAdmin && u!.estado !== 'eliminado' && <AjusteCartera usuarioId={id} nombre={u!.nombre ?? 'la cuenta'} />}
+                {u!.estado !== 'eliminado' && <AjusteCartera usuarioId={id} nombre={u!.nombre ?? 'la cuenta'} />}
               </div>
               <CarteraCuenta usuarioId={id} />
             </section>

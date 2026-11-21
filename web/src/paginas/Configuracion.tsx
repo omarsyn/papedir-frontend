@@ -201,6 +201,8 @@ const CAMPOS_CARTERA: { clave: keyof CarteraConfig; texto: string; ayuda: string
   { clave: 'limiteDeudaTienda', texto: 'Deuda máxima de una tienda', ayuda: 'Con más deuda no puede abrir ni aceptar pedidos', max: 100000 },
   { clave: 'limiteDeudaCliente', texto: 'Deuda máxima de un cliente', ayuda: 'Con más deuda solo puede pagar con tarjeta', max: 100000 },
   { clave: 'cargoCancelacion', texto: 'Cargo por cancelar tarde', ayuda: 'Al cliente que cancela en efectivo cuando la tienda ya aceptó; se le abona a la tienda', max: 1000 },
+  { clave: 'ajusteMaxSoporte', texto: 'Tope de soporte por movimiento', ayuda: 'Lo máximo que soporte puede abonar o cargar a mano en una cartera; los admin no tienen tope', max: 100000 },
+  { clave: 'creditoDisculpa', texto: 'Crédito de disculpa', ayuda: 'Se sugiere al cliente al resolver una cancelación que no fue su culpa', max: 1000 },
 ];
 
 /** Límites de deuda de la cartera y tarifa de cancelación tardía. */
@@ -211,7 +213,16 @@ function AjustesCartera() {
   const [valores, setValores] = useState<Record<keyof CarteraConfig, string> | null>(null);
   useEffect(() => {
     const c = config.data?.cartera;
-    if (c) setValores({ limiteDeudaTienda: String(c.limiteDeudaTienda), limiteDeudaRepartidor: String(c.limiteDeudaRepartidor), limiteDeudaCliente: String(c.limiteDeudaCliente), cargoCancelacion: String(c.cargoCancelacion) });
+    if (c) {
+      setValores({
+        limiteDeudaTienda: String(c.limiteDeudaTienda),
+        limiteDeudaRepartidor: String(c.limiteDeudaRepartidor),
+        limiteDeudaCliente: String(c.limiteDeudaCliente),
+        cargoCancelacion: String(c.cargoCancelacion),
+        ajusteMaxSoporte: String(c.ajusteMaxSoporte ?? 500),
+        creditoDisculpa: String(c.creditoDisculpa ?? 30),
+      });
+    }
   }, [config.data]);
   const guardar = useMutation({
     mutationFn: () =>
@@ -222,6 +233,8 @@ function AjustesCartera() {
             limiteDeudaRepartidor: Number(valores!.limiteDeudaRepartidor),
             limiteDeudaCliente: Number(valores!.limiteDeudaCliente),
             cargoCancelacion: Number(valores!.cargoCancelacion),
+            ajusteMaxSoporte: Number(valores!.ajusteMaxSoporte),
+            creditoDisculpa: Number(valores!.creditoDisculpa),
           },
         }),
       ),
