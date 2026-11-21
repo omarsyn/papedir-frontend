@@ -20,6 +20,11 @@ const ORDEN_ESTADOS = ['creado', 'aceptado_tienda', 'listo_para_recoger', 'asign
 export function Inicio() {
   const { usuario } = useSesion();
   const t = useQuery({ queryKey: ['tablero'], queryFn: () => datos(api.GET('/soporte/tablero')), refetchInterval: 30_000 });
+  const solicitudes = useQuery({
+    queryKey: ['solicitudes-tienda', 'pendiente', 'conteo'],
+    queryFn: () => datos(api.GET('/soporte/solicitudes-tienda', { params: { query: { estado: 'pendiente', limit: 1 } } })),
+    select: (r) => r.meta?.total ?? 0,
+  });
 
   if (t.isPending) return <Cargando />;
   if (t.isError) return <ErrorCarga error={t.error} onReintentar={() => t.refetch()} />;
@@ -74,6 +79,12 @@ export function Inicio() {
           <strong>{d.cuentasPorAprobar}</strong>
           <span>cuentas por aprobar</span>
           <small className="texto-secundario">{d.documentosPorRevisar} documentos por revisar</small>
+        </Link>
+        <Link to="/tiendas?vista=solicitudes" className="inicio-tarjeta">
+          <Store size={20} aria-hidden />
+          <strong>{solicitudes.data ?? 0}</strong>
+          <span>solicitudes de tienda</span>
+          <small className="texto-secundario">Dueños que piden otra sucursal</small>
         </Link>
         <Link to="/repartidores" className="inicio-tarjeta">
           <Bike size={20} aria-hidden />

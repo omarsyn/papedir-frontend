@@ -30,6 +30,7 @@ export function Cuentas() {
   const [q, setQ] = useState('');
   const [pagina, setPagina] = useState(1);
   const [aBanear, setABanear] = useState<Usuario | null>(null);
+  const [aRegresar, setARegresar] = useState<Usuario | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -171,9 +172,14 @@ export function Cuentas() {
                   </td>
                   <td className="celda-acciones">
                     {u.estado === 'pendiente_aprobacion' && (
-                      <button className="boton boton-primario boton-chico" disabled={aprobar.isPending} onClick={() => aprobar.mutate(u.id!)}>
-                        Aprobar
-                      </button>
+                      <>
+                        <button className="boton boton-primario boton-chico" disabled={aprobar.isPending} onClick={() => aprobar.mutate(u.id!)}>
+                          Aprobar
+                        </button>
+                        <button className="boton boton-chico" onClick={() => setARegresar(u)} title={u.motivoRechazo ? `Ya se regresó: ${u.motivoRechazo}` : undefined}>
+                          {u.motivoRechazo ? 'Regresada' : 'Regresar'}
+                        </button>
+                      </>
                     )}
                     {u.estado === 'eliminado' ? null : u.estado === 'baneado' ? (
                       <button className="boton boton-chico" disabled={desbanear.isPending} onClick={() => desbanear.mutate(u.id!)}>
@@ -197,6 +203,19 @@ export function Cuentas() {
 
       {id && <FichaCuenta key={id} id={id} onCerrar={() => navegar('/cuentas')} />}
 
+      <DialogoMotivo
+        abierto={!!aRegresar}
+        onCerrar={() => setARegresar(null)}
+        titulo={`Regresar la solicitud de ${aRegresar?.nombre}`}
+        descripcion="La cuenta sigue pendiente. Le llega un aviso con el motivo para que corrija sus datos o documentos desde su app."
+        textoBoton="Regresar solicitud"
+        placeholder="Ej. La foto de la licencia está borrosa"
+        onConfirmar={async (motivo) => {
+          await datos(api.POST('/soporte/usuarios/{id}/rechazar', { params: { path: { id: aRegresar!.id! } }, body: { motivo } }));
+          cache.invalidateQueries({ queryKey: ['usuarios'] });
+          avisar(`Solicitud de ${aRegresar!.nombre} regresada`, 'exito');
+        }}
+      />
       <DialogoMotivo
         abierto={!!aBanear}
         onCerrar={() => setABanear(null)}

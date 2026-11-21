@@ -44,12 +44,18 @@ export function Shell() {
     select: (r) => r.meta?.total ?? 0,
   });
 
+  const solicitudes = useQuery({
+    queryKey: ['solicitudes-tienda', 'pendiente', 'conteo'],
+    queryFn: () => datos(api.GET('/soporte/solicitudes-tienda', { params: { query: { estado: 'pendiente', limit: 1 } } })),
+    select: (r) => r.meta?.total ?? 0,
+  });
+
   const vistas: Vista[] = [
     { a: '/', texto: 'Inicio', Icono: House },
     { a: '/tickets', texto: 'Tickets', Icono: MessagesSquare, cuenta: sinAtender.data },
     { a: '/pedidos', texto: 'Pedidos', Icono: Package },
     { a: '/mapa', texto: 'Mapa', Icono: Map, fin: true },
-    { a: '/tiendas', texto: 'Tiendas', Icono: Store },
+    { a: '/tiendas', texto: 'Tiendas', Icono: Store, cuenta: solicitudes.data },
     { a: '/repartidores', texto: 'Repartos', Icono: Bike },
     { a: '/cuentas', texto: 'Cuentas', Icono: Users, cuenta: porAprobar.data },
     { a: '/resenas', texto: 'Reseñas', Icono: Star, fin: esAdmin },

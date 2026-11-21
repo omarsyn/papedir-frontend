@@ -474,6 +474,103 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tiendas/solicitudes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mis solicitudes de tienda nueva (rol tienda) */
+        get: operations["misSolicitudesTienda"];
+        put?: never;
+        /**
+         * Pedir otra tienda o sucursal (rol tienda)
+         * @description Queda en revisión hasta que soporte o admin la aprueben; al aprobarla se crea la tienda cerrada.
+         *     Solo con la cuenta aprobada (`CUENTA_PENDIENTE`). Con `copiarMenuDe` se copiará el menú de otra sucursal propia.
+         *     Máximo 10 tiendas contando las solicitudes en revisión (`LIMITE_SUCURSALES`).
+         */
+        post: operations["solicitarTienda"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tiendas/solicitudes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Cancelar mi solicitud en revisión */
+        delete: operations["cancelarSolicitudTienda"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/solicitudes-tienda": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Solicitudes de tienda nueva (soporte y admin) */
+        get: operations["listarSolicitudesTienda"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/solicitudes-tienda/{id}/aprobar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Aprobar y crear la tienda */
+        post: operations["aprobarSolicitudTienda"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/solicitudes-tienda/{id}/rechazar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rechazar con motivo */
+        post: operations["rechazarSolicitudTienda"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tiendas/mias": {
         parameters: {
             query?: never;
@@ -489,9 +586,8 @@ export interface paths {
         get: operations["listarMisSucursales"];
         put?: never;
         /**
-         * Agregar una sucursal (rol tienda)
-         * @description Solo con la cuenta aprobada (`CUENTA_PENDIENTE`). Nace cerrada. Con `copiarMenuDe` copia categorías,
-         *     productos y opciones de otra sucursal propia (sin inventario). Máximo 10 sucursales (`LIMITE_SUCURSALES`).
+         * Alias de POST /tiendas/solicitudes
+         * @deprecated
          */
         post: operations["crearSucursal"];
         delete?: never;
@@ -1578,6 +1674,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cartera": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mi cartera (cliente, tienda o repartidor)
+         * @description Como en DiDi. Saldo > 0: dinero a tu favor. Saldo < 0: lo que debes a PaPedir.
+         *     - Cliente: los reembolsos suman; cancelar en efectivo cuando la tienda ya aceptó resta. Se aplica sola en el siguiente pedido.
+         *     - Tienda y repartidor: las comisiones de lo cobrado en efectivo restan; lo cobrado con tarjeta suma. Se salda con una liquidación.
+         *     Con `bloqueado` = true la cuenta pasó su límite de deuda (`DEUDA_EXCEDIDA`).
+         *     `/saldo` es un alias.
+         */
+        get: operations["miCartera"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/saldo": {
         parameters: {
             query?: never;
@@ -1586,9 +1706,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Mi saldo con PaPedir y sus movimientos (tienda y repartidor)
-         * @description Saldo > 0: debes a PaPedir (comisiones). Saldo < 0: PaPedir te debe (cupones de PaPedir que cobraste de menos).
-         *     Se salda con una liquidación que registra admin.
+         * Alias de /cartera
+         * @deprecated
          */
         get: operations["miSaldo"];
         put?: never;
@@ -1771,8 +1890,33 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Cancelar pedido en cualquier estado no final */
+        /**
+         * Cancelar pedido en cualquier estado no final
+         * @description Si usó saldo de la cartera, se le devuelve al cliente. Con tarjeta se reembolsa a la tarjeta salvo `reembolsoA = cartera`.
+         */
         post: operations["soporteCancelarPedido"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/soporte/pedidos/{id}/reembolso": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reembolsar a la cartera del cliente (pedido entregado)
+         * @description Parcial o total, por ejemplo si faltó un producto. Lo absorbe PaPedir. El tope es lo que pagó el cliente menos lo ya reembolsado.
+         */
+        post: operations["reembolsarACartera"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1998,6 +2142,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/soporte/usuarios/{id}/rechazar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Regresar una solicitud de cuenta (tienda o repartidor) con el motivo
+         * @description La cuenta sigue pendiente para que corrija; ve el motivo en `motivoRechazo` de /auth/me y le llega un push.
+         */
+        post: operations["rechazarUsuario"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/soporte/usuarios/{id}/aprobar": {
         parameters: {
             query?: never;
@@ -2158,6 +2324,23 @@ export interface paths {
         get?: never;
         /** Comisión general de PaPedir */
         put: operations["guardarComisiones"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/configuracion/cartera": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Límites de deuda y cargo por cancelación */
+        put: operations["guardarCartera"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2326,7 +2509,7 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Estado de cuenta de una tienda o repartidor */
+        /** Cartera de una cuenta (soporte y admin) */
         get: operations["saldoDeUsuario"];
         put?: never;
         post?: never;
@@ -2746,6 +2929,10 @@ export interface components {
             proveedor?: string;
             /** @description Solo las cuentas de correo; las de Google o GitHub usan la foto del proveedor */
             puedeCambiarFoto?: boolean;
+            /** @description Cuenta pendiente que soporte regresó: qué debe corregir. Se limpia al aprobarla */
+            motivoRechazo?: string | null;
+            /** Format: date-time */
+            rechazadaEn?: string | null;
             /** Format: date-time */
             creadoEn?: string;
         };
@@ -2937,6 +3124,44 @@ export interface components {
             abierta?: boolean;
             tiempoPreparacionMin?: number;
         };
+        SolicitudTienda: {
+            /** Format: uuid */
+            id?: string;
+            /** @enum {string} */
+            estado?: "pendiente" | "aprobada" | "rechazada" | "cancelada";
+            /** @description Lo que pidió el dueño (mismos campos que SucursalInput) */
+            datos?: {
+                nombre?: string;
+                categoria?: components["schemas"]["CategoriaTienda"];
+                descripcion?: string | null;
+                imagenUrl?: string | null;
+                telefono?: string | null;
+                direccion?: string;
+                ubicacion?: components["schemas"]["Coordenadas"];
+                tiempoPreparacionMin?: number;
+            } & {
+                [key: string]: unknown;
+            };
+            /** @description Por qué se rechazó */
+            motivo?: string | null;
+            /**
+             * Format: uuid
+             * @description La tienda creada al aprobarla
+             */
+            tiendaId?: string | null;
+            /** Format: date-time */
+            revisadaEn?: string | null;
+            /** Format: date-time */
+            creadoEn?: string;
+            /** @description Solo en el listado de soporte */
+            dueno?: {
+                /** Format: uuid */
+                id?: string;
+                nombre?: string;
+                email?: string;
+                telefono?: string | null;
+            } | null;
+        };
         SucursalInput: {
             /** @example Tacos Don Pepe Norte */
             nombre: string;
@@ -2947,6 +3172,7 @@ export interface components {
             direccion: string;
             ubicacion: components["schemas"]["Coordenadas"];
             tiempoPreparacionMin?: number;
+            imagenUrl?: string;
             /**
              * Format: uuid
              * @description Id de otra sucursal propia
@@ -3189,7 +3415,17 @@ export interface components {
             /** @example 20 */
             propina?: number;
             /**
-             * @description subtotal + costoEnvio + propina − descuento
+             * @description Saldo a favor de la cartera que se descontó solo
+             * @example 0
+             */
+            saldoAplicado?: number;
+            /**
+             * @description Adeudo anterior del cliente que se sumó al total
+             * @example 0
+             */
+            deudaCobrada?: number;
+            /**
+             * @description subtotal + costoEnvio + propina − descuento − saldoAplicado + deudaCobrada
              * @example 206
              */
             total?: number;
@@ -3338,6 +3574,16 @@ export interface components {
             propina?: number;
             /** @example 0 */
             descuento?: number;
+            /**
+             * @description Saldo de la cartera del cliente usado en el pedido
+             * @example 0
+             */
+            saldoAplicado?: number;
+            /**
+             * @description Adeudo anterior del cliente cobrado en el pedido
+             * @example 0
+             */
+            deudaCobrada?: number;
             /** @example 216 */
             total?: number;
             /** @example 4.42 */
@@ -3365,6 +3611,12 @@ export interface components {
             programadoPara?: string | null;
             /** @description Código del catálogo si se canceló o rechazó */
             motivoCancelacion?: string | null;
+            /** @description Solo para el cliente. Si puede cancelar ahora y cuánto le costaría (cancelación tardía en efectivo) */
+            cancelacion?: {
+                permitida?: boolean;
+                /** @example 25 */
+                cargo?: number;
+            } | null;
             /**
              * @description 4 dígitos. Solo viene en la respuesta para el cliente dueño del pedido; null en manuales
              * @example 4821
@@ -3963,6 +4215,29 @@ export interface components {
         Configuracion: {
             comisiones?: components["schemas"]["Comisiones"];
             recargos?: components["schemas"]["Recargos"];
+            cartera?: components["schemas"]["CarteraConfig"];
+        };
+        CarteraConfig: {
+            /**
+             * @description Con más deuda no puede abrir ni aceptar pedidos
+             * @example 1500
+             */
+            limiteDeudaTienda: number;
+            /**
+             * @description Con más deuda no puede conectarse ni tomar pedidos
+             * @example 500
+             */
+            limiteDeudaRepartidor: number;
+            /**
+             * @description Con más deuda solo puede pagar con tarjeta
+             * @example 150
+             */
+            limiteDeudaCliente: number;
+            /**
+             * @description Al cliente que cancela en efectivo cuando la tienda ya aceptó; se le abona a la tienda
+             * @example 25
+             */
+            cargoCancelacion: number;
         };
         CuponInput: {
             /** @example BIENVENIDA */
@@ -4012,12 +4287,14 @@ export interface components {
             /** Format: uuid */
             id?: string;
             /**
-             * @description venta_tarjeta / envio_tarjeta: pedido pagado con tarjeta; PaPedir le debe a la tienda su venta
-             *     y al repartidor su envío y propina
+             * @description venta_tarjeta / envio_tarjeta: pedido con tarjeta; PaPedir le paga a la tienda su venta y al repartidor su envío y propina.
+             *     pago_con_saldo / pago_deuda: el cliente usó su saldo o pagó su adeudo en un pedido; reverso_saldo lo deshace si no se entregó.
+             *     saldo_cliente / deuda_cobrada: en efectivo el repartidor cobró de menos (saldo del cliente) o de más (adeudo del cliente).
+             *     reembolso: soporte devolvió dinero a la cartera. cargo_cancelacion / compensacion_cancelacion: cancelación tardía en efectivo.
              * @enum {string}
              */
-            tipo?: "comision_tienda" | "comision_envio" | "descuento_plataforma" | "liquidacion" | "venta_tarjeta" | "envio_tarjeta";
-            /** @description > 0 aumenta lo que debes a PaPedir; < 0 lo disminuye */
+            tipo?: "comision_tienda" | "comision_envio" | "descuento_plataforma" | "liquidacion" | "venta_tarjeta" | "envio_tarjeta" | "pago_con_saldo" | "reverso_saldo" | "saldo_cliente" | "pago_deuda" | "deuda_cobrada" | "reembolso" | "cargo_cancelacion" | "compensacion_cancelacion" | "ajuste";
+            /** @description > 0 a tu favor; < 0 lo que debes */
             monto?: number;
             /** @example Comisión 10% del pedido R-000123 */
             descripcion?: string;
@@ -4031,13 +4308,17 @@ export interface components {
             creadoEn?: string;
         };
         EstadoDeCuenta: {
-            /** @example 152.3 */
-            saldo?: number;
             /**
-             * @description plataforma = debes a PaPedir; usuario = PaPedir te debe
-             * @enum {string|null}
+             * @description > 0 a tu favor; < 0 lo que debes
+             * @example -152.3
              */
-            aFavorDe?: "plataforma" | "usuario" | null;
+            saldo?: number;
+            /** @enum {string} */
+            estado?: "a_favor" | "debe" | "en_cero";
+            /** @description Deuda máxima permitida para tu rol */
+            limiteDeuda?: number | null;
+            /** @description Pasaste el límite de deuda */
+            bloqueado?: boolean;
             movimientos?: {
                 data?: components["schemas"]["Movimiento"][];
                 meta?: components["schemas"]["PaginaMeta"];
@@ -5012,6 +5293,169 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    misSolicitudesTienda: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SolicitudTienda"][];
+                };
+            };
+        };
+    };
+    solicitarTienda: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SucursalInput"];
+            };
+        };
+        responses: {
+            /** @description En revisión */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SolicitudTienda"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            /** @description CUENTA_PENDIENTE o LIMITE_SUCURSALES */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    cancelarSolicitudTienda: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SolicitudTienda"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listarSolicitudesTienda: {
+        parameters: {
+            query?: {
+                estado?: "pendiente" | "aprobada" | "rechazada" | "cancelada";
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["SolicitudTienda"][];
+                        meta?: components["schemas"]["PaginaMeta"];
+                    };
+                };
+            };
+        };
+    };
+    aprobarSolicitudTienda: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SolicitudTienda"];
+                };
+            };
+            /** @description Ya revisada o el dueño no está activo */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    rechazarSolicitudTienda: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    motivo: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SolicitudTienda"];
+                };
+            };
+        };
+    };
     listarMisSucursales: {
         parameters: {
             query?: never;
@@ -5045,13 +5489,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Creada */
-            201: {
+            /** @description Solicitud creada */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Tienda"];
+                    "application/json": components["schemas"]["SolicitudTienda"];
                 };
             };
             400: components["responses"]["ValidationError"];
@@ -6876,6 +7320,29 @@ export interface operations {
             };
         };
     };
+    miCartera: {
+        parameters: {
+            query?: {
+                page?: components["parameters"]["Page"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EstadoDeCuenta"];
+                };
+            };
+        };
+    };
     miSaldo: {
         parameters: {
             query?: {
@@ -7211,7 +7678,15 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MotivoCancelacionRequest"];
+                "application/json": components["schemas"]["MotivoCancelacionRequest"] & {
+                    /**
+                     * @description Pedido pagado con tarjeta: a dónde va el dinero (tarjeta por omisión)
+                     * @enum {string}
+                     */
+                    reembolsoA?: "tarjeta" | "cartera";
+                    /** @description Efectivo con la tienda ya preparando: cargar al cliente la tarifa de cancelación */
+                    cobrarCargo?: boolean;
+                };
             };
         };
         responses: {
@@ -7222,6 +7697,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Pedido"];
+                };
+            };
+        };
+    };
+    reembolsarACartera: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example 45 */
+                    monto: number;
+                    /** @example Faltó una bebida */
+                    motivo: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pedido"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            /** @description Pedido no entregado, sin cliente o REEMBOLSO_EXCEDIDO */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
@@ -7529,6 +8045,44 @@ export interface operations {
             };
         };
     };
+    rechazarUsuario: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example La foto de la licencia está borrosa */
+                    motivo: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Usuario"];
+                };
+            };
+            /** @description La cuenta no está pendiente de aprobación */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     aprobarUsuario: {
         parameters: {
             query?: never;
@@ -7808,6 +8362,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Comisiones"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+        };
+    };
+    guardarCartera: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CarteraConfig"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CarteraConfig"];
                 };
             };
             400: components["responses"]["ValidationError"];
@@ -8094,7 +8673,7 @@ export interface operations {
     listarSaldos: {
         parameters: {
             query?: {
-                rol?: "tienda" | "repartidor";
+                rol?: "cliente" | "tienda" | "repartidor";
             };
             header?: never;
             path?: never;
@@ -8109,7 +8688,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** @description Suma de lo que deben (carteras negativas) */
                         totalPorCobrar?: number;
+                        /** @description Suma de los saldos a favor (carteras positivas) */
                         totalPorPagar?: number;
                         usuarios?: {
                             /** Format: uuid */
