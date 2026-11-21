@@ -9,9 +9,12 @@ import 'package:core/core.dart'
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'core/preferencias.dart';
 import 'features/auth/screens/register_screen.dart';
 import 'features/home/home_shell.dart';
+import 'features/onboarding/onboarding_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,8 +23,43 @@ Future<void> main() async {
   } catch (_) {
     // Sin Firebase la app sigue funcionando; solo se pierden las notificaciones.
   }
-  runApp(const ProviderScope(child: PaPedirCliente()));
+  final prefs = await SharedPreferences.getInstance();
+  runApp(
+    ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: const PaPedirCliente(),
+    ),
+  );
 }
+
+const _bienvenida = [
+  PaginaOnboarding(
+    icono: Icons.storefront,
+    titulo: 'Tiendas de Celaya',
+    texto: 'Pide comida, abarrotes o medicina de los negocios cerca de ti.',
+  ),
+  PaginaOnboarding(
+    icono: Icons.map_outlined,
+    titulo: 'Marca tu dirección',
+    texto: 'Elige el punto exacto en el mapa para que el repartidor llegue sin perderse.',
+  ),
+  PaginaOnboarding(
+    icono: Icons.delivery_dining,
+    titulo: 'Sigue tu pedido',
+    texto: 'Ve en qué va tu pedido y recíbelo con tu código de entrega.',
+  ),
+];
+
+ThemeData _tema(Brightness brillo) => ThemeData(
+  colorScheme: ColorScheme.fromSeed(
+    seedColor: const Color(0xFF1565C0),
+    brightness: brillo,
+  ),
+  useMaterial3: true,
+  inputDecorationTheme: const InputDecorationTheme(
+    border: OutlineInputBorder(),
+  ),
+);
 
 /// Ajusta el cliente HTTP y recupera la sesión guardada (si existe).
 final arranqueProvider = FutureProvider<void>((ref) async {
@@ -51,8 +89,12 @@ class PaPedirCliente extends ConsumerWidget {
     final arranque = ref.watch(arranqueProvider);
     final autenticado = ref.watch(authProvider).isAuthenticated;
 
+    final onboardingVisto = ref.watch(onboardingVistoProvider);
+
     final Widget inicio;
-    if (arranque.isLoading) {
+    if (!onboardingVisto) {
+      inicio = const OnboardingScreen(paginas: _bienvenida);
+    } else if (arranque.isLoading) {
       inicio = const Scaffold(body: Center(child: CircularProgressIndicator()));
     } else if (!autenticado) {
       inicio = Builder(
@@ -72,16 +114,12 @@ class PaPedirCliente extends ConsumerWidget {
 
     return MaterialApp(
       // La llave reinicia la navegación al iniciar o cerrar sesión.
-      key: ValueKey<bool>(autenticado),
+      key: ValueKey<String>('$autenticado|$onboardingVisto'),
       title: 'PaPedir',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1565C0)),
-        useMaterial3: true,
-        inputDecorationTheme: const InputDecorationTheme(
-          border: OutlineInputBorder(),
-        ),
-      ),
+      theme: _tema(Brightness.light),
+      darkTheme: _tema(Brightness.dark),
+      themeMode: ref.watch(temaProvider),
       home: inicio,
     );
   }

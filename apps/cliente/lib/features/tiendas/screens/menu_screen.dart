@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -124,6 +125,19 @@ class MenuScreen extends ConsumerWidget {
                   ),
                   for (final p in cat.productos)
                     ListTile(
+                      leading: p.imagenUrl == null
+                          ? null
+                          : ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: CachedNetworkImage(
+                                imageUrl: p.imagenUrl!,
+                                width: 56,
+                                height: 56,
+                                fit: BoxFit.cover,
+                                errorWidget: (_, _, _) =>
+                                    const Icon(Icons.fastfood_outlined),
+                              ),
+                            ),
                       title: Text(p.nombre),
                       subtitle: Text(
                         p.descripcion == null || p.descripcion!.isEmpty

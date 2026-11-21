@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/formato.dart';
 import '../../../core/models.dart';
+import '../../../core/preferencias.dart';
 import '../../../core/widgets/mensajes.dart';
 import '../../../core/widgets/vista_async.dart';
 import '../../home/navegacion_provider.dart';
@@ -140,7 +141,9 @@ class MiTiendaScreen extends ConsumerWidget {
                   ListTile(
                     leading: const Icon(Icons.pause_circle_outline),
                     title: const Text('Pausar pedidos un rato'),
-                    subtitle: const Text('Si la cocina está saturada'),
+                    subtitle: const Text(
+                      'Si la cocina está saturada (o agita el teléfono)',
+                    ),
                     onTap: t.abierta ? () => _pausar(context, ref) : null,
                   ),
                 ListTile(
@@ -155,6 +158,12 @@ class MiTiendaScreen extends ConsumerWidget {
                   leading: const Icon(Icons.person_outline),
                   title: Text(usuario?.nombre ?? ''),
                   subtitle: Text(usuario?.email ?? ''),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.dark_mode_outlined),
+                  title: const Text('Tema'),
+                  subtitle: Text(etiquetaTema(ref.watch(temaProvider))),
+                  onTap: () => elegirTema(context, ref),
                 ),
                 ListTile(
                   leading: const Icon(Icons.support_agent),

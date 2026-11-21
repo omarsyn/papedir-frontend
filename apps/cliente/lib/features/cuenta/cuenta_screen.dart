@@ -2,6 +2,7 @@ import 'package:core/core.dart' show TicketsListScreen, authProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/preferencias.dart';
 import '../carrito/providers/carrito_provider.dart';
 import '../direcciones/providers/direccion_activa_provider.dart';
 import '../direcciones/screens/direcciones_screen.dart';
@@ -39,6 +40,12 @@ class CuentaScreen extends ConsumerWidget {
                 ),
               );
             },
+          ),
+          ListTile(
+            leading: const Icon(Icons.dark_mode_outlined),
+            title: const Text('Tema'),
+            subtitle: Text(etiquetaTema(ref.watch(temaProvider))),
+            onTap: () => elegirTema(context, ref),
           ),
           ListTile(
             leading: const Icon(Icons.support_agent),

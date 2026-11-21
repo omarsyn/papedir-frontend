@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -276,10 +277,10 @@ class _FilaProducto extends StatelessWidget {
                   color: Colors.black12,
                   child: Icon(Icons.fastfood_outlined),
                 )
-              : Image.network(
-                  p.imagenUrl!,
+              : CachedNetworkImage(
+                  imageUrl: p.imagenUrl!,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) =>
+                  errorWidget: (_, _, _) =>
                       const Icon(Icons.broken_image_outlined),
                 ),
         ),

@@ -4,6 +4,8 @@
     <!-- permisos de ubicación (mapa y botón "mi ubicación") -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- huella digital para confirmar el pago con tarjeta -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <application
         android:label="PaPedir"
         android:usesCleartextTraffic="true"

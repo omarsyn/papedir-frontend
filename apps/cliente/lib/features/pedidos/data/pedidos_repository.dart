@@ -52,23 +52,51 @@ class PedidosRepository {
     return Cotizacion.fromJson(r.data!);
   });
 
+  /// [paymentIntentId] es obligatorio cuando [metodoPago] es 'tarjeta'.
   Future<Pedido> crear({
     required String tiendaId,
     required String direccionId,
     required List<LineaCarrito> lineas,
     String? notas,
+    String metodoPago = 'efectivo',
+    String? paymentIntentId,
   }) => conApiError(() async {
     final r = await _dio.post<Map<String, dynamic>>(
       '/pedidos',
       data: {
         'tiendaId': tiendaId,
         'direccionId': direccionId,
-        'metodoPago': 'efectivo',
+        'metodoPago': metodoPago,
+        if (paymentIntentId != null) 'paymentIntentId': paymentIntentId,
         'notas': notas,
         'items': _items(lineas),
       },
     );
     return Pedido.fromJson(r.data!);
+  });
+
+  /// Paso 1 del pago con tarjeta: el servidor crea el PaymentIntent de Stripe.
+  /// Devuelve paymentIntentId, clientSecret y publishableKey.
+  Future<Map<String, dynamic>> intentoDePago({
+    required String tiendaId,
+    required String direccionId,
+    required List<LineaCarrito> lineas,
+  }) => conApiError(() async {
+    final r = await _dio.post<Map<String, dynamic>>(
+      '/pagos/intento',
+      data: {
+        'tiendaId': tiendaId,
+        'direccionId': direccionId,
+        'items': _items(lineas),
+      },
+    );
+    return r.data!;
+  });
+
+  /// Llave publicable de Stripe (null si el servidor no tiene Stripe).
+  Future<String?> llaveStripe() => conApiError(() async {
+    final r = await _dio.get<Map<String, dynamic>>('/pagos/config');
+    return r.data?['publishableKey'] as String?;
   });
 
   Future<List<Pedido>> listar() => conApiError(() async {

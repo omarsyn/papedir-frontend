@@ -1,7 +1,9 @@
 import 'package:core/core.dart' show TokenStorage, Tokens, tokenStorageProvider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tienda/core/models.dart';
+import 'package:tienda/core/preferencias.dart';
 import 'package:tienda/main.dart';
 
 /// Almacén de tokens en memoria: sin sesión guardada.
@@ -20,11 +22,32 @@ class _TokenStorageFalso implements TokenStorage {
 }
 
 void main() {
-  testWidgets('Sin sesión muestra el login de la tienda', (tester) async {
+  testWidgets('La primera vez muestra la bienvenida', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           tokenStorageProvider.overrideWithValue(_TokenStorageFalso()),
+          sharedPreferencesProvider.overrideWithValue(prefs),
+        ],
+        child: const PaPedirTienda(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Saltar'), findsOneWidget);
+    expect(find.text('Siguiente'), findsOneWidget);
+  });
+
+  testWidgets('Sin sesión muestra el login de la tienda', (tester) async {
+    SharedPreferences.setMockInitialValues({'onboarding_visto': true});
+    final prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          tokenStorageProvider.overrideWithValue(_TokenStorageFalso()),
+          sharedPreferencesProvider.overrideWithValue(prefs),
         ],
         child: const PaPedirTienda(),
       ),

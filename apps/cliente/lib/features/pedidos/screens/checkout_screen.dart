@@ -13,13 +13,17 @@ import 'pedido_detalle_screen.dart';
 class CheckoutScreen extends ConsumerWidget {
   const CheckoutScreen({super.key});
 
-  Future<void> _confirmar(BuildContext context, WidgetRef ref) async {
+  Future<void> _confirmar(
+    BuildContext context,
+    WidgetRef ref,
+    double total,
+  ) async {
     try {
       final notas = ref.read(notasControllerProvider).text.trim();
       final pedido = await ref
           .read(envioPedidoProvider.notifier)
-          .confirmar(notas.isEmpty ? null : notas);
-      if (!context.mounted) return;
+          .confirmar(notas.isEmpty ? null : notas, total: total);
+      if (pedido == null || !context.mounted) return;
       ref.read(carritoProvider.notifier).vaciar();
       final nav = Navigator.of(context);
       nav.popUntil((r) => r.isFirst);
@@ -41,6 +45,7 @@ class CheckoutScreen extends ConsumerWidget {
     final notas = ref.watch(notasControllerProvider);
     final enviando = ref.watch(envioPedidoProvider);
     final cotizacion = ref.watch(cotizacionProvider);
+    final metodo = ref.watch(metodoPagoProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Confirmar pedido')),
@@ -95,7 +100,35 @@ class CheckoutScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text('Pago: efectivo al recibir'),
+                const Text('Forma de pago'),
+                const SizedBox(height: 4),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(
+                      value: 'efectivo',
+                      icon: Icon(Icons.payments_outlined),
+                      label: Text('Efectivo'),
+                    ),
+                    ButtonSegment(
+                      value: 'tarjeta',
+                      icon: Icon(Icons.credit_card),
+                      label: Text('Tarjeta'),
+                    ),
+                  ],
+                  selected: {metodo},
+                  onSelectionChanged: enviando
+                      ? null
+                      : (s) => ref
+                            .read(metodoPagoProvider.notifier)
+                            .elegir(s.first),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  metodo == 'tarjeta'
+                      ? 'Se pide tu huella y luego los datos de la tarjeta (Stripe, modo prueba).'
+                      : 'Pagas al repartidor cuando recibas tu pedido.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
                 const Divider(height: 32),
                 cotizacion.when(
                   loading: () => const Center(
@@ -142,7 +175,7 @@ class CheckoutScreen extends ConsumerWidget {
                         FilledButton(
                           onPressed: enviando
                               ? null
-                              : () => _confirmar(context, ref),
+                              : () => _confirmar(context, ref, c.total),
                           child: enviando
                               ? const SizedBox(
                                   height: 20,
@@ -151,7 +184,11 @@ class CheckoutScreen extends ConsumerWidget {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : Text('Confirmar pedido · ${dinero(c.total)}'),
+                              : Text(
+                                  metodo == 'tarjeta'
+                                      ? 'Pagar ${dinero(c.total)} con tarjeta'
+                                      : 'Confirmar pedido · ${dinero(c.total)}',
+                                ),
                         ),
                       ],
                     );

@@ -1,5 +1,7 @@
 package com.papedir.cliente
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity()
+// FlutterFragmentActivity: la piden flutter_stripe (formulario de tarjeta)
+// y local_auth (huella digital).
+class MainActivity : FlutterFragmentActivity()

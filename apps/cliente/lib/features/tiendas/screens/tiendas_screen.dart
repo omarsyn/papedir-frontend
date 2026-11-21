@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -198,10 +199,26 @@ class _ListaTiendas extends ConsumerWidget {
                 onRefresh: () => recargarSilencioso(
                   () => ref.refresh(tiendasProvider.future),
                 ),
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: lista.length,
-                  itemBuilder: (context, i) => _TarjetaTienda(tienda: lista[i]),
+                // En pantallas anchas las tiendas se acomodan en cuadrícula.
+                child: LayoutBuilder(
+                  builder: (context, medidas) => medidas.maxWidth >= 700
+                      ? GridView.builder(
+                          padding: const EdgeInsets.all(12),
+                          gridDelegate:
+                              const SliverGridDelegateWithMaxCrossAxisExtent(
+                                maxCrossAxisExtent: 420,
+                                mainAxisExtent: 96,
+                              ),
+                          itemCount: lista.length,
+                          itemBuilder: (context, i) =>
+                              _TarjetaTienda(tienda: lista[i]),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(12),
+                          itemCount: lista.length,
+                          itemBuilder: (context, i) =>
+                              _TarjetaTienda(tienda: lista[i]),
+                        ),
                 ),
               );
             },
@@ -229,7 +246,11 @@ class _TarjetaTienda extends StatelessWidget {
     ];
     return Card(
       child: ListTile(
-        leading: const CircleAvatar(child: Icon(Icons.storefront)),
+        leading: tienda.imagenUrl == null
+            ? const CircleAvatar(child: Icon(Icons.storefront))
+            : CircleAvatar(
+                backgroundImage: CachedNetworkImageProvider(tienda.imagenUrl!),
+              ),
         title: Text(tienda.nombre),
         subtitle: Text(partes.join(' · ')),
         trailing: tienda.abierta ? null : const Chip(label: Text('Cerrada')),

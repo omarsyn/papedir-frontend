@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -123,10 +124,10 @@ class ProductoFormScreen extends ConsumerWidget {
                         ? const Center(
                             child: Icon(Icons.image_outlined, size: 48),
                           )
-                        : Image.network(
-                            estado.imagenUrl!,
+                        : CachedNetworkImage(
+                            imageUrl: estado.imagenUrl!,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => const Center(
+                            errorWidget: (_, _, _) => const Center(
                               child: Icon(Icons.broken_image_outlined),
                             ),
                           ),

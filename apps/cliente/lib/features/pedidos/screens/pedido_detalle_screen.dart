@@ -160,7 +160,7 @@ class PedidoDetalleScreen extends ConsumerWidget {
           const Divider(height: 24),
           _Fila('Subtotal', dinero(p.subtotal)),
           _Fila('Envío', dinero(p.costoEnvio)),
-          _Fila('Total (efectivo)', dinero(p.total), negrita: true),
+          _Fila('Total', dinero(p.total), negrita: true),
           const SizedBox(height: 4),
           Text('Entrega en: ${p.destino.direccion}'),
           if (p.notas != null && p.notas!.isNotEmpty) Text('Notas: ${p.notas}'),
