@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/widgets/barra_flotante.dart';
 import '../menu/screens/menu_screen.dart';
 import '../mi_tienda/screens/mi_tienda_screen.dart';
 import '../pedidos/screens/pedidos_screen.dart';
@@ -56,10 +57,10 @@ class HomeShell extends ConsumerWidget {
           }
           return Scaffold(
             body: paginas[indice],
-            bottomNavigationBar: NavigationBar(
-              selectedIndex: indice,
-              onDestinationSelected: ir,
-              destinations: const [
+            bottomNavigationBar: BarraFlotante(
+              indice: indice,
+              onCambio: ir,
+              destinos: const [
                 NavigationDestination(
                   icon: Icon(Icons.receipt_long_outlined),
                   selectedIcon: Icon(Icons.receipt_long),

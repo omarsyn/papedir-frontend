@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/widgets/barra_flotante.dart';
 import '../carrito/providers/carrito_provider.dart';
 import '../carrito/screens/carrito_screen.dart';
 import '../cuenta/cuenta_screen.dart';
@@ -85,10 +86,10 @@ class HomeShell extends ConsumerWidget {
         }
         return Scaffold(
           body: paginas[indice],
-          bottomNavigationBar: NavigationBar(
-            selectedIndex: indice,
-            onDestinationSelected: ir,
-            destinations: [
+          bottomNavigationBar: BarraFlotante(
+            indice: indice,
+            onCambio: ir,
+            destinos: [
               const NavigationDestination(
                 icon: Icon(Icons.storefront_outlined),
                 selectedIcon: Icon(Icons.storefront),

@@ -228,9 +228,27 @@ class _TarjetaPedido extends ConsumerWidget {
                 Text(hora(p.creadoEn)),
               ],
             ),
-            Text(
-              etiquetaEstado(p.estado),
-              style: TextStyle(color: tema.colorScheme.primary),
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: tema.colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  etiquetaEstado(p.estado),
+                  style: TextStyle(
+                    color: tema.colorScheme.onPrimaryContainer,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
             ),
             const Divider(),
             if (p.descripcion != null && p.descripcion!.isNotEmpty)

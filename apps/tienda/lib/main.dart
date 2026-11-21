@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/preferencias.dart';
+import 'core/tema.dart';
 import 'features/home/home_shell.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/registro/screens/registro_screen.dart';
@@ -52,16 +53,9 @@ const _bienvenida = [
   ),
 ];
 
-ThemeData _tema(Brightness brillo) => ThemeData(
-  colorScheme: ColorScheme.fromSeed(
-    seedColor: const Color(0xFFE65100),
-    brightness: brillo,
-  ),
-  useMaterial3: true,
-  inputDecorationTheme: const InputDecorationTheme(
-    border: OutlineInputBorder(),
-  ),
-);
+/// Diseño de la app (ver core/tema.dart). El color de la marca no cambia.
+ThemeData _tema(Brightness brillo) =>
+    construirTema(const Color(0xFFE65100), brillo);
 
 /// Ajusta el cliente HTTP y recupera la sesión guardada (si existe).
 final arranqueProvider = FutureProvider<void>((ref) async {

@@ -6,6 +6,7 @@ import '../../../core/catalogos_provider.dart';
 import '../../../core/formato.dart';
 import '../../../core/models.dart';
 import '../../../core/preferencias.dart';
+import '../../../core/widgets/imagen_red.dart';
 import '../../../core/widgets/mensajes.dart';
 import '../../../core/widgets/vista_async.dart';
 import '../../cartera/cartera_screen.dart';
@@ -86,38 +87,15 @@ class MiTiendaScreen extends ConsumerWidget {
         valor: tienda,
         onReintentar: () => ref.invalidate(miTiendaProvider),
         builder: (t) {
-          final tema = Theme.of(context);
           final notifier = ref.read(miTiendaProvider.notifier);
           return RefreshIndicator(
             onRefresh: () =>
                 recargarSilencioso(() => ref.refresh(miTiendaProvider.future)),
             child: ListView(
               children: [
-                ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.storefront)),
-                  title: Text(t.nombre, style: tema.textTheme.titleMedium),
-                  subtitle: Text(
-                    '${nombreCategoria(categorias, t.categoria)}\n${t.direccion}',
-                  ),
-                  isThreeLine: true,
-                ),
-                Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
-                  color: t.abiertaAhora
-                      ? tema.colorScheme.primaryContainer
-                      : tema.colorScheme.surfaceContainerHighest,
-                  child: ListTile(
-                    leading: Icon(
-                      t.abiertaAhora
-                          ? Icons.check_circle
-                          : Icons.do_not_disturb_on,
-                    ),
-                    title: Text(
-                      t.abiertaAhora
-                          ? 'Recibiendo pedidos'
-                          : 'No recibes pedidos ahora',
-                    ),
-                  ),
+                _Encabezado(
+                  tienda: t,
+                  categoria: nombreCategoria(categorias, t.categoria),
                 ),
                 const SizedBox(height: 8),
                 SwitchListTile(
@@ -206,6 +184,135 @@ class MiTiendaScreen extends ConsumerWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// Tarjeta de color con la foto, el nombre y el estado de la tienda.
+class _Encabezado extends StatelessWidget {
+  const _Encabezado({required this.tienda, required this.categoria});
+
+  final MiTienda tienda;
+  final String categoria;
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    final esquema = tema.colorScheme;
+    final t = tienda;
+    final activa = t.abiertaAhora;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            esquema.primary,
+            Color.lerp(esquema.primary, Colors.black, 0.4)!,
+          ],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: ClipOval(
+                  child: ImagenRed(
+                    url: t.imagenUrl,
+                    icono: iconoCategoria(t.categoria),
+                    ancho: 60,
+                    alto: 60,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      t.nombre,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: tema.textTheme.titleLarge?.copyWith(
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      categoria,
+                      style: tema.textTheme.bodyMedium?.copyWith(
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            t.direccion,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: tema.textTheme.bodySmall?.copyWith(color: Colors.white70),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.circle,
+                      size: 10,
+                      color: activa ? Colors.green.shade600 : esquema.error,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      activa ? 'Recibiendo pedidos' : 'No recibes pedidos',
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              if (t.calificacion != null) ...[
+                const Icon(Icons.star_rounded, color: Colors.amber, size: 20),
+                const SizedBox(width: 2),
+                Text(
+                  t.calificacion!.toStringAsFixed(1),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
       ),
     );
   }
