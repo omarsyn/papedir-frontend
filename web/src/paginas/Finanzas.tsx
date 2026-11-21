@@ -5,7 +5,7 @@ import { api, datos, ErrorApi } from '../api/cliente';
 import { useAvisos } from '../componentes/Avisos';
 import { Cargando, Chip, ErrorCarga, Paginacion, Vacio } from '../componentes/Basicos';
 import { TIPOS_MOVIMIENTO as MOVIMIENTOS, textoSaldo } from '../componentes/Cartera';
-import { Dialogo } from '../componentes/Dialogo';
+import { Dialogo, DialogoMotivo } from '../componentes/Dialogo';
 import { descargarCsv, dinero, fecha, ROLES } from '../util/formato';
 
 type Fila = { id?: string; nombre?: string; rol?: 'cliente' | 'tienda' | 'repartidor' | 'soporte' | 'admin'; saldo?: number; ultimoMovimiento?: string };
@@ -16,6 +16,9 @@ export function Finanzas() {
   const [cuenta, setCuenta] = useState<Fila | null>(null);
   const [aPagar, setAPagar] = useState<Fila | null>(null);
   const [pagina, setPagina] = useState(1);
+  const [aAnular, setAAnular] = useState<{ id: string; texto: string } | null>(null);
+  const cacheF = useQueryClient();
+  const { avisar: avisarF } = useAvisos();
 
   const saldos = useQuery({
     queryKey: ['saldos', rol],
@@ -135,17 +138,30 @@ export function Finanzas() {
                 <th className="numero">Monto</th>
                 <th>Método</th>
                 <th>Referencia</th>
+                <th />
               </tr>
             </thead>
             <tbody>
               {liquidaciones.data.data.map((l) => (
-                <tr key={l.id}>
+                <tr key={l.id} className={l.anuladaEn ? 'fila-anulada' : undefined}>
                   <td className="texto-secundario">{fecha(l.creadoEn)}</td>
                   <td>{nombres.get(l.usuarioId) ?? 'Cuenta al corriente'}</td>
                   <td>{l.sentido === 'cobro' ? 'Pagó a PaPedir' : 'PaPedir le pagó'}</td>
                   <td className="numero">{dinero(l.monto)}</td>
                   <td>{l.metodo === 'transferencia' ? 'Transferencia' : 'Efectivo'}</td>
-                  <td className="texto-secundario">{l.referencia ?? l.nota ?? '—'}</td>
+                  <td className="texto-secundario">
+                    {l.referencia ?? l.nota ?? '—'}
+                    {l.anuladaEn && <div className="texto-chico">Anulada: {l.anuladaMotivo}</div>}
+                  </td>
+                  <td className="celda-acciones">
+                    {l.anuladaEn ? (
+                      <Chip tono="neutro">Anulada</Chip>
+                    ) : (
+                      <button className="boton boton-chico" onClick={() => setAAnular({ id: l.id!, texto: `${dinero(l.monto)} de ${nombres.get(l.usuarioId) ?? 'la cuenta'}` })}>
+                        Anular
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -155,6 +171,22 @@ export function Finanzas() {
       <Paginacion pagina={pagina} total={liquidaciones.data?.meta?.total ?? 0} limite={15} onCambiar={setPagina} />
 
       {cuenta && <EstadoDeCuenta fila={cuenta} onCerrar={() => setCuenta(null)} />}
+      <DialogoMotivo
+        abierto={!!aAnular}
+        onCerrar={() => setAAnular(null)}
+        titulo="Anular liquidación"
+        descripcion={`El pago de ${aAnular?.texto ?? ''} se deshace con el movimiento contrario en su cartera. La liquidación queda en el historial marcada como anulada.`}
+        textoBoton="Anular liquidación"
+        peligro
+        placeholder="Ej. Se registró a la cuenta equivocada"
+        onConfirmar={async (motivo) => {
+          await datos(api.POST('/admin/liquidaciones/{id}/anular', { params: { path: { id: aAnular!.id } }, body: { motivo } }));
+          cacheF.invalidateQueries({ queryKey: ['liquidaciones'] });
+          cacheF.invalidateQueries({ queryKey: ['saldos'] });
+          cacheF.invalidateQueries({ queryKey: ['saldo'] });
+          avisarF('Liquidación anulada', 'exito');
+        }}
+      />
       <RegistrarPago fila={aPagar} onCerrar={() => setAPagar(null)} />
     </div>
   );

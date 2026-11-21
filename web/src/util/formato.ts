@@ -91,6 +91,11 @@ export const EVENTOS: Record<string, string> = {
   enviado_a_tienda: 'El pedido programado llegó a la tienda',
   reembolsado: 'Se reembolsó el pago con tarjeta',
   reembolso_fallido: 'El reembolso falló: devolverlo desde Stripe',
+  creado_por_soporte: 'Soporte creó el pedido',
+  editado_por_soporte: 'Soporte editó el pedido',
+  avanzado_por_soporte: 'Soporte avanzó el estado',
+  asignado_por_soporte: 'Soporte asignó un repartidor',
+  resena_eliminada: 'Se borró la reseña',
 };
 
 /** Texto de cada evento de la bitácora de una cuenta. */

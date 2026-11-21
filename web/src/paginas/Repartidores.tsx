@@ -1,13 +1,14 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Download, Map, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { textoSaldo } from '../componentes/Cartera';
 import { Link, useNavigate, useParams } from 'react-router';
 import { api, datos, ErrorApi } from '../api/cliente';
 import { useAvisos } from '../componentes/Avisos';
 import { Avatar, Cargando, Chip, ErrorCarga, Paginacion, Vacio } from '../componentes/Basicos';
 import { FichaCuenta } from '../componentes/FichaCuenta';
 import { useSesion } from '../sesion/Sesion';
-import { descargarCsv, dinero, ESTADOS_CUENTA, haceCuanto, iniciales } from '../util/formato';
+import { descargarCsv, ESTADOS_CUENTA, haceCuanto, iniciales } from '../util/formato';
 
 const LIMITE = 25;
 const VEHICULOS: Record<string, string> = { moto: 'Moto', bicicleta: 'Bicicleta', auto: 'Auto' };
@@ -162,13 +163,11 @@ export function Repartidores() {
                   </td>
                   <td className="numero">
                     {r.saldo === 0 ? (
-                      <span className="texto-secundario">Al corriente</span>
+                      <span className="texto-secundario">En ceros</span>
                     ) : esAdmin ? (
-                      <Link to="/finanzas">{r.saldo > 0 ? `Debe ${dinero(r.saldo)}` : `Se le debe ${dinero(-r.saldo)}`}</Link>
-                    ) : r.saldo > 0 ? (
-                      `Debe ${dinero(r.saldo)}`
+                      <Link to="/finanzas">{textoSaldo(r.saldo)}</Link>
                     ) : (
-                      `Se le debe ${dinero(-r.saldo)}`
+                      textoSaldo(r.saldo)
                     )}
                   </td>
                 </tr>

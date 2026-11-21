@@ -1,3 +1,4 @@
+import { CatalogosAjustes } from './Catalogos';
 import 'leaflet/dist/leaflet.css';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CloudRain, Plus, Undo2 } from 'lucide-react';
@@ -20,6 +21,7 @@ const SECCIONES = [
   { a: 'zonas', texto: 'Zonas de cobertura' },
   { a: 'cupones', texto: 'Cupones' },
   { a: 'notificaciones', texto: 'Notificaciones' },
+  { a: 'catalogos', texto: 'Catálogos' },
 ];
 
 const errorTexto = (e: unknown, t: string) => (e instanceof ErrorApi ? e.message : t);
@@ -39,7 +41,7 @@ export function Configuracion() {
           </NavLink>
         ))}
       </nav>
-      {seccion === 'zonas' ? <Zonas /> : seccion === 'cupones' ? <Cupones /> : seccion === 'notificaciones' ? <Notificaciones /> : <Tarifas />}
+      {seccion === 'zonas' ? <Zonas /> : seccion === 'cupones' ? <Cupones /> : seccion === 'notificaciones' ? <Notificaciones /> : seccion === 'catalogos' ? <CatalogosAjustes /> : <Tarifas />}
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { api, datos, ErrorApi, Esquemas } from '../api/cliente';
 import { useAvisos } from '../componentes/Avisos';
 import { Cargando, Chip, ErrorCarga, Paginacion, Vacio } from '../componentes/Basicos';
 import { DialogoMotivo } from '../componentes/Dialogo';
-import { CATEGORIAS } from '../componentes/FormularioTienda';
+import { useCategorias } from '../componentes/FormularioTienda';
 import { MapaPedido } from '../componentes/MapaPedido';
 import { fecha, haceCuanto } from '../util/formato';
 
@@ -29,6 +29,7 @@ export function SolicitudesTienda() {
   const [estado, setEstado] = useState<Estado>('pendiente');
   const [pagina, setPagina] = useState(1);
   const [aRechazar, setARechazar] = useState<Solicitud | null>(null);
+  const { nombre: nombreCategoria } = useCategorias();
 
   const lista = useQuery({
     queryKey: ['solicitudes-tienda', estado, pagina],
@@ -99,7 +100,7 @@ export function SolicitudesTienda() {
                       {s.dueno && <span className="texto-secundario texto-chico"> {s.dueno.email}</span>}
                     </dd>
                     <dt>Categoría</dt>
-                    <dd>{CATEGORIAS[d.categoria as keyof typeof CATEGORIAS] ?? d.categoria}</dd>
+                    <dd>{nombreCategoria(d.categoria)}</dd>
                     <dt>Dirección</dt>
                     <dd>
                       <MapPin size={14} aria-hidden /> {d.direccion}
