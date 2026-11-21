@@ -12,7 +12,7 @@ function Encuadre({ puntos }: { puntos: Punto[] }) {
   const mapa = useMap();
   const clave = puntos.map((p) => `${p.pos.lat},${p.pos.lng}`).join('|');
   const encuadrar = () => {
-    if (puntos.length) mapa.fitBounds(latLngBounds(puntos.map((p) => [p.pos.lat, p.pos.lng])), { padding: [40, 40], maxZoom: 16 });
+    if (puntos.length) mapa.fitBounds(latLngBounds(puntos.map((p) => [p.pos.lat, p.pos.lng])), { padding: [40, 40], maxZoom: 16, animate: false });
   };
   useEffect(encuadrar, [clave, mapa]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -20,6 +20,9 @@ function Encuadre({ puntos }: { puntos: Punto[] }) {
   // Cuando el contenedor cambia de tamaño, se vuelve a medir y a encuadrar.
   useEffect(() => {
     const observador = new ResizeObserver(() => {
+      // Al cerrarse el diálogo el contenedor queda en 0×0: ahí Leaflet ya no debe moverse.
+      const { clientWidth, clientHeight } = mapa.getContainer();
+      if (!clientWidth || !clientHeight) return;
       mapa.invalidateSize();
       encuadrar();
     });

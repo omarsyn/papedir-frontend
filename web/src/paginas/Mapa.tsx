@@ -23,7 +23,7 @@ function Encuadre({ puntos }: { puntos: Coordenadas[] }) {
       mapa.invalidateSize();
       if (!hecho.current && puntos.length && mapa.getSize().x > 100) {
         hecho.current = true;
-        mapa.fitBounds(latLngBounds(puntos.map((p) => [p.lat, p.lng])), { padding: [48, 48], maxZoom: 15 });
+        mapa.fitBounds(latLngBounds(puntos.map((p) => [p.lat, p.lng])), { padding: [48, 48], maxZoom: 15, animate: false });
       }
     });
     o.observe(mapa.getContainer());

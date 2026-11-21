@@ -134,7 +134,7 @@ export function Cuentas() {
         </select>
         <label className="buscador">
           <Search size={16} aria-hidden />
-          <input type="search" placeholder="Nombre, correo, teléfono o tienda" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} aria-label="Buscar cuentas" />
+          <input type="search" placeholder="Nombre, correo, teléfono o tienda" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} aria-label="Buscar cuentas" maxLength={60} />
         </label>
         <button className="boton boton-chico" onClick={exportar} title="Descargar esta lista en CSV (Excel)">
           <Download size={14} aria-hidden /> CSV

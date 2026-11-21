@@ -76,7 +76,7 @@ export function Repartidores() {
       <div className="barra-herramientas">
         <label className="buscador">
           <Search size={16} aria-hidden />
-          <input type="search" placeholder="Nombre, correo, teléfono o placa" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} aria-label="Buscar repartidores" />
+          <input type="search" placeholder="Nombre, correo, teléfono o placa" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} aria-label="Buscar repartidores" maxLength={60} />
         </label>
         <div className="filtros" role="tablist" aria-label="Conexión">
           {[

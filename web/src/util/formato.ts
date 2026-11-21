@@ -150,3 +150,13 @@ export const iniciales = (nombre?: string) =>
     .slice(0, 2)
     .map((p) => p[0]?.toUpperCase())
     .join('');
+
+const FECHA_ISO = /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?\b/g;
+
+/** Detalle de un evento con las fechas ISO convertidas a hora local legible. */
+export function detalleEvento(texto: string) {
+  return texto.replace(FECHA_ISO, (iso) => {
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? iso : d.toLocaleString('es-MX', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  });
+}

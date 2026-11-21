@@ -70,7 +70,7 @@ export function Bitacora() {
       <div className="barra-herramientas">
         <label className="buscador">
           <Search size={16} aria-hidden />
-          <input type="search" placeholder="Acción, por ejemplo baneó o canceló" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} aria-label="Buscar en la bitácora" />
+          <input type="search" placeholder="Acción, por ejemplo baneó o canceló" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} aria-label="Buscar en la bitácora" maxLength={60} />
         </label>
         <select
           className="selector"

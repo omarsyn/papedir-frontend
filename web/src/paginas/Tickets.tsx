@@ -530,7 +530,7 @@ function NuevoTicket({ abierto, onCerrar }: { abierto: boolean; onCerrar: () => 
             </span>
             <label className="buscador">
               <Search size={16} aria-hidden />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nombre, correo, teléfono o tienda" autoFocus />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nombre, correo, teléfono o tienda" autoFocus maxLength={60} />
             </label>
             <ul>
               {personas.data?.data
@@ -562,7 +562,7 @@ function NuevoTicket({ abierto, onCerrar }: { abierto: boolean; onCerrar: () => 
         </label>
         <label className="campo campo-angosto">
           <span>Folio del pedido (opcional)</span>
-          <input value={folio} onChange={(e) => setFolio(e.target.value)} placeholder="R-000123" />
+          <input value={folio} onChange={(e) => setFolio(e.target.value)} placeholder="R-000123" maxLength={60} />
         </label>
         {error && (
           <p className="error-formulario" role="alert">

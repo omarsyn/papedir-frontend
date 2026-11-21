@@ -31,7 +31,7 @@ export function Equipo() {
       cache.invalidateQueries({ queryKey: ['usuarios'] });
     },
     onError: (e) => {
-      if (e instanceof ErrorApi && e.detalles.length) setError(e.detalles.map((d) => d.mensaje).join('. '));
+      if (e instanceof ErrorApi && e.detalles.length) setError(e.message);
       else setError(e instanceof ErrorApi ? e.message : 'No se pudo crear la cuenta');
     },
   });
