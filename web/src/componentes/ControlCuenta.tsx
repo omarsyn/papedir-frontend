@@ -428,11 +428,11 @@ export function AjusteCartera({ usuarioId, nombre }: { usuarioId: string; nombre
           </fieldset>
           <label className="campo campo-angosto">
             <span>Monto</span>
-            <input type="number" min="0.01" step="0.01" value={monto} onChange={(e) => setMonto(e.target.value)} required />
+            <input type="number" min="0.01" max="100000" step="0.01" value={monto} onChange={(e) => setMonto(e.target.value)} required />
           </label>
           <label className="campo">
             <span>Motivo (lo ve en su cartera)</span>
-            <input value={motivo} onChange={(e) => setMotivo(e.target.value)} required maxLength={300} placeholder="Ej. Compensación por la demora del pedido" />
+            <input value={motivo} onChange={(e) => setMotivo(e.target.value)} required maxLength={500} placeholder="Ej. Compensación por la demora del pedido" />
           </label>
           {error && (
             <p className="error-formulario" role="alert">

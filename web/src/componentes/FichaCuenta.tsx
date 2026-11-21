@@ -4,7 +4,7 @@ import { FormEvent, useState } from 'react';
 import { Usuario } from '../api/cliente';
 import { api, datos, ErrorApi, Esquemas } from '../api/cliente';
 import { useSesion } from '../sesion/Sesion';
-import { ESTADOS_CUENTA, EVENTOS_CUENTA, fecha, PROVEEDORES, ROLES, soloDia } from '../util/formato';
+import { detalleEvento, ESTADOS_CUENTA, EVENTOS_CUENTA, fecha, PROVEEDORES, ROLES, soloDia } from '../util/formato';
 import { useAvisos } from './Avisos';
 import { Cargando, Chip, ErrorCarga } from './Basicos';
 import { CarteraCuenta } from './Cartera';
@@ -256,7 +256,7 @@ export function FichaCuenta({ id, onCerrar }: { id: string; onCerrar: () => void
                       <p>{EVENTOS_CUENTA[e.tipo ?? ''] ?? e.tipo}</p>
                       <p className="texto-secundario texto-chico">
                         {e.actorRol ? ROLES[e.actorRol] : 'Sistema'}
-                        {e.detalle && <>: {e.detalle}</>}
+                        {e.detalle && <>: {detalleEvento(e.detalle)}</>}
                       </p>
                     </div>
                   </li>
@@ -401,7 +401,7 @@ function AccionesAdmin({ u, onHecho, onEliminada }: { u: Usuario; onHecho: (text
           </label>
           <label className="campo">
             <span>Teléfono</span>
-            <input value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} inputMode="tel" pattern="[0-9]{10}" placeholder="10 dígitos" />
+            <input value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value.replace(/\D/g, '').slice(0, 10) })} inputMode="tel" pattern="[0-9]{10}" title="10 dígitos, lada incluida" placeholder="10 dígitos" />
           </label>
           <label className="campo">
             <span>Correo</span>

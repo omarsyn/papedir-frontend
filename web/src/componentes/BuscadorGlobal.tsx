@@ -90,7 +90,7 @@ export function BuscadorGlobal({ abierto, onCerrar }: { abierto: boolean; onCerr
           onChange={(e) => setTexto(e.target.value)}
           onKeyDown={teclas}
           placeholder="Folio, nombre, correo, teléfono o tienda"
-          aria-label="Qué buscas"
+          aria-label="Qué buscas" maxLength={60}
           role="combobox"
           aria-expanded={!!resultados.length}
           aria-controls="buscador-resultados"

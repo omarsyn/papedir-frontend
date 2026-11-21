@@ -149,7 +149,7 @@ export function FormularioTienda({ abierto, onCerrar, ficha, onGuardada }: Props
       } else avisar(ficha ? 'Cambios guardados' : `${f.nombre} creada`, 'exito');
       onGuardada(f);
     },
-    onError: (e) => setError(explicarError(e)),
+    onError: (e) => setError(e instanceof ErrorApi ? e.message : 'No se pudo guardar'),
   });
 
   const duenoListo = editando || (modoDueno === 'existente' ? !!duenoId : !!(dueno.nombre.trim() && dueno.email.trim() && dueno.telefono.length === 10 && dueno.password.length >= 8));
@@ -218,7 +218,7 @@ export function FormularioTienda({ abierto, onCerrar, ficha, onGuardada }: Props
                 <div className="selector-busqueda">
                   <label className="buscador">
                     <Search size={16} aria-hidden />
-                    <input value={textoDueno} onChange={(e) => setTextoDueno(e.target.value)} placeholder="Busca la cuenta de tienda por nombre, correo o teléfono" aria-label="Buscar dueño" autoFocus />
+                    <input value={textoDueno} onChange={(e) => setTextoDueno(e.target.value)} placeholder="Busca la cuenta de tienda por nombre, correo o teléfono" aria-label="Buscar dueño" maxLength={60} autoFocus />
                   </label>
                   <ul>
                     {candidatos.map((u) => (
@@ -358,45 +358,3 @@ export function FormularioTienda({ abierto, onCerrar, ficha, onGuardada }: Props
   );
 }
 
-const CAMPOS: Record<string, string> = {
-  nombre: 'Nombre de la tienda',
-  categoria: 'Categoría',
-  descripcion: 'Descripción',
-  telefono: 'Teléfono del negocio',
-  direccion: 'Dirección del local',
-  ubicacion: 'Ubicación',
-  tiempoPreparacionMin: 'Tiempo de preparación',
-  imagenUrl: 'Imagen',
-  duenoId: 'Dueño',
-  'dueno.nombre': 'Nombre del dueño',
-  'dueno.email': 'Correo del dueño',
-  'dueno.telefono': 'Teléfono del dueño',
-  'dueno.password': 'Contraseña del dueño',
-};
-
-/** Convierte un 400 de validación en un mensaje que diga qué campo corregir. */
-function explicarError(e: unknown): string {
-  if (!(e instanceof ErrorApi)) return 'No se pudo guardar';
-  if (e.codigo !== 'VALIDACION' || !e.detalles.length) return e.message;
-  const porCampo = new Map<string, string>();
-  for (const d of e.detalles) {
-    const campo = d.campo ?? '';
-    if (porCampo.has(campo)) continue;
-    const raiz = campo.startsWith('ubicacion') ? 'ubicacion' : campo;
-    const nombre = CAMPOS[raiz] ?? campo;
-    const m = d.mensaje ?? '';
-    const texto = /10 dígitos/.test(m)
-      ? 'debe tener 10 dígitos'
-      : /shorter|longer|max/i.test(m)
-        ? 'es demasiado largo'
-        : /must not be less|min/i.test(m)
-          ? 'es menor al mínimo'
-          : /must not be greater/i.test(m)
-            ? 'es mayor al máximo'
-            : /email/i.test(m)
-              ? 'no es un correo válido'
-              : m;
-    porCampo.set(campo, `${nombre}: ${texto}`);
-  }
-  return `Revisa estos datos. ${[...porCampo.values()].join('. ')}.`;
-}

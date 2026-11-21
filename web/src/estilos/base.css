@@ -107,6 +107,9 @@
 }
 body {
   margin: 0;
+  /* Textos largos sin espacios (motivos, notas, URLs) se parten en vez de salirse del panel.
+     break-word no cambia el ancho mínimo de las columnas de las tablas, a diferencia de anywhere. */
+  overflow-wrap: break-word;
 }
 h1,
 h2,
@@ -2427,6 +2430,7 @@ time {
   display: grid;
   gap: 2px;
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 .cartera-monto {
   flex: none;
@@ -2924,4 +2928,34 @@ time {
 .zona-soltar.arrastrando {
   border-color: var(--azul);
   background: color-mix(in srgb, var(--azul) 8%, transparent);
+}
+
+/* Fotos de producto (hasta 5) */
+.fotos-producto {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+}
+.foto-producto {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+.foto-producto-acciones {
+  display: flex;
+  gap: 2px;
+}
+.foto-producto-agregar {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  min-height: 64px;
+}
+
+/* Contenido escrito por personas en listas y fichas: nunca se sale del panel. */
+.datos dd,
+.lista-control li,
+.nota {
+  overflow-wrap: anywhere;
 }

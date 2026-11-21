@@ -88,7 +88,7 @@ export function Resenas() {
       <div className="barra-herramientas">
         <label className="buscador">
           <Search size={16} aria-hidden />
-          <input type="search" placeholder="Comentario, tienda o cliente" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} aria-label="Buscar reseñas" />
+          <input type="search" placeholder="Comentario, tienda o cliente" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} aria-label="Buscar reseñas" maxLength={60} />
         </label>
         <select className="selector" value={filtros.estrellas} onChange={(e) => cambiar({ estrellas: e.target.value })} aria-label="Estrellas">
           <option value="">Todas las estrellas</option>

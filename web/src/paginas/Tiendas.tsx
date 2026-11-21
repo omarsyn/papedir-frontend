@@ -246,7 +246,7 @@ export function Tiendas() {
                 placeholder="Tienda, dueño o correo"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                aria-label="Buscar tiendas"
+                aria-label="Buscar tiendas" maxLength={60}
               />
             </label>
             <select
@@ -1003,7 +1003,7 @@ function DialogoComision({
               type="number"
               min={0}
               max={50}
-              step="0.5"
+              step="0.01"
               value={valor}
               onChange={(e) => setValor(e.target.value)}
               required

@@ -133,7 +133,7 @@ export function NuevoPedido({ abierto, onCerrar, cliente: fijo }: { abierto: boo
             <div className="selector-busqueda">
               <label className="buscador">
                 <Search size={16} aria-hidden />
-                <input value={qCliente} onChange={(e) => setQCliente(e.target.value)} placeholder="Nombre, correo o teléfono del cliente" autoFocus />
+                <input value={qCliente} onChange={(e) => setQCliente(e.target.value)} placeholder="Nombre, correo o teléfono del cliente" maxLength={60} autoFocus />
               </label>
               <ul>
                 {clientes.data?.data?.map((u) => (
@@ -186,7 +186,7 @@ export function NuevoPedido({ abierto, onCerrar, cliente: fijo }: { abierto: boo
               <div className="selector-busqueda">
                 <label className="buscador">
                   <Search size={16} aria-hidden />
-                  <input value={qTienda} onChange={(e) => setQTienda(e.target.value)} placeholder="Busca una tienda abierta" />
+                  <input value={qTienda} onChange={(e) => setQTienda(e.target.value)} placeholder="Busca una tienda abierta" maxLength={60} />
                 </label>
                 <ul>
                   {tiendas.data?.data?.map((t) => (
@@ -277,7 +277,7 @@ export function NuevoPedido({ abierto, onCerrar, cliente: fijo }: { abierto: boo
               </label>
               <label className="campo campo-angosto">
                 <span>Propina</span>
-                <input type="number" min={0} max={1000} step="1" value={propina} onChange={(e) => setPropina(e.target.value)} />
+                <input type="number" min={0} max={500} step="1" value={propina} onChange={(e) => setPropina(e.target.value)} />
               </label>
             </div>
             {cotizacion.isError ? (
