@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ImagePlus, RefreshCw, Trash2 } from 'lucide-react';
+import { ImagePlus, RefreshCw, Search, Trash2 } from 'lucide-react';
+import { ESTADOS_CUENTA } from '../util/formato';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { api, Coordenadas, datos, ErrorApi, Esquemas } from '../api/cliente';
 import { useAvisos } from './Avisos';
@@ -52,8 +53,10 @@ export function FormularioTienda({ abierto, onCerrar, ficha, onGuardada }: Props
 
   const [modoDueno, setModoDueno] = useState<'nuevo' | 'existente'>('nuevo');
   const [dueno, setDueno] = useState({ nombre: '', email: '', telefono: '', password: '' });
-  const [duenoId, setDuenoId] = useState('');
+  const [elegido, setElegido] = useState<{ id: string; nombre: string; email: string } | null>(null);
+  const duenoId = elegido?.id ?? '';
   const [textoDueno, setTextoDueno] = useState('');
+  const [arrastrando, setArrastrando] = useState(false);
   const [t, setT] = useState({ nombre: '', categoria: 'comida' as Categoria, descripcion: '', telefono: '', direccion: '', tiempoPreparacionMin: 20, imagenUrl: '', abierta: false });
   const [punto, setPunto] = useState<Coordenadas | null>(null);
   const [error, setError] = useState('');
@@ -76,7 +79,7 @@ export function FormularioTienda({ abierto, onCerrar, ficha, onGuardada }: Props
     } else {
       setModoDueno('nuevo');
       setDueno({ nombre: '', email: '', telefono: '', password: passwordTemporal() });
-      setDuenoId('');
+      setElegido(null);
       setTextoDueno('');
       setT({ nombre: '', categoria: 'comida', descripcion: '', telefono: '', direccion: '', tiempoPreparacionMin: 20, imagenUrl: '', abierta: false });
       setPunto(null);
@@ -91,9 +94,18 @@ export function FormularioTienda({ abierto, onCerrar, ficha, onGuardada }: Props
   }, [textoDueno]);
   const duenos = useQuery({
     queryKey: ['duenos', qDueno],
-    queryFn: () => datos(api.GET('/soporte/usuarios', { params: { query: { rol: 'tienda', estado: 'activo', q: qDueno || undefined, limit: 8 } } })),
-    enabled: abierto && !editando && modoDueno === 'existente',
+    // Sin filtro de estado: una cuenta pendiente de aprobar también puede recibir su tienda.
+    queryFn: () => datos(api.GET('/soporte/usuarios', { params: { query: { rol: 'tienda', q: qDueno || undefined, limit: 20 } } })),
+    enabled: abierto && !editando && modoDueno === 'existente' && !elegido,
   });
+  const candidatos = (duenos.data?.data ?? []).filter((u) => u.estado !== 'baneado' && u.estado !== 'eliminado').slice(0, 8);
+
+  const subir = (f: File | undefined) => {
+    if (!f) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(f.type)) return avisar('Usa una imagen JPG, PNG o WebP', 'error');
+    if (f.size > 5 * 1024 * 1024) return avisar('La imagen pesa más de 5 MB', 'error');
+    foto.mutate(f);
+  };
 
   const foto = useMutation({
     mutationFn: async (f: File) => {
@@ -194,26 +206,64 @@ export function FormularioTienda({ abierto, onCerrar, ficha, onGuardada }: Props
                 <p className="texto-secundario texto-chico">La cuenta nace activa y con el correo verificado. Pídele que cambie la contraseña al entrar.</p>
               </>
             ) : (
-              <label className="campo">
-                <span>Busca la cuenta de tienda</span>
-                <input value={textoDueno} onChange={(e) => setTextoDueno(e.target.value)} placeholder="Nombre, correo o teléfono" />
-                <select className="selector" size={Math.min(5, Math.max(2, duenos.data?.data?.length ?? 2))} value={duenoId} onChange={(e) => setDuenoId(e.target.value)} aria-label="Dueño">
-                  {duenos.data?.data?.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.nombre} · {u.email}
-                    </option>
-                  ))}
-                </select>
-                {duenos.data && !duenos.data.data?.length && <small className="texto-secundario">No hay cuentas de tienda activas con ese dato.</small>}
-              </label>
+              elegido ? (
+                <p>
+                  <strong>{elegido.nombre}</strong> <span className="texto-secundario texto-chico">{elegido.email}</span>{' '}
+                  <button type="button" className="enlace" onClick={() => setElegido(null)}>
+                    Cambiar
+                  </button>
+                </p>
+              ) : (
+                <div className="selector-busqueda">
+                  <label className="buscador">
+                    <Search size={16} aria-hidden />
+                    <input value={textoDueno} onChange={(e) => setTextoDueno(e.target.value)} placeholder="Busca la cuenta de tienda por nombre, correo o teléfono" aria-label="Buscar dueño" autoFocus />
+                  </label>
+                  <ul>
+                    {candidatos.map((u) => (
+                      <li key={u.id}>
+                        <button type="button" onClick={() => setElegido({ id: u.id!, nombre: u.nombre!, email: u.email! })}>
+                          <strong>{u.nombre}</strong>{' '}
+                          <span className="texto-secundario texto-chico">
+                            {u.email} · {u.telefono}
+                            {u.estado !== 'activo' ? ` · ${ESTADOS_CUENTA[u.estado!] ?? u.estado}` : ''}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  {duenos.isFetching && !candidatos.length && <small className="texto-secundario">Buscando…</small>}
+                  {duenos.isError && <small className="texto-error">{duenos.error instanceof ErrorApi ? duenos.error.message : 'No se pudo buscar'}</small>}
+                  {duenos.data && !duenos.isFetching && !candidatos.length && (
+                    <small className="texto-secundario">No hay cuentas de tienda con ese dato. Si el dueño no tiene cuenta, usa "Crear su cuenta".</small>
+                  )}
+                </div>
+              )
             )}
           </fieldset>
         )}
 
         <fieldset className="formulario grupo-campos">
           <legend>Negocio</legend>
-          <div className="tienda-imagen">
+          <div
+            className={`tienda-imagen zona-soltar${arrastrando ? ' arrastrando' : ''}`}
+            onDragOver={(e) => {
+              if (!e.dataTransfer.types.includes('Files')) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'copy';
+              setArrastrando(true);
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setArrastrando(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setArrastrando(false);
+              if (!foto.isPending) subir(e.dataTransfer.files?.[0]);
+            }}
+          >
             <div className="miniatura tienda-imagen-vista">{t.imagenUrl ? <img src={t.imagenUrl} alt="" /> : <ImagePlus size={22} aria-hidden />}</div>
+            <span className="texto-secundario texto-chico zona-soltar-texto">{arrastrando ? 'Suelta la imagen aquí' : 'Arrastra una imagen aquí o'}</span>
             <div className="acciones-encabezado">
               <button type="button" className="boton boton-chico" onClick={() => archivo.current?.click()} disabled={foto.isPending}>
                 {foto.isPending ? 'Subiendo…' : t.imagenUrl ? 'Cambiar imagen' : 'Subir imagen'}
@@ -232,8 +282,7 @@ export function FormularioTienda({ abierto, onCerrar, ficha, onGuardada }: Props
               onChange={(e) => {
                 const f = e.target.files?.[0];
                 e.target.value = '';
-                if (f && f.size > 5 * 1024 * 1024) return avisar('La imagen pesa más de 5 MB', 'error');
-                if (f) foto.mutate(f);
+                subir(f);
               }}
             />
           </div>

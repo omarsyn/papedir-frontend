@@ -2912,3 +2912,16 @@ time {
     grid-row: 2;
   }
 }
+
+/* Imagen del negocio: también se puede soltar un archivo */
+.zona-soltar {
+  flex-wrap: wrap;
+  padding: 10px;
+  border: 1.5px dashed var(--linea-fuerte);
+  border-radius: var(--radio);
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.zona-soltar.arrastrando {
+  border-color: var(--azul);
+  background: color-mix(in srgb, var(--azul) 8%, transparent);
+}
