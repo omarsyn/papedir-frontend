@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/formato.dart';
+import '../../../core/catalogos_provider.dart';
 import '../providers/registro_provider.dart';
 import 'mapa_selector_screen.dart';
 
@@ -48,6 +48,8 @@ class RegistroScreen extends ConsumerWidget {
     final notifier = ref.read(registroProvider.notifier);
     final tema = Theme.of(context);
     final u = estado.ubicacion;
+    final categorias =
+        ref.watch(categoriasProvider).valueOrNull ?? categoriasBase;
     return Scaffold(
       appBar: AppBar(title: const Text('Registrar mi negocio')),
       body: SafeArea(
@@ -102,8 +104,9 @@ class RegistroScreen extends ConsumerWidget {
                     labelText: 'Contraseña',
                     errorText: estado.detalles['password'],
                   ),
-                  validator: (v) =>
-                      (v == null || v.length < 8) ? 'Mínimo 8 caracteres' : null,
+                  validator: (v) => (v == null || v.length < 8)
+                      ? 'Mínimo 8 caracteres'
+                      : null,
                 ),
                 const SizedBox(height: 24),
                 Text('Tu negocio', style: tema.textTheme.titleMedium),
@@ -124,11 +127,13 @@ class RegistroScreen extends ConsumerWidget {
                 Wrap(
                   spacing: 8,
                   children: [
-                    for (final cat in categoriasTienda)
+                    // Categorías del catálogo que edita el admin (GET /catalogos).
+                    for (final cat in categorias)
                       ChoiceChip(
-                        label: Text(etiquetaCategoria(cat)),
-                        selected: estado.categoria == cat,
-                        onSelected: (_) => notifier.cambiarCategoria(cat),
+                        label: Text(cat.nombre),
+                        selected: estado.categoria == cat.codigo,
+                        onSelected: (_) =>
+                            notifier.cambiarCategoria(cat.codigo),
                       ),
                   ],
                 ),

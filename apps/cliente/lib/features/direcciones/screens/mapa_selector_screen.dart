@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../core/models.dart';
+import '../../../core/providers.dart';
 import '../../../core/widgets/mensajes.dart';
 import '../data/geocodificador.dart';
 
@@ -78,7 +79,11 @@ class MapaSelectorNotifier
   Future<UbicacionElegida> confirmar() async {
     state = const MapaSelectorState(confirmando: true);
     final c = _centro;
-    final texto = await direccionDe(c.latitude, c.longitude);
+    final texto = await direccionDe(
+      ref.read(dioProvider),
+      c.latitude,
+      c.longitude,
+    );
     state = const MapaSelectorState();
     return UbicacionElegida(Coordenadas(c.latitude, c.longitude), texto);
   }
@@ -102,7 +107,9 @@ class MapaSelectorScreen extends ConsumerWidget {
   }
 
   Future<void> _confirmar(BuildContext context, WidgetRef ref) async {
-    final r = await ref.read(mapaSelectorProvider(inicial).notifier).confirmar();
+    final r = await ref
+        .read(mapaSelectorProvider(inicial).notifier)
+        .confirmar();
     if (context.mounted) Navigator.of(context).pop(r);
   }
 

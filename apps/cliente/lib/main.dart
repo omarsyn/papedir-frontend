@@ -41,7 +41,8 @@ const _bienvenida = [
   PaginaOnboarding(
     icono: Icons.map_outlined,
     titulo: 'Marca tu dirección',
-    texto: 'Elige el punto exacto en el mapa para que el repartidor llegue sin perderse.',
+    texto:
+        'Elige el punto exacto en el mapa para que el repartidor llegue sin perderse.',
   ),
   PaginaOnboarding(
     icono: Icons.delivery_dining,

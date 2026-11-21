@@ -43,8 +43,7 @@ class OnboardingNotifier extends Notifier<bool> {
   static const _clave = 'onboarding_visto';
 
   @override
-  bool build() =>
-      ref.watch(sharedPreferencesProvider).getBool(_clave) ?? false;
+  bool build() => ref.watch(sharedPreferencesProvider).getBool(_clave) ?? false;
 
   Future<void> terminar() async {
     state = true;

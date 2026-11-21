@@ -47,7 +47,8 @@ const _bienvenida = [
   PaginaOnboarding(
     icono: Icons.notifications_active_outlined,
     titulo: 'Atiende a tiempo',
-    texto: 'Acepta cada pedido en menos de 5 minutos y márcalo listo para el repartidor.',
+    texto:
+        'Acepta cada pedido en menos de 5 minutos y márcalo listo para el repartidor.',
   ),
 ];
 

@@ -90,7 +90,11 @@ class MenuScreen extends ConsumerWidget {
         inicial: cat.nombre,
       );
       if (nombre == null || !context.mounted) return;
-      await _ejecutar(context, ref, () => repo.renombrarCategoria(cat.id, nombre));
+      await _ejecutar(
+        context,
+        ref,
+        () => repo.renombrarCategoria(cat.id, nombre),
+      );
     } else {
       // La API solo deja borrar categorías vacías (409 si tiene productos).
       await _ejecutar(context, ref, () => repo.eliminarCategoria(cat.id));
@@ -168,8 +172,9 @@ class MenuScreen extends ConsumerWidget {
           }
           final sinCategoria = m.sinCategoria;
           return RefreshIndicator(
-            onRefresh: () =>
-                recargarSilencioso(() => ref.refresh(menuTiendaProvider.future)),
+            onRefresh: () => recargarSilencioso(
+              () => ref.refresh(menuTiendaProvider.future),
+            ),
             child: ListView(
               padding: const EdgeInsets.only(bottom: 96),
               children: [
@@ -196,8 +201,7 @@ class MenuScreen extends ConsumerWidget {
                   for (final p in m.productosDe(cat.id))
                     _FilaProducto(
                       producto: p,
-                      onTap: () =>
-                          _abrirProducto(context, ref, m, producto: p),
+                      onTap: () => _abrirProducto(context, ref, m, producto: p),
                       onDisponible: (v) => _ejecutar(
                         context,
                         ref,
@@ -227,8 +231,7 @@ class MenuScreen extends ConsumerWidget {
                   for (final p in sinCategoria)
                     _FilaProducto(
                       producto: p,
-                      onTap: () =>
-                          _abrirProducto(context, ref, m, producto: p),
+                      onTap: () => _abrirProducto(context, ref, m, producto: p),
                       onDisponible: (v) => _ejecutar(
                         context,
                         ref,

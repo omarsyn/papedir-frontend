@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/preferencias.dart';
 import '../carrito/providers/carrito_provider.dart';
+import '../cartera/cartera_screen.dart';
 import '../direcciones/providers/direccion_activa_provider.dart';
 import '../direcciones/screens/direcciones_screen.dart';
 
@@ -46,6 +47,17 @@ class CuentaScreen extends ConsumerWidget {
             title: const Text('Tema'),
             subtitle: Text(etiquetaTema(ref.watch(temaProvider))),
             onTap: () => elegirTema(context, ref),
+          ),
+          ListTile(
+            leading: const Icon(Icons.account_balance_wallet_outlined),
+            title: const Text('Mi cartera'),
+            subtitle: const Text('Saldo con PaPedir y movimientos'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const CarteraScreen()),
+              );
+            },
           ),
           ListTile(
             leading: const Icon(Icons.support_agent),

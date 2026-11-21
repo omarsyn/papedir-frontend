@@ -222,7 +222,9 @@ class _TarjetaPedido extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Expanded(child: Text(p.folio, style: tema.textTheme.titleMedium)),
+                Expanded(
+                  child: Text(p.folio, style: tema.textTheme.titleMedium),
+                ),
                 Text(hora(p.creadoEn)),
               ],
             ),

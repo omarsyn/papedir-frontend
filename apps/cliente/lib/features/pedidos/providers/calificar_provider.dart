@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/pedidos_repository.dart';
 
 /// Comentario de la calificación (se libera solo).
-final comentarioControllerProvider =
-    Provider.autoDispose.family<TextEditingController, String>((ref, _) {
+final comentarioControllerProvider = Provider.autoDispose
+    .family<TextEditingController, String>((ref, _) {
       final c = TextEditingController();
       ref.onDispose(c.dispose);
       return c;
@@ -31,7 +31,8 @@ class CalificarState {
 }
 
 /// Calificación de un pedido (el argumento es el id del pedido).
-class CalificarNotifier extends AutoDisposeFamilyNotifier<CalificarState, String> {
+class CalificarNotifier
+    extends AutoDisposeFamilyNotifier<CalificarState, String> {
   @override
   CalificarState build(String arg) => const CalificarState();
 

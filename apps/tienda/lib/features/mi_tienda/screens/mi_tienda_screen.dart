@@ -2,11 +2,13 @@ import 'package:core/core.dart' show TicketsListScreen, authProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/catalogos_provider.dart';
 import '../../../core/formato.dart';
 import '../../../core/models.dart';
 import '../../../core/preferencias.dart';
 import '../../../core/widgets/mensajes.dart';
 import '../../../core/widgets/vista_async.dart';
+import '../../cartera/cartera_screen.dart';
 import '../../home/navegacion_provider.dart';
 import '../providers/mi_tienda_provider.dart';
 
@@ -76,6 +78,8 @@ class MiTiendaScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tienda = ref.watch(miTiendaProvider);
     final usuario = ref.watch(authProvider).usuario;
+    final categorias =
+        ref.watch(categoriasProvider).valueOrNull ?? categoriasBase;
     return Scaffold(
       appBar: AppBar(title: const Text('Mi tienda')),
       body: VistaAsync<MiTienda>(
@@ -93,7 +97,7 @@ class MiTiendaScreen extends ConsumerWidget {
                   leading: const CircleAvatar(child: Icon(Icons.storefront)),
                   title: Text(t.nombre, style: tema.textTheme.titleMedium),
                   subtitle: Text(
-                    '${etiquetaCategoria(t.categoria)}\n${t.direccion}',
+                    '${nombreCategoria(categorias, t.categoria)}\n${t.direccion}',
                   ),
                   isThreeLine: true,
                 ),
@@ -164,6 +168,19 @@ class MiTiendaScreen extends ConsumerWidget {
                   title: const Text('Tema'),
                   subtitle: Text(etiquetaTema(ref.watch(temaProvider))),
                   onTap: () => elegirTema(context, ref),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.account_balance_wallet_outlined),
+                  title: const Text('Mi cartera'),
+                  subtitle: const Text('Saldo con PaPedir y movimientos'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const CarteraScreen(),
+                      ),
+                    );
+                  },
                 ),
                 ListTile(
                   leading: const Icon(Icons.support_agent),

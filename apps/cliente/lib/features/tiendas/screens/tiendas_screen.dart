@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api_error.dart';
+import '../../../core/catalogos_provider.dart';
 import '../../../core/formato.dart';
 import '../../../core/models.dart';
 import '../../../core/widgets/vista_async.dart';
@@ -12,8 +13,6 @@ import '../../direcciones/screens/direccion_form_screen.dart';
 import '../../direcciones/screens/direcciones_screen.dart';
 import '../providers/tiendas_provider.dart';
 import 'menu_screen.dart';
-
-const _categorias = ['comida', 'abarrotes', 'farmacia', 'materiales', 'otros'];
 
 class TiendasScreen extends ConsumerWidget {
   const TiendasScreen({super.key});
@@ -124,6 +123,8 @@ class _ListaTiendas extends ConsumerWidget {
     final categoria = ref.watch(categoriaProvider);
     final controller = ref.watch(busquedaControllerProvider);
     final tiendas = ref.watch(tiendasProvider);
+    final categorias =
+        ref.watch(categoriasProvider).valueOrNull ?? categoriasBase;
 
     return Column(
       children: [
@@ -165,14 +166,15 @@ class _ListaTiendas extends ConsumerWidget {
                   },
                 ),
               ),
-              for (final c in _categorias)
+              // Categorías del catálogo que edita el admin (GET /catalogos).
+              for (final c in categorias)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: ChoiceChip(
-                    label: Text(etiquetaCategoria(c)),
-                    selected: categoria == c,
+                    label: Text(c.nombre),
+                    selected: categoria == c.codigo,
                     onSelected: (_) {
-                      ref.read(categoriaProvider.notifier).cambiar(c);
+                      ref.read(categoriaProvider.notifier).cambiar(c.codigo);
                     },
                   ),
                 ),

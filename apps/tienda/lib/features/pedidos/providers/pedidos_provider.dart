@@ -37,6 +37,5 @@ final motivosRechazoProvider = FutureProvider.autoDispose<List<Motivo>>((
 
 /// Hora actual cada segundo, para el contador de 5 minutos.
 final relojProvider = StreamProvider.autoDispose<DateTime>(
-  (ref) =>
-      Stream.periodic(const Duration(seconds: 1), (_) => DateTime.now()),
+  (ref) => Stream.periodic(const Duration(seconds: 1), (_) => DateTime.now()),
 );

@@ -71,25 +71,26 @@ class MenuRepository {
   });
 
   /// Sube una foto (JPG, PNG o WebP, máx. 5 MB) y devuelve su URL pública.
-  Future<String> subirImagen(String ruta, String nombre) =>
-      conApiError(() async {
-        final ext = nombre.toLowerCase().split('.').last;
-        final subtipo = ext == 'png'
-            ? 'png'
-            : ext == 'webp'
-            ? 'webp'
-            : 'jpeg';
-        final datos = FormData.fromMap({
-          'tipo': 'producto',
-          'archivo': await MultipartFile.fromFile(
-            ruta,
-            filename: nombre,
-            contentType: DioMediaType('image', subtipo),
-          ),
-        });
-        final r = await _dio.post<Map<String, dynamic>>('/uploads', data: datos);
-        return '${r.data!['url']}';
+  Future<String> subirImagen(String ruta, String nombre) => conApiError(
+    () async {
+      final ext = nombre.toLowerCase().split('.').last;
+      final subtipo = ext == 'png'
+          ? 'png'
+          : ext == 'webp'
+          ? 'webp'
+          : 'jpeg';
+      final datos = FormData.fromMap({
+        'tipo': 'producto',
+        'archivo': await MultipartFile.fromFile(
+          ruta,
+          filename: nombre,
+          contentType: DioMediaType('image', subtipo),
+        ),
       });
+      final r = await _dio.post<Map<String, dynamic>>('/uploads', data: datos);
+      return '${r.data!['url']}';
+    },
+  );
 }
 
 final menuRepositoryProvider = Provider<MenuRepository>(

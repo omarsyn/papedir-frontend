@@ -78,8 +78,9 @@ class RegisterScreen extends ConsumerWidget {
                     labelText: 'Contraseña',
                     errorText: estado.detalles['password'],
                   ),
-                  validator: (v) =>
-                      (v == null || v.length < 8) ? 'Mínimo 8 caracteres' : null,
+                  validator: (v) => (v == null || v.length < 8)
+                      ? 'Mínimo 8 caracteres'
+                      : null,
                 ),
                 if (estado.error != null) ...[
                   const SizedBox(height: 12),

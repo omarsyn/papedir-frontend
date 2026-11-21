@@ -67,9 +67,7 @@ class OnboardingScreen extends ConsumerWidget {
                 Expanded(
                   child: PageView(
                     controller: controller,
-                    onPageChanged: ref
-                        .read(_paginaActualProvider.notifier)
-                        .ir,
+                    onPageChanged: ref.read(_paginaActualProvider.notifier).ir,
                     children: [
                       for (final p in paginas)
                         Padding(
