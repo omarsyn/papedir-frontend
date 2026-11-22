@@ -48,15 +48,25 @@ class _ViajeActivoScreenState extends ConsumerState<ViajeActivoScreen> {
     return markers;
   }
 
-  Set<Polyline> _construirPolilinea(Viaje viaje, LatLng? origenDriver) {
-    final puntos = <LatLng>[
-      if (origenDriver != null) origenDriver,
-      ...viaje.paradas
-          .where((p) => !p.completada)
-          .map((p) => LatLng(p.ubicacion.lat, p.ubicacion.lng)),
-    ];
+  /// Ruta por calles que manda el backend. Si no llegó o es la de respaldo
+  /// (línea recta), se dibuja punteada para que se note que es aproximada.
+  Set<Polyline> _construirPolilinea(
+    Viaje viaje,
+    LatLng? origenDriver,
+    List<LatLng> ruta,
+    bool porCalles,
+  ) {
+    final puntos = ruta.length >= 2
+        ? ruta
+        : <LatLng>[
+            if (origenDriver != null) origenDriver,
+            ...viaje.paradas
+                .where((p) => !p.completada)
+                .map((p) => LatLng(p.ubicacion.lat, p.ubicacion.lng)),
+          ];
 
     if (puntos.length < 2) return {};
+    final aproximada = !(porCalles && ruta.length >= 2);
 
     return {
       Polyline(
@@ -64,6 +74,9 @@ class _ViajeActivoScreenState extends ConsumerState<ViajeActivoScreen> {
         points: puntos,
         color: const Color(0xFF1565C0),
         width: 5,
+        patterns: aproximada
+            ? [PatternItem.dash(20), PatternItem.gap(12)]
+            : const <PatternItem>[],
       ),
     };
   }
@@ -245,17 +258,46 @@ class _ViajeActivoScreenState extends ConsumerState<ViajeActivoScreen> {
           // Mapa superior con marcadores y polilínea de paradas
           Expanded(
             flex: 5,
-            child: GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: centroMapa,
-                zoom: 15,
-              ),
-              myLocationEnabled: true,
-              myLocationButtonEnabled: true,
-              zoomControlsEnabled: false,
-              markers: _construirMarcadores(viaje),
-              polylines: _construirPolilinea(viaje, driverLatLng),
-              onMapCreated: (c) => _mapController = c,
+            child: Stack(
+              children: [
+                GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: centroMapa,
+                    zoom: 15,
+                  ),
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: true,
+                  zoomControlsEnabled: false,
+                  markers: _construirMarcadores(viaje),
+                  polylines: _construirPolilinea(
+                    viaje,
+                    driverLatLng,
+                    estado.rutaPuntos,
+                    estado.rutaPorCalles,
+                  ),
+                  onMapCreated: (c) => _mapController = c,
+                ),
+                if (!estado.rutaPorCalles)
+                  Positioned(
+                    left: 12,
+                    bottom: 12,
+                    child: Material(
+                      color: Theme.of(context).colorScheme.surface,
+                      elevation: 2,
+                      borderRadius: BorderRadius.circular(16),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        child: Text(
+                          'Ruta aproximada: usa "Cómo llegar"',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
 
