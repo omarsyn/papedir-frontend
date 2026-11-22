@@ -29,3 +29,4 @@ export 'api/cartera_repository.dart';
 // Push & Realtime
 export 'push/fcm_service.dart';
 export 'realtime/socket_service.dart';
+export 'push/local_notifications_service.dart';

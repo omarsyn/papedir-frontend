@@ -93,6 +93,48 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Paso 1: Solicita un código de 6 dígitos al correo (POST /auth/recuperar).
+  Future<void> solicitarRecuperacion({required String email}) async {
+    try {
+      await _dio.post(
+        '/auth/recuperar',
+        data: {'email': email.trim().toLowerCase()},
+      );
+    } on DioException catch (e) {
+      final apiErr = ApiException.fromDioException(e);
+      if (apiErr.error == 'DEMASIADAS_PETICIONES') {
+        throw 'Has solicitado demasiados códigos. Espera una hora antes de intentar de nuevo.';
+      }
+      throw apiErr.message;
+    }
+  }
+
+  /// Paso 2: Restablece la contraseña con el código recibido (POST /auth/restablecer).
+  Future<void> restablecerPassword({
+    required String email,
+    required String codigo,
+    required String password,
+  }) async {
+    try {
+      await _dio.post(
+        '/auth/restablecer',
+        data: {
+          'email': email.trim().toLowerCase(),
+          'codigo': codigo.trim(),
+          'password': password,
+        },
+      );
+    } on DioException catch (e) {
+      final apiErr = ApiException.fromDioException(e);
+      if (apiErr.error == 'CODIGO_INVALIDO') {
+        throw apiErr.message.isNotEmpty
+            ? apiErr.message
+            : 'El código es incorrecto, ya expiró o superó los 5 intentos.';
+      }
+      throw apiErr.message;
+    }
+  }
+
   Future<void> guardarSesionDesdeRespuesta(Map<String, dynamic> data) async {
     final auth = AuthResponse.fromJson(data);
     await _tokenStorage.saveTokens(

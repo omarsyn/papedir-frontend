@@ -10,7 +10,7 @@ TiendaResumen _$TiendaResumenFromJson(Map<String, dynamic> json) =>
     TiendaResumen(
       id: json['id'] as String,
       nombre: json['nombre'] as String,
-      telefono: json['telefono'] as String,
+      telefono: json['telefono'] as String?,
       direccion: json['direccion'] as String,
       ubicacion: Coordenadas.fromJson(
         json['ubicacion'] as Map<String, dynamic>,
@@ -28,7 +28,7 @@ Map<String, dynamic> _$TiendaResumenToJson(TiendaResumen instance) =>
 
 Destino _$DestinoFromJson(Map<String, dynamic> json) => Destino(
   nombre: json['nombre'] as String,
-  telefono: json['telefono'] as String,
+  telefono: json['telefono'] as String?,
   direccion: json['direccion'] as String,
   referencias: json['referencias'] as String?,
   ubicacion: Coordenadas.fromJson(json['ubicacion'] as Map<String, dynamic>),
@@ -73,6 +73,7 @@ Pedido _$PedidoFromJson(Map<String, dynamic> json) => Pedido(
       .toList(),
   subtotal: (json['subtotal'] as num).toDouble(),
   costoEnvio: (json['costoEnvio'] as num).toDouble(),
+  propina: (json['propina'] as num?)?.toDouble() ?? 0.0,
   total: (json['total'] as num).toDouble(),
   distanciaKm: (json['distanciaKm'] as num).toDouble(),
   metodoPago: json['metodoPago'] as String,
@@ -96,6 +97,7 @@ Map<String, dynamic> _$PedidoToJson(Pedido instance) => <String, dynamic>{
   'items': instance.items,
   'subtotal': instance.subtotal,
   'costoEnvio': instance.costoEnvio,
+  'propina': instance.propina,
   'total': instance.total,
   'distanciaKm': instance.distanciaKm,
   'metodoPago': instance.metodoPago,

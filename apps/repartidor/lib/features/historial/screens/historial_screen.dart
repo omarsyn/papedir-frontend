@@ -124,10 +124,17 @@ class _HistorialScreenState extends ConsumerState<HistorialScreen> {
                 etiqueta: 'Distancia recorrida',
                 textoValor: '${pedido.distanciaKm.toStringAsFixed(1)} km',
               ),
+              if (pedido.propina > 0) ...[
+                const SizedBox(height: 4),
+                _FilaMonto(
+                  etiqueta: 'Propina del cliente',
+                  monto: pedido.propina,
+                ),
+              ],
               const SizedBox(height: 6),
               _FilaMonto(
                 etiqueta: 'Tu ganancia de envío',
-                monto: pedido.costoEnvio,
+                monto: pedido.costoEnvio + pedido.propina,
                 destacado: true,
               ),
             ],
@@ -141,6 +148,7 @@ class _HistorialScreenState extends ConsumerState<HistorialScreen> {
   Widget build(BuildContext context) {
     final estado = ref.watch(historialProvider);
     final lista = estado.pedidosFiltrados;
+    final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -148,10 +156,9 @@ class _HistorialScreenState extends ConsumerState<HistorialScreen> {
       ),
       body: Column(
         children: [
-          // Resumen de entregas y ganancias
           Container(
             width: double.infinity,
-            color: Colors.blue.shade50,
+            color: colors.primaryContainer,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
@@ -161,13 +168,16 @@ class _HistorialScreenState extends ConsumerState<HistorialScreen> {
                     children: [
                       Text(
                         'Entregas completadas',
-                        style: Theme.of(context).textTheme.bodySmall,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: colors.onPrimaryContainer,
+                            ),
                       ),
                       Text(
                         '${estado.totalEntregados}',
                         style:
                             Theme.of(context).textTheme.headlineSmall?.copyWith(
                                   fontWeight: FontWeight.bold,
+                                  color: colors.onPrimaryContainer,
                                 ),
                       ),
                     ],
@@ -178,15 +188,17 @@ class _HistorialScreenState extends ConsumerState<HistorialScreen> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        'Ganancias registradas',
-                        style: Theme.of(context).textTheme.bodySmall,
+                        'Ganancia neta acumulada',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: colors.onPrimaryContainer,
+                            ),
                       ),
                       Text(
                         '\$${estado.gananciasAcumuladas.toStringAsFixed(2)}',
                         style:
                             Theme.of(context).textTheme.headlineSmall?.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.green.shade800,
+                                  color: Colors.green.shade400,
                                 ),
                       ),
                     ],
@@ -195,8 +207,6 @@ class _HistorialScreenState extends ConsumerState<HistorialScreen> {
               ],
             ),
           ),
-
-          // Filtros rápidos
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
@@ -227,8 +237,6 @@ class _HistorialScreenState extends ConsumerState<HistorialScreen> {
               ],
             ),
           ),
-
-          // Contenido principal
           Expanded(
             child: _construirCuerpo(estado, lista),
           ),
@@ -294,6 +302,8 @@ class _HistorialScreenState extends ConsumerState<HistorialScreen> {
           }
 
           final pedido = lista[index];
+          final gananciaPedido = pedido.costoEnvio + pedido.propina;
+
           return Card(
             child: InkWell(
               borderRadius: BorderRadius.circular(12),
@@ -313,12 +323,12 @@ class _HistorialScreenState extends ConsumerState<HistorialScreen> {
                         _BadgeEstado(estado: pedido.estado),
                         const Spacer(),
                         Text(
-                          '+\$${pedido.costoEnvio.toStringAsFixed(2)}',
+                          '+\$${gananciaPedido.toStringAsFixed(2)}',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
                             color: pedido.estado == EstadoPedido.entregado
-                                ? Colors.green.shade700
+                                ? Colors.green.shade400
                                 : Colors.grey,
                           ),
                         ),
@@ -424,7 +434,7 @@ class _FilaMonto extends StatelessWidget {
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: destacado ? 16 : 14,
-            color: destacado ? Colors.green.shade800 : null,
+            color: destacado ? Colors.green.shade400 : null,
           ),
         ),
       ],

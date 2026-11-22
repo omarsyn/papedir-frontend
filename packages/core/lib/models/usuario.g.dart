@@ -11,17 +11,18 @@ Usuario _$UsuarioFromJson(Map<String, dynamic> json) => Usuario(
   nombre: json['nombre'] as String,
   email: json['email'] as String,
   telefono: json['telefono'] as String?,
+  calificacion: (json['calificacion'] as num?)?.toDouble(),
   rol: $enumDecode(_$RolEnumMap, json['rol']),
   estado: $enumDecode(_$EstadoCuentaEnumMap, json['estado']),
   creadoEn: DateTime.parse(json['creadoEn'] as String),
 );
 
-// ignore: unused_element
 Map<String, dynamic> _$UsuarioToJson(Usuario instance) => <String, dynamic>{
   'id': instance.id,
   'nombre': instance.nombre,
   'email': instance.email,
   'telefono': instance.telefono,
+  'calificacion': instance.calificacion,
   'rol': _$RolEnumMap[instance.rol]!,
   'estado': _$EstadoCuentaEnumMap[instance.estado]!,
   'creadoEn': instance.creadoEn.toIso8601String(),

@@ -9,9 +9,11 @@ class FcmService {
   final Dio _dio;
   final FirebaseMessaging _messaging;
   StreamSubscription<String>? _tokenRefreshSub;
+  StreamSubscription<RemoteMessage>? _foregroundSub;
+  StreamSubscription<RemoteMessage>? _openedAppSub;
 
   FcmService(this._dio, [FirebaseMessaging? messaging])
-    : _messaging = messaging ?? FirebaseMessaging.instance;
+      : _messaging = messaging ?? FirebaseMessaging.instance;
 
   /// Solicita permisos de notificación, obtiene el token actual y lo registra en la API.
   Future<void> registerDevice(AppTipo app) async {
@@ -22,11 +24,31 @@ class FcmService {
       await _sendTokenToBackend(token, app);
     }
 
-    // Escuchar renovaciones automáticas del token FCM
     await _tokenRefreshSub?.cancel();
     _tokenRefreshSub = _messaging.onTokenRefresh.listen((newToken) {
       _sendTokenToBackend(newToken, app);
     });
+  }
+
+  /// Escucha notificaciones FCM cuando la app está abierta o cuando el usuario toca una notificación.
+  Future<void> listenMessages({
+    required void Function(RemoteMessage message) onForegroundMessage,
+    void Function(RemoteMessage message)? onNotificationTap,
+  }) async {
+    await _foregroundSub?.cancel();
+    _foregroundSub =
+        FirebaseMessaging.onMessage.listen(onForegroundMessage);
+
+    await _openedAppSub?.cancel();
+    if (onNotificationTap != null) {
+      _openedAppSub =
+          FirebaseMessaging.onMessageOpenedApp.listen(onNotificationTap);
+
+      final initialMessage = await _messaging.getInitialMessage();
+      if (initialMessage != null) {
+        onNotificationTap(initialMessage);
+      }
+    }
   }
 
   Future<void> _sendTokenToBackend(String fcmToken, AppTipo app) async {
@@ -42,6 +64,8 @@ class FcmService {
 
   void dispose() {
     _tokenRefreshSub?.cancel();
+    _foregroundSub?.cancel();
+    _openedAppSub?.cancel();
   }
 }
 

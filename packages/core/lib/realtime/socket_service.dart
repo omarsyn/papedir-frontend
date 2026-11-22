@@ -7,6 +7,8 @@ typedef JsonMap = Map<String, dynamic>;
 
 class SocketService {
   io.Socket? _socket;
+  void Function()? _onCuentaAprobadaNotif;
+  void Function(JsonMap data)? _onPedidoDisponibleNotif;
 
   final _pedidoDisponibleCtrl = StreamController<JsonMap>.broadcast();
   final _pedidoTomadoCtrl = StreamController<String>.broadcast();
@@ -26,6 +28,14 @@ class SocketService {
 
   bool get isConnected => _socket?.connected ?? false;
 
+  void configurarNotificaciones({
+    void Function()? onCuentaAprobada,
+    void Function(JsonMap data)? onPedidoDisponible,
+  }) {
+    _onCuentaAprobadaNotif = onCuentaAprobada;
+    _onPedidoDisponibleNotif = onPedidoDisponible;
+  }
+
   void connect({required String baseUrl, required String accessToken}) {
     disconnect();
 
@@ -43,7 +53,10 @@ class SocketService {
     );
 
     _socket!.on('pedido:disponible', (data) {
-      if (data is JsonMap) _pedidoDisponibleCtrl.add(data);
+      if (data is JsonMap) {
+        _pedidoDisponibleCtrl.add(data);
+        _onPedidoDisponibleNotif?.call(data);
+      }
     });
 
     _socket!.on('pedido:tomado', (data) {
@@ -68,6 +81,7 @@ class SocketService {
 
     _socket!.on('cuenta:aprobada', (_) {
       _cuentaAprobadaCtrl.add(null);
+      _onCuentaAprobadaNotif?.call();
     });
 
     _socket!.on('cuenta:baneada', (data) {

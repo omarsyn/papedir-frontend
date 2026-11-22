@@ -8,14 +8,14 @@ part 'pedido.g.dart';
 class TiendaResumen {
   final String id;
   final String nombre;
-  final String telefono;
+  final String? telefono;
   final String direccion;
   final Coordenadas ubicacion;
 
   const TiendaResumen({
     required this.id,
     required this.nombre,
-    required this.telefono,
+    this.telefono,
     required this.direccion,
     required this.ubicacion,
   });
@@ -28,14 +28,14 @@ class TiendaResumen {
 @JsonSerializable()
 class Destino {
   final String nombre;
-  final String telefono;
+  final String? telefono;
   final String direccion;
   final String? referencias;
   final Coordenadas ubicacion;
 
   const Destino({
     required this.nombre,
-    required this.telefono,
+    this.telefono,
     required this.direccion,
     this.referencias,
     required this.ubicacion,
@@ -80,6 +80,8 @@ class Pedido {
   final List<PedidoItem> items;
   final double subtotal;
   final double costoEnvio;
+  @JsonKey(defaultValue: 0.0)
+  final double propina;
   final double total;
   final double distanciaKm;
   final String metodoPago;
@@ -102,6 +104,7 @@ class Pedido {
     required this.items,
     required this.subtotal,
     required this.costoEnvio,
+    this.propina = 0.0,
     required this.total,
     required this.distanciaKm,
     required this.metodoPago,

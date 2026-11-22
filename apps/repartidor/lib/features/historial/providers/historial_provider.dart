@@ -11,6 +11,9 @@ class HistorialState {
   final int paginaActual;
   final bool hayMasPaginas;
   final int totalRegistros;
+  final int? resumenEntregas;
+  final double? resumenPropinas;
+  final double? resumenGananciaNeta;
   final FiltroHistorial filtro;
   final String? mensajeError;
 
@@ -21,6 +24,9 @@ class HistorialState {
     this.paginaActual = 1,
     this.hayMasPaginas = false,
     this.totalRegistros = 0,
+    this.resumenEntregas,
+    this.resumenPropinas,
+    this.resumenGananciaNeta,
     this.filtro = FiltroHistorial.todos,
     this.mensajeError,
   });
@@ -45,11 +51,20 @@ class HistorialState {
   }
 
   int get totalEntregados =>
+      resumenEntregas ??
       pedidos.where((p) => p.estado == EstadoPedido.entregado).length;
 
-  double get gananciasAcumuladas => pedidos
-      .where((p) => p.estado == EstadoPedido.entregado)
-      .fold(0.0, (acc, p) => acc + p.costoEnvio);
+  double get gananciasAcumuladas =>
+      resumenGananciaNeta ??
+      pedidos
+          .where((p) => p.estado == EstadoPedido.entregado)
+          .fold(0.0, (acc, p) => acc + p.costoEnvio + p.propina);
+
+  double get propinasAcumuladas =>
+      resumenPropinas ??
+      pedidos
+          .where((p) => p.estado == EstadoPedido.entregado)
+          .fold(0.0, (acc, p) => acc + p.propina);
 
   HistorialState copyWith({
     List<Pedido>? pedidos,
@@ -58,6 +73,9 @@ class HistorialState {
     int? paginaActual,
     bool? hayMasPaginas,
     int? totalRegistros,
+    int? resumenEntregas,
+    double? resumenPropinas,
+    double? resumenGananciaNeta,
     FiltroHistorial? filtro,
     String? mensajeError,
     bool limpiarError = false,
@@ -69,6 +87,9 @@ class HistorialState {
       paginaActual: paginaActual ?? this.paginaActual,
       hayMasPaginas: hayMasPaginas ?? this.hayMasPaginas,
       totalRegistros: totalRegistros ?? this.totalRegistros,
+      resumenEntregas: resumenEntregas ?? this.resumenEntregas,
+      resumenPropinas: resumenPropinas ?? this.resumenPropinas,
+      resumenGananciaNeta: resumenGananciaNeta ?? this.resumenGananciaNeta,
       filtro: filtro ?? this.filtro,
       mensajeError: limpiarError ? null : (mensajeError ?? this.mensajeError),
     );
@@ -77,7 +98,7 @@ class HistorialState {
 
 class HistorialNotifier extends StateNotifier<HistorialState> {
   final Dio _dio;
-  static const int _limitePorPagina = 15;
+  static const int _limitePorPagina = 20;
 
   HistorialNotifier(this._dio) : super(const HistorialState()) {
     cargarInicial();
@@ -102,12 +123,20 @@ class HistorialNotifier extends StateNotifier<HistorialState> {
         paginaActual: 1,
         hayMasPaginas: resultado.hayMas,
         totalRegistros: resultado.total,
+        resumenEntregas: resultado.entregas,
+        resumenPropinas: resultado.propinas,
+        resumenGananciaNeta: resultado.gananciaNeta,
       );
     } on DioException catch (e) {
       final apiErr = ApiException.fromDioException(e);
       state = state.copyWith(
         cargando: false,
         mensajeError: apiErr.message,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        cargando: false,
+        mensajeError: 'Error al procesar el historial: $e',
       );
     }
   }
@@ -131,12 +160,21 @@ class HistorialNotifier extends StateNotifier<HistorialState> {
         paginaActual: siguientePagina,
         hayMasPaginas: resultado.hayMas,
         totalRegistros: resultado.total,
+        resumenEntregas: resultado.entregas ?? state.resumenEntregas,
+        resumenPropinas: resultado.propinas ?? state.resumenPropinas,
+        resumenGananciaNeta:
+            resultado.gananciaNeta ?? state.resumenGananciaNeta,
       );
     } on DioException catch (e) {
       final apiErr = ApiException.fromDioException(e);
       state = state.copyWith(
         cargandoMas: false,
         mensajeError: apiErr.message,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        cargandoMas: false,
+        mensajeError: 'Error al cargar más entregas: $e',
       );
     }
   }
@@ -165,7 +203,7 @@ class HistorialNotifier extends StateNotifier<HistorialState> {
 
     if (data is Map<String, dynamic>) {
       final rawItems =
-          (data['items'] ?? data['data'] ?? data['pedidos'] ?? []) as List<dynamic>;
+          (data['data'] ?? data['items'] ?? data['pedidos'] ?? []) as List<dynamic>;
       final lista = rawItems
           .whereType<Map<String, dynamic>>()
           .map(Pedido.fromJson)
@@ -175,16 +213,21 @@ class HistorialNotifier extends StateNotifier<HistorialState> {
           ? data['meta'] as Map<String, dynamic>
           : data;
 
+      final limit = (meta['limit'] as num?)?.toInt() ?? _limitePorPagina;
       final total = (meta['total'] as num?)?.toInt() ?? lista.length;
-      final totalPages = (meta['totalPages'] as num?)?.toInt();
-      final hayMas = totalPages != null
-          ? page < totalPages
-          : lista.length >= _limitePorPagina;
+      final hayMas = (page * limit) < total;
+
+      final resumen = data['resumen'] is Map<String, dynamic>
+          ? data['resumen'] as Map<String, dynamic>
+          : null;
 
       return _PaginaHistorial(
         pedidos: lista,
         hayMas: hayMas,
         total: total,
+        entregas: (resumen?['entregas'] as num?)?.toInt(),
+        propinas: (resumen?['propinas'] as num?)?.toDouble(),
+        gananciaNeta: (resumen?['gananciaNeta'] as num?)?.toDouble(),
       );
     }
 
@@ -196,11 +239,17 @@ class _PaginaHistorial {
   final List<Pedido> pedidos;
   final bool hayMas;
   final int total;
+  final int? entregas;
+  final double? propinas;
+  final double? gananciaNeta;
 
   const _PaginaHistorial({
     required this.pedidos,
     required this.hayMas,
     required this.total,
+    this.entregas,
+    this.propinas,
+    this.gananciaNeta,
   });
 }
 

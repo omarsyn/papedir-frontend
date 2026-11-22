@@ -2,6 +2,7 @@ import 'package:core/core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'features/auth/screens/recuperar_password_screen.dart';
 import 'features/auth/screens/registro_repartidor_screen.dart';
 import 'features/historial/screens/historial_screen.dart';
 import 'features/mapa_disponibles/screens/mapa_disponibles_screen.dart';
@@ -26,7 +27,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isLoggedIn = authState.isAuthenticated;
       final isPending = authState.isPendingApproval;
       final location = state.matchedLocation;
-      final isPublicRoute = location == '/login' || location == '/registro';
+      final isPublicRoute = location == '/login' ||
+          location == '/registro' ||
+          location == '/recuperar-password';
 
       if (!isLoggedIn) {
         return isPublicRoute ? null : '/login';
@@ -60,11 +63,18 @@ final routerProvider = Provider<GoRouter>((ref) {
             fit: BoxFit.contain,
           ),
           onIrARegistro: () => context.push('/registro'),
+          onOlvidePassword: () => context.push('/recuperar-password'),
         ),
       ),
       GoRoute(
         path: '/registro',
         builder: (context, state) => const RegistroRepartidorScreen(),
+      ),
+      GoRoute(
+        path: '/recuperar-password',
+        builder: (context, state) => RecuperarPasswordScreen(
+          emailInicial: state.extra as String?,
+        ),
       ),
       GoRoute(
         path: '/onboarding',

@@ -277,7 +277,7 @@ class _ViajeActivoScreenState extends ConsumerState<ViajeActivoScreen> {
                       final tel = paradaActual.tipo == TipoParada.tienda
                           ? pedidoActual.tienda.telefono
                           : pedidoActual.destino.telefono;
-                      _llamarTelefono(tel);
+                      _llamarTelefono(tel!);
                     },
                     onNavegar: () => _abrirNavegacion(
                       paradaActual.ubicacion.lat,
