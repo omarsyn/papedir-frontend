@@ -1,11 +1,14 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/formato.dart';
+import '../../../core/models.dart';
 import '../../../core/widgets/mensajes.dart';
 import '../../../core/widgets/vista_async.dart';
 import '../data/pedidos_repository.dart';
 import '../providers/pedido_detalle_provider.dart';
+import '../widgets/mapa_seguimiento.dart';
 import 'calificar_screen.dart';
 
 class PedidoDetalleScreen extends ConsumerWidget {
@@ -109,6 +112,12 @@ class PedidoDetalleScreen extends ConsumerWidget {
               ),
             ),
           ),
+          if (!estadoFinal(p.estado) &&
+              (p.tienda.ubicacion != null || p.destino.ubicacion != null)) ...[
+            const SizedBox(height: 8),
+            MapaSeguimiento(pedido: p),
+            const SizedBox(height: 8),
+          ],
           if (p.codigoEntrega != null && !estadoFinal(p.estado))
             Card(
               child: ListTile(
@@ -123,14 +132,7 @@ class PedidoDetalleScreen extends ConsumerWidget {
                 ),
               ),
             ),
-          if (p.repartidor != null)
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.delivery_dining),
-                title: Text(p.repartidor!.nombre),
-                subtitle: Text('Tel. ${p.repartidor!.telefono}'),
-              ),
-            ),
+          if (p.repartidor != null) _TarjetaRepartidor(p.repartidor!),
           if (p.estado == 'entregado') ...[
             const SizedBox(height: 8),
             if (p.calificado)
@@ -215,6 +217,53 @@ class _Fila extends StatelessWidget {
           Text(a, style: estilo),
           Text(b, style: estilo),
         ],
+      ),
+    );
+  }
+}
+
+class _TarjetaRepartidor extends StatelessWidget {
+  const _TarjetaRepartidor(this.repartidor);
+
+  final RepartidorResumen repartidor;
+
+  @override
+  Widget build(BuildContext context) {
+    final r = repartidor;
+    final tema = Theme.of(context);
+    final foto = r.fotoUrl;
+    return Card(
+      child: ListTile(
+        leading: CircleAvatar(
+          radius: 24,
+          backgroundColor: tema.colorScheme.primaryContainer,
+          backgroundImage: foto == null
+              ? null
+              : CachedNetworkImageProvider(foto),
+          child: foto == null
+              ? Icon(
+                  Icons.delivery_dining,
+                  color: tema.colorScheme.onPrimaryContainer,
+                )
+              : null,
+        ),
+        title: Row(
+          children: [
+            Flexible(child: Text(r.nombre, overflow: TextOverflow.ellipsis)),
+            if (r.calificacion != null) ...[
+              const SizedBox(width: 8),
+              const Icon(Icons.star_rounded, size: 18, color: Colors.amber),
+              Text(r.calificacion!.toStringAsFixed(1)),
+            ],
+          ],
+        ),
+        subtitle: Text(
+          [
+            if (r.vehiculo != null && r.vehiculo!.isNotEmpty) r.vehiculo!,
+            'Tel. ${r.telefono}',
+          ].join('\n'),
+        ),
+        isThreeLine: r.vehiculo != null && r.vehiculo!.isNotEmpty,
       ),
     );
   }

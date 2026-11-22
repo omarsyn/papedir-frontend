@@ -11,6 +11,10 @@ Map<String, dynamic> asMapa(dynamic v) => (v as Map).cast<String, dynamic>();
 List<T> _lista<T>(dynamic v, T Function(Map<String, dynamic>) f) =>
     ((v as List?) ?? const []).map((e) => f(asMapa(e))).toList();
 
+/// Coordenadas opcionales ({lat, lng} o null).
+Coordenadas? _coordOpcional(dynamic v) =>
+    v is Map ? Coordenadas.fromJson(asMapa(v)) : null;
+
 class Coordenadas {
   const Coordenadas(this.lat, this.lng);
 
@@ -205,18 +209,21 @@ class TiendaResumen {
     required this.nombre,
     required this.telefono,
     required this.direccion,
+    this.ubicacion,
   });
 
   final String id;
   final String nombre;
   final String telefono;
   final String direccion;
+  final Coordenadas? ubicacion;
 
   factory TiendaResumen.fromJson(Map<String, dynamic> j) => TiendaResumen(
     id: '${j['id']}',
     nombre: '${j['nombre']}',
     telefono: '${j['telefono'] ?? ''}',
     direccion: '${j['direccion'] ?? ''}',
+    ubicacion: _coordOpcional(j['ubicacion']),
   );
 }
 
@@ -226,32 +233,71 @@ class Destino {
     required this.telefono,
     required this.direccion,
     this.referencias,
+    this.ubicacion,
   });
 
   final String nombre;
   final String telefono;
   final String direccion;
   final String? referencias;
+  final Coordenadas? ubicacion;
 
   factory Destino.fromJson(Map<String, dynamic> j) => Destino(
     nombre: '${j['nombre'] ?? ''}',
     telefono: '${j['telefono'] ?? ''}',
     direccion: '${j['direccion'] ?? ''}',
     referencias: j['referencias'] as String?,
+    ubicacion: _coordOpcional(j['ubicacion']),
   );
 }
 
 class RepartidorResumen {
-  const RepartidorResumen({required this.nombre, required this.telefono});
+  const RepartidorResumen({
+    required this.nombre,
+    required this.telefono,
+    this.ubicacion,
+    this.fotoUrl,
+    this.calificacion,
+    this.vehiculo,
+  });
 
   final String nombre;
   final String telefono;
 
-  factory RepartidorResumen.fromJson(Map<String, dynamic> j) =>
-      RepartidorResumen(
-        nombre: '${j['nombre'] ?? ''}',
-        telefono: '${j['telefono'] ?? ''}',
-      );
+  /// Última posición conocida (se actualiza mientras va en camino).
+  final Coordenadas? ubicacion;
+  final String? fotoUrl;
+  final double? calificacion;
+
+  /// "Moto Italika FT150 · Rojo · GTO123A".
+  final String? vehiculo;
+
+  factory RepartidorResumen.fromJson(Map<String, dynamic> j) {
+    final v = j['vehiculo'];
+    String? vehiculo;
+    if (v is Map) {
+      final m = asMapa(v);
+      const tipos = {'moto': 'Moto', 'bicicleta': 'Bicicleta', 'auto': 'Auto'};
+      final partes = [
+        [
+          tipos[m['tipo']] ?? '${m['tipo'] ?? ''}',
+          m['marca'],
+          m['modelo'],
+        ].where((e) => e != null && '$e'.isNotEmpty).join(' '),
+        m['color'],
+        m['placa'],
+      ].where((e) => e != null && '$e'.isNotEmpty);
+      vehiculo = partes.join(' · ');
+    }
+    return RepartidorResumen(
+      nombre: '${j['nombre'] ?? ''}',
+      telefono: '${j['telefono'] ?? ''}',
+      ubicacion: _coordOpcional(j['ubicacion']),
+      fotoUrl: j['fotoUrl'] as String?,
+      calificacion: _dn(j['calificacion']),
+      vehiculo: vehiculo,
+    );
+  }
 }
 
 class Pedido {
