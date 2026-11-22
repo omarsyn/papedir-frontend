@@ -152,7 +152,14 @@ class PedidoDetalleScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(vertical: 2),
               child: Row(
                 children: [
-                  Expanded(child: Text('${i.cantidad} × ${i.nombre}')),
+                  Expanded(
+                    child: Text(
+                      i.opciones.isEmpty
+                          ? '${i.cantidad} × ${i.nombre}'
+                          : '${i.cantidad} × ${i.nombre}\n'
+                                '   ${i.opciones.join(' · ')}',
+                    ),
+                  ),
                   Text(dinero(i.importe)),
                 ],
               ),

@@ -85,7 +85,12 @@ class CheckoutScreen extends ConsumerWidget {
                     child: Row(
                       children: [
                         Expanded(
-                          child: Text('${l.cantidad} × ${l.producto.nombre}'),
+                          child: Text(
+                            l.opciones.isEmpty
+                                ? '${l.cantidad} × ${l.producto.nombre}'
+                                : '${l.cantidad} × ${l.producto.nombre}\n'
+                                      '   ${l.resumenOpciones}',
+                          ),
                         ),
                         Text(dinero(l.importe)),
                       ],

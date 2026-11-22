@@ -6,8 +6,16 @@ import '../../../core/models.dart';
 import '../../../core/providers.dart';
 import '../../carrito/providers/carrito_provider.dart';
 
+/// Cada línea manda sus opciones elegidas; el backend calcula los precios.
 List<Map<String, dynamic>> _items(List<LineaCarrito> lineas) => lineas
-    .map((l) => {'productoId': l.producto.id, 'cantidad': l.cantidad})
+    .map(
+      (l) => {
+        'productoId': l.producto.id,
+        'cantidad': l.cantidad,
+        if (l.opciones.isNotEmpty)
+          'opciones': [for (final o in l.opciones) o.id],
+      },
+    )
     .toList();
 
 /// Motivo del catálogo para cancelar un pedido.

@@ -66,6 +66,18 @@ class MenuRepository {
         return Producto.fromJson(r.data!);
       });
 
+  /// Reemplaza todos los grupos de opciones del producto ([] los quita).
+  Future<Producto> guardarOpciones(
+    String id,
+    List<Map<String, dynamic>> grupos,
+  ) => conApiError(() async {
+    final r = await _dio.put<Map<String, dynamic>>(
+      '/productos/$id/opciones',
+      data: {'grupos': grupos},
+    );
+    return Producto.fromJson(r.data!);
+  });
+
   Future<void> eliminarProducto(String id) => conApiError(() async {
     await _dio.delete<void>('/productos/$id');
   });

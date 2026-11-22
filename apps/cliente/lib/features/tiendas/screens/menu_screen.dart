@@ -10,6 +10,7 @@ import '../../../core/widgets/vista_async.dart';
 import '../../carrito/providers/carrito_provider.dart';
 import '../../carrito/screens/carrito_screen.dart';
 import '../providers/tiendas_provider.dart';
+import '../widgets/opciones_sheet.dart';
 
 /// Menú de una tienda: foto grande que se encoge al deslizar (Hero +
 /// SliverAppBar), datos de la tienda y productos por categoría.
@@ -48,10 +49,17 @@ class MenuScreen extends ConsumerWidget {
           ],
         ),
       );
-      if (vaciar != true) return;
+      if (vaciar != true || !context.mounted) return;
       notifier.vaciar();
     }
-    notifier.agregar(tienda, p);
+    // Con opciones (salsa, tamaño, extras...) primero se eligen en una hoja.
+    var opciones = const <OpcionElegida>[];
+    if (p.tieneOpciones) {
+      final elegidas = await elegirOpciones(context, p);
+      if (elegidas == null) return;
+      opciones = elegidas;
+    }
+    notifier.agregar(tienda, p, opciones: opciones);
   }
 
   @override
@@ -193,10 +201,8 @@ class MenuScreen extends ConsumerWidget {
                       final p = cat.productos[i];
                       return _FilaProducto(
                         producto: p,
-                        sePuedePedir: tienda.abierta && p.disponible,
-                        enCarrito: enEsteCarrito
-                            ? carrito.lineas[p.id]?.cantidad ?? 0
-                            : 0,
+                        sePuedePedir: tienda.abierta && !p.agotado,
+                        enCarrito: enEsteCarrito ? carrito.cantidadDe(p.id) : 0,
                         onAgregar: () => _agregar(context, ref, p),
                       );
                     },
@@ -382,7 +388,13 @@ class _FilaProducto extends StatelessWidget {
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        if (!p.disponible)
+                        if (p.tieneOpciones && !p.agotado)
+                          etiqueta(
+                            'Personalizable',
+                            esquema.secondaryContainer,
+                            esquema.onSecondaryContainer,
+                          ),
+                        if (p.agotado)
                           etiqueta(
                             'Agotado',
                             esquema.errorContainer,
@@ -406,7 +418,7 @@ class _FilaProducto extends StatelessWidget {
                 child: Stack(
                   children: [
                     Opacity(
-                      opacity: p.disponible ? 1 : 0.45,
+                      opacity: p.agotado ? 0.45 : 1,
                       child: ImagenRed(
                         url: p.imagenUrl,
                         icono: Icons.fastfood_rounded,

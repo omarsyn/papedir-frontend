@@ -98,4 +98,33 @@ void main() {
     expect(c.read(carritoProvider).vacio, isTrue);
     expect(c.read(carritoProvider).tienda, isNull);
   });
+
+  test('Carrito: mismo producto con opciones distintas va separado', () {
+    final c = ProviderContainer();
+    addTearDown(c.dispose);
+    final n = c.read(carritoProvider.notifier);
+    final t = _tienda('t1');
+    final p = _producto('p1', 50);
+    const verde = OpcionElegida(
+      id: 'o1',
+      grupo: 'Salsa',
+      nombre: 'Verde',
+      precioExtra: 0,
+    );
+    const queso = OpcionElegida(
+      id: 'o2',
+      grupo: 'Extras',
+      nombre: 'Queso',
+      precioExtra: 15,
+    );
+
+    n.agregar(t, p, opciones: const [verde]);
+    n.agregar(t, p, opciones: const [verde, queso]);
+    n.agregar(t, p, opciones: const [queso, verde]); // mismo orden no importa
+
+    final carrito = c.read(carritoProvider);
+    expect(carrito.lineas.length, 2);
+    expect(carrito.cantidadDe('p1'), 3);
+    expect(carrito.subtotal, 50 + 65 * 2);
+  });
 }

@@ -98,8 +98,10 @@ class Producto {
     required this.nombre,
     required this.precio,
     required this.disponible,
+    this.agotado = false,
     this.descripcion,
     this.imagenUrl,
+    this.grupos = const [],
   });
 
   final String id;
@@ -109,14 +111,27 @@ class Producto {
   final String? imagenUrl;
   final bool disponible;
 
-  factory Producto.fromJson(Map<String, dynamic> j) => Producto(
-    id: j['id'] as String,
-    nombre: '${j['nombre']}',
-    descripcion: j['descripcion'] as String?,
-    precio: _d(j['precio']),
-    imagenUrl: j['imagenUrl'] as String?,
-    disponible: (j['disponible'] as bool?) ?? true,
-  );
+  /// `!disponible` o sin existencias: es lo que se usa para mostrar "Agotado".
+  final bool agotado;
+
+  /// Opciones para elegir al agregarlo (salsa, tamaño, extras...).
+  final List<GrupoOpciones> grupos;
+
+  bool get tieneOpciones => grupos.isNotEmpty;
+
+  factory Producto.fromJson(Map<String, dynamic> j) {
+    final disponible = (j['disponible'] as bool?) ?? true;
+    return Producto(
+      id: j['id'] as String,
+      nombre: '${j['nombre']}',
+      descripcion: j['descripcion'] as String?,
+      precio: _d(j['precio']),
+      imagenUrl: j['imagenUrl'] as String?,
+      disponible: disponible,
+      agotado: (j['agotado'] as bool?) ?? !disponible,
+      grupos: _lista(j['grupos'], GrupoOpciones.fromJson),
+    );
+  }
 }
 
 class MenuCategoria {
@@ -161,6 +176,7 @@ class PedidoItem {
     required this.cantidad,
     required this.precioUnitario,
     required this.importe,
+    this.opciones = const [],
   });
 
   final String nombre;
@@ -168,11 +184,18 @@ class PedidoItem {
   final double precioUnitario;
   final double importe;
 
+  /// Nombres de las opciones elegidas (copia guardada en el pedido).
+  final List<String> opciones;
+
   factory PedidoItem.fromJson(Map<String, dynamic> j) => PedidoItem(
     nombre: '${j['nombre']}',
     cantidad: (j['cantidad'] as num?)?.toInt() ?? 1,
     precioUnitario: _d(j['precioUnitario']),
     importe: _d(j['importe']),
+    opciones: [
+      for (final o in (j['opciones'] as List?) ?? const [])
+        '${asMapa(o)['nombre']}',
+    ],
   );
 }
 
@@ -311,5 +334,54 @@ class EventoPedido {
     tipo: '${j['tipo']}',
     detalle: j['detalle'] as String?,
     creadoEn: _fecha(j['creadoEn']),
+  );
+}
+
+/// Grupo de opciones de un producto (ej. "Salsa: elige 1", "Extras: hasta 3").
+/// minimo = 0 → opcional; minimo ≥ 1 → obligatorio.
+class GrupoOpciones {
+  const GrupoOpciones({
+    required this.id,
+    required this.nombre,
+    required this.minimo,
+    required this.maximo,
+    required this.opciones,
+  });
+
+  final String id;
+  final String nombre;
+  final int minimo;
+  final int maximo;
+  final List<OpcionProducto> opciones;
+
+  bool get obligatorio => minimo > 0;
+
+  factory GrupoOpciones.fromJson(Map<String, dynamic> j) => GrupoOpciones(
+    id: '${j['id'] ?? ''}',
+    nombre: '${j['nombre'] ?? ''}',
+    minimo: (j['minimo'] as num?)?.toInt() ?? 0,
+    maximo: (j['maximo'] as num?)?.toInt() ?? 1,
+    opciones: _lista(j['opciones'], OpcionProducto.fromJson),
+  );
+}
+
+class OpcionProducto {
+  const OpcionProducto({
+    required this.id,
+    required this.nombre,
+    required this.precioExtra,
+    required this.disponible,
+  });
+
+  final String id;
+  final String nombre;
+  final double precioExtra;
+  final bool disponible;
+
+  factory OpcionProducto.fromJson(Map<String, dynamic> j) => OpcionProducto(
+    id: '${j['id'] ?? ''}',
+    nombre: '${j['nombre'] ?? ''}',
+    precioExtra: _d(j['precioExtra']),
+    disponible: (j['disponible'] as bool?) ?? true,
   );
 }

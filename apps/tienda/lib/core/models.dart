@@ -117,6 +117,7 @@ class Producto {
     this.descripcion,
     this.imagenUrl,
     this.stock,
+    this.grupos = const [],
   });
 
   final String id;
@@ -133,6 +134,9 @@ class Producto {
   final bool agotado;
   final int? stock;
 
+  /// Opciones que el cliente elige (salsa, tamaño, extras...).
+  final List<GrupoOpciones> grupos;
+
   factory Producto.fromJson(Map<String, dynamic> j) {
     final disponible = (j['disponible'] as bool?) ?? true;
     return Producto(
@@ -145,6 +149,7 @@ class Producto {
       disponible: disponible,
       agotado: (j['agotado'] as bool?) ?? !disponible,
       stock: (j['stock'] as num?)?.toInt(),
+      grupos: _lista(j['grupos'], GrupoOpciones.fromJson),
     );
   }
 }
@@ -254,4 +259,53 @@ class Pedido {
       creadoEn: _fecha(j['creadoEn']),
     );
   }
+}
+
+/// Grupo de opciones de un producto (ej. "Salsa: elige 1", "Extras: hasta 3").
+/// minimo = 0 → opcional; minimo ≥ 1 → obligatorio.
+class GrupoOpciones {
+  const GrupoOpciones({
+    required this.id,
+    required this.nombre,
+    required this.minimo,
+    required this.maximo,
+    required this.opciones,
+  });
+
+  final String id;
+  final String nombre;
+  final int minimo;
+  final int maximo;
+  final List<OpcionProducto> opciones;
+
+  bool get obligatorio => minimo > 0;
+
+  factory GrupoOpciones.fromJson(Map<String, dynamic> j) => GrupoOpciones(
+    id: '${j['id'] ?? ''}',
+    nombre: '${j['nombre'] ?? ''}',
+    minimo: (j['minimo'] as num?)?.toInt() ?? 0,
+    maximo: (j['maximo'] as num?)?.toInt() ?? 1,
+    opciones: _lista(j['opciones'], OpcionProducto.fromJson),
+  );
+}
+
+class OpcionProducto {
+  const OpcionProducto({
+    required this.id,
+    required this.nombre,
+    required this.precioExtra,
+    required this.disponible,
+  });
+
+  final String id;
+  final String nombre;
+  final double precioExtra;
+  final bool disponible;
+
+  factory OpcionProducto.fromJson(Map<String, dynamic> j) => OpcionProducto(
+    id: '${j['id'] ?? ''}',
+    nombre: '${j['nombre'] ?? ''}',
+    precioExtra: _d(j['precioExtra']),
+    disponible: (j['disponible'] as bool?) ?? true,
+  );
 }
