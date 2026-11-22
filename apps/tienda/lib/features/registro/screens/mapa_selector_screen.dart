@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../../../core/api_error.dart';
 import '../../../core/models.dart';
 import '../../../core/providers.dart';
 import '../../../core/widgets/mensajes.dart';
@@ -35,6 +38,14 @@ class MapaSelectorNotifier
     extends AutoDisposeFamilyNotifier<MapaSelectorState, Coordenadas?> {
   GoogleMapController? _mapa;
   LatLng _centro = _celaya;
+
+  // Sugerencia elegida en el buscador: si el usuario no mueve el mapa,
+  // se usa su texto en lugar de buscar la dirección del punto.
+  LatLng? _puntoSugerido;
+  String? _textoSugerido;
+
+  /// Centro actual del mapa (para priorizar sugerencias cercanas).
+  LatLng get centro => _centro;
 
   @override
   MapaSelectorState build(Coordenadas? arg) {
@@ -76,9 +87,28 @@ class MapaSelectorNotifier
     }
   }
 
+  /// Mueve el mapa a una sugerencia del buscador.
+  Future<void> irA(Sugerencia s) async {
+    final punto = LatLng(s.ubicacion.lat, s.ubicacion.lng);
+    _centro = punto;
+    _puntoSugerido = punto;
+    _textoSugerido = s.texto;
+    await _mapa?.animateCamera(CameraUpdate.newLatLngZoom(punto, 17));
+  }
+
   Future<UbicacionElegida> confirmar() async {
     state = const MapaSelectorState(confirmando: true);
     final c = _centro;
+    final sugerido = _puntoSugerido;
+    if (sugerido != null &&
+        (sugerido.latitude - c.latitude).abs() < 0.0002 &&
+        (sugerido.longitude - c.longitude).abs() < 0.0002) {
+      state = const MapaSelectorState();
+      return UbicacionElegida(
+        Coordenadas(c.latitude, c.longitude),
+        _textoSugerido,
+      );
+    }
     final texto = await direccionDe(
       ref.read(dioProvider),
       c.latitude,
@@ -93,6 +123,116 @@ final mapaSelectorProvider = NotifierProvider.autoDispose
     .family<MapaSelectorNotifier, MapaSelectorState, Coordenadas?>(
       MapaSelectorNotifier.new,
     );
+
+/// Sugerencia de GET /geo/sugerencias.
+class Sugerencia {
+  const Sugerencia({
+    required this.texto,
+    this.detalle,
+    required this.ubicacion,
+  });
+
+  final String texto;
+  final String? detalle;
+  final Coordenadas ubicacion;
+
+  factory Sugerencia.fromJson(Map<String, dynamic> j) {
+    final u = Map<String, dynamic>.from((j['ubicacion'] as Map?) ?? const {});
+    return Sugerencia(
+      texto: '${j['texto'] ?? ''}',
+      detalle: j['detalle'] as String?,
+      ubicacion: Coordenadas(
+        (u['lat'] as num?)?.toDouble() ?? 0,
+        (u['lng'] as num?)?.toDouble() ?? 0,
+      ),
+    );
+  }
+}
+
+class BuscadorState {
+  const BuscadorState({
+    this.sugerencias = const [],
+    this.buscando = false,
+    this.noDisponible = false,
+  });
+
+  final List<Sugerencia> sugerencias;
+  final bool buscando;
+
+  /// GEO_NO_DISPONIBLE: se oculta el buscador y se marca en el mapa.
+  final bool noDisponible;
+}
+
+/// Autocompletado: espera ~350 ms entre teclas y pide sugerencias
+/// cercanas al centro del mapa (mínimo 3 letras).
+class BuscadorNotifier extends AutoDisposeNotifier<BuscadorState> {
+  Timer? _espera;
+  int _turno = 0;
+
+  @override
+  BuscadorState build() {
+    ref.onDispose(() => _espera?.cancel());
+    return const BuscadorState();
+  }
+
+  void escribir(String texto, LatLng cerca) {
+    _espera?.cancel();
+    final q = texto.trim();
+    if (q.length < 3) {
+      _turno++;
+      state = BuscadorState(noDisponible: state.noDisponible);
+      return;
+    }
+    _espera = Timer(const Duration(milliseconds: 350), () => _buscar(q, cerca));
+  }
+
+  Future<void> _buscar(String q, LatLng cerca) async {
+    final turno = ++_turno;
+    state = BuscadorState(sugerencias: state.sugerencias, buscando: true);
+    try {
+      final r = await conApiError(
+        () => ref
+            .read(dioProvider)
+            .get<List<dynamic>>(
+              '/geo/sugerencias',
+              queryParameters: {
+                'q': q.length > 150 ? q.substring(0, 150) : q,
+                'lat': cerca.latitude,
+                'lng': cerca.longitude,
+                'limit': 6,
+              },
+            ),
+      );
+      if (turno != _turno) return; // llegó una búsqueda más nueva
+      state = BuscadorState(
+        sugerencias: [
+          for (final e in r.data ?? const [])
+            Sugerencia.fromJson(Map<String, dynamic>.from(e as Map)),
+        ],
+      );
+    } on ApiError catch (e) {
+      if (turno != _turno) return;
+      state = BuscadorState(noDisponible: e.codigo == 'GEO_NO_DISPONIBLE');
+    }
+  }
+
+  void limpiar() {
+    _espera?.cancel();
+    _turno++;
+    state = BuscadorState(noDisponible: state.noDisponible);
+  }
+}
+
+final buscadorProvider =
+    NotifierProvider.autoDispose<BuscadorNotifier, BuscadorState>(
+      BuscadorNotifier.new,
+    );
+
+final cajaBuscadorProvider = Provider.autoDispose<TextEditingController>((ref) {
+  final c = TextEditingController();
+  ref.onDispose(c.dispose);
+  return c;
+});
 
 class MapaSelectorScreen extends ConsumerWidget {
   const MapaSelectorScreen({super.key, this.inicial});
@@ -146,6 +286,12 @@ class MapaSelectorScreen extends ConsumerWidget {
             ),
           ),
           Positioned(
+            left: 12,
+            right: 12,
+            top: 12,
+            child: _Buscador(inicial: inicial),
+          ),
+          Positioned(
             right: 16,
             bottom: 96,
             child: FloatingActionButton.small(
@@ -184,6 +330,93 @@ class MapaSelectorScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Campo "Buscar dirección" con la lista de sugerencias debajo.
+class _Buscador extends ConsumerWidget {
+  const _Buscador({required this.inicial});
+
+  final Coordenadas? inicial;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final estado = ref.watch(buscadorProvider);
+    final buscador = ref.read(buscadorProvider.notifier);
+    final caja = ref.watch(cajaBuscadorProvider);
+    final mapa = ref.read(mapaSelectorProvider(inicial).notifier);
+    if (estado.noDisponible) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(12),
+          child: Text(
+            'La búsqueda de direcciones no está disponible. Mueve el mapa '
+            'para marcar el punto.',
+          ),
+        ),
+      );
+    }
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Material(
+          elevation: 4,
+          borderRadius: BorderRadius.circular(14),
+          child: TextField(
+            controller: caja,
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              hintText: 'Buscar calle, colonia o lugar',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: estado.buscando
+                  ? const Padding(
+                      padding: EdgeInsets.all(14),
+                      child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : IconButton(
+                      tooltip: 'Borrar',
+                      icon: const Icon(Icons.close),
+                      onPressed: () {
+                        caja.clear();
+                        buscador.limpiar();
+                      },
+                    ),
+            ),
+            onChanged: (t) => buscador.escribir(t, mapa.centro),
+          ),
+        ),
+        if (estado.sugerencias.isNotEmpty)
+          Card(
+            margin: const EdgeInsets.only(top: 6),
+            clipBehavior: Clip.antiAlias,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 280),
+              child: ListView(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                children: [
+                  for (final s in estado.sugerencias)
+                    ListTile(
+                      leading: const Icon(Icons.place_outlined),
+                      title: Text(s.texto),
+                      subtitle: s.detalle == null ? null : Text(s.detalle!),
+                      onTap: () {
+                        FocusManager.instance.primaryFocus?.unfocus();
+                        caja.text = s.texto;
+                        buscador.limpiar();
+                        mapa.irA(s);
+                      },
+                    ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
