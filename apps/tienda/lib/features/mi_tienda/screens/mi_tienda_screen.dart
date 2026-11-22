@@ -12,6 +12,7 @@ import '../../../core/widgets/mensajes.dart';
 import '../../../core/widgets/vista_async.dart';
 import '../../cartera/cartera_screen.dart';
 import '../../home/navegacion_provider.dart';
+import '../../planes/planes_screen.dart';
 import '../../sucursales/screens/mis_tiendas_screen.dart';
 import '../providers/mi_tienda_provider.dart';
 
@@ -148,6 +149,21 @@ class MiTiendaScreen extends ConsumerWidget {
                   title: const Text('Tema'),
                   subtitle: Text(etiquetaTema(ref.watch(temaProvider))),
                   onTap: () => elegirTema(context, ref),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.workspace_premium_outlined),
+                  title: const Text('Mi plan'),
+                  subtitle: const Text(
+                    'Básico, Pro o Premium: baja tu comisión',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const PlanesScreen(),
+                      ),
+                    );
+                  },
                 ),
                 ListTile(
                   leading: const Icon(Icons.store_mall_directory_outlined),

@@ -25,6 +25,30 @@ const motivosRechazoBase = [
   Motivo(texto: 'Estamos por cerrar'),
 ];
 
+/// Envío calculado para un pedido manual.
+class CotizacionManual {
+  const CotizacionManual({
+    required this.distanciaKm,
+    required this.costoEnvio,
+    required this.total,
+  });
+
+  final double distanciaKm;
+  final double costoEnvio;
+
+  /// Lo que cobra el repartidor: mercancía + envío.
+  final double total;
+
+  factory CotizacionManual.fromJson(Map<String, dynamic> j) {
+    double n(dynamic v) => v is num ? v.toDouble() : double.tryParse('$v') ?? 0;
+    return CotizacionManual(
+      distanciaKm: n(j['distanciaKm']),
+      costoEnvio: n(j['costoEnvio']),
+      total: n(j['total']),
+    );
+  }
+}
+
 class PedidosRepository {
   PedidosRepository(this._dio);
 
@@ -59,6 +83,28 @@ class PedidosRepository {
     final r = await _dio.post<Map<String, dynamic>>('/pedidos/$id/listo');
     return Pedido.fromJson(r.data!);
   });
+
+  /// Cotiza el envío de un pedido manual hasta [ubicacion].
+  Future<CotizacionManual> cotizarManual(
+    Coordenadas ubicacion,
+    double montoACobrar,
+  ) => conApiError(() async {
+    final r = await _dio.post<Map<String, dynamic>>(
+      '/pedidos/cotizar-manual',
+      data: {'ubicacion': ubicacion.toJson(), 'montoACobrar': montoACobrar},
+    );
+    return CotizacionManual.fromJson(r.data!);
+  });
+
+  /// Crea un pedido capturado por la tienda. Nace listo para recoger.
+  Future<Pedido> crearManual(Map<String, dynamic> datos) =>
+      conApiError(() async {
+        final r = await _dio.post<Map<String, dynamic>>(
+          '/pedidos/manual',
+          data: datos,
+        );
+        return Pedido.fromJson(r.data!);
+      });
 
   Future<List<Motivo>> motivosRechazo() => conApiError(() async {
     final r = await _dio.get<Map<String, dynamic>>(

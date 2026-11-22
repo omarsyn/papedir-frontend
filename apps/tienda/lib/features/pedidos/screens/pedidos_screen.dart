@@ -6,6 +6,7 @@ import '../../../core/models.dart';
 import '../../../core/widgets/mensajes.dart';
 import '../../../core/widgets/vista_async.dart';
 import '../../mi_tienda/providers/mi_tienda_provider.dart';
+import '../../pedido_manual/pedido_manual_screen.dart';
 import '../data/pedidos_repository.dart';
 import '../providers/pedidos_provider.dart';
 
@@ -41,6 +42,14 @@ class PedidosScreen extends ConsumerWidget {
               const Tab(text: 'Historial'),
             ],
           ),
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          heroTag: 'pedido-manual',
+          onPressed: () => Navigator.of(context).push<bool>(
+            MaterialPageRoute<bool>(builder: (_) => const PedidoManualScreen()),
+          ),
+          icon: const Icon(Icons.add_call),
+          label: const Text('Pedido manual'),
         ),
         body: Column(
           children: [
@@ -120,7 +129,8 @@ class _ListaActivos extends ConsumerWidget {
               ],
             )
           : ListView.builder(
-              padding: const EdgeInsets.all(12),
+              // Espacio abajo para que el botón no tape el último pedido.
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
               itemCount: pedidos.length,
               itemBuilder: (_, i) => _TarjetaPedido(pedido: pedidos[i]),
             ),
@@ -148,7 +158,7 @@ class _Historial extends ConsumerWidget {
                 ],
               )
             : ListView.builder(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
                 itemCount: lista.length,
                 itemBuilder: (_, i) => _TarjetaPedido(pedido: lista[i]),
               ),
