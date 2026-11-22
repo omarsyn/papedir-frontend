@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models.dart';
+import '../../../core/tienda_activa.dart';
 import '../data/pedidos_repository.dart';
 
 const estadosActivos =
@@ -15,13 +16,15 @@ final pedidosActivosProvider = FutureProvider.autoDispose<List<Pedido>>((
 ) async {
   final timer = Timer(const Duration(seconds: 10), ref.invalidateSelf);
   ref.onDispose(timer.cancel);
+  ref.watch(tiendaActivaProvider); // al cambiar de sucursal se recarga
   return ref.watch(pedidosRepositoryProvider).listar(estadosActivos);
 });
 
 /// Pedidos que ya salieron de la tienda o terminaron.
-final historialProvider = FutureProvider.autoDispose<List<Pedido>>(
-  (ref) => ref.watch(pedidosRepositoryProvider).listar(estadosHistorial),
-);
+final historialProvider = FutureProvider.autoDispose<List<Pedido>>((ref) {
+  ref.watch(tiendaActivaProvider);
+  return ref.watch(pedidosRepositoryProvider).listar(estadosHistorial);
+});
 
 /// Motivos para rechazar (si falla el catálogo, se usan los de base).
 final motivosRechazoProvider = FutureProvider.autoDispose<List<Motivo>>((

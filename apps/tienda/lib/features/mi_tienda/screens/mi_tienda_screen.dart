@@ -6,11 +6,13 @@ import '../../../core/catalogos_provider.dart';
 import '../../../core/formato.dart';
 import '../../../core/models.dart';
 import '../../../core/preferencias.dart';
+import '../../../core/tienda_activa.dart';
 import '../../../core/widgets/imagen_red.dart';
 import '../../../core/widgets/mensajes.dart';
 import '../../../core/widgets/vista_async.dart';
 import '../../cartera/cartera_screen.dart';
 import '../../home/navegacion_provider.dart';
+import '../../sucursales/screens/mis_tiendas_screen.dart';
 import '../providers/mi_tienda_provider.dart';
 
 const _minutosPausa = [15, 30, 60, 120];
@@ -148,6 +150,19 @@ class MiTiendaScreen extends ConsumerWidget {
                   onTap: () => elegirTema(context, ref),
                 ),
                 ListTile(
+                  leading: const Icon(Icons.store_mall_directory_outlined),
+                  title: const Text('Mis tiendas'),
+                  subtitle: const Text('Cambiar de tienda o agregar otra'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const MisTiendasScreen(),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
                   leading: const Icon(Icons.account_balance_wallet_outlined),
                   title: const Text('Mi cartera'),
                   subtitle: const Text('Saldo con PaPedir y movimientos'),
@@ -177,6 +192,7 @@ class MiTiendaScreen extends ConsumerWidget {
                   title: const Text('Cerrar sesión'),
                   onTap: () async {
                     ref.invalidate(indiceNavegacionProvider);
+                    await ref.read(tiendaActivaProvider.notifier).elegir(null);
                     await ref.read(authProvider.notifier).logout();
                   },
                 ),

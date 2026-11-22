@@ -14,8 +14,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/preferencias.dart';
 import 'core/tema.dart';
+import 'core/tienda_activa.dart';
 import 'features/home/home_shell.dart';
 import 'features/onboarding/onboarding_screen.dart';
+import 'features/recuperar/recuperar_screen.dart';
 import 'features/registro/screens/registro_screen.dart';
 
 Future<void> main() async {
@@ -64,6 +66,8 @@ final arranqueProvider = FutureProvider<void>((ref) async {
   // Render (plan gratis) puede tardar hasta ~1 min en despertar.
   dio.options.connectTimeout = const Duration(seconds: 60);
   dio.options.receiveTimeout = const Duration(seconds: 60);
+  // Cada petición lleva X-Tienda-Id con la tienda elegida en "Mis tiendas".
+  dio.interceptors.add(interceptorTiendaActiva(ref));
   await ref.read(authProvider.notifier).checkSession();
 });
 
@@ -102,6 +106,13 @@ class PaPedirTienda extends ConsumerWidget {
           onIrARegistro: () {
             Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const RegistroScreen()),
+            );
+          },
+          onOlvidePassword: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const RecuperarScreen(app: AppTipo.tienda),
+              ),
             );
           },
         ),

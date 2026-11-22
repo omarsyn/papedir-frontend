@@ -16,6 +16,7 @@ import 'core/tema.dart';
 import 'features/auth/screens/register_screen.dart';
 import 'features/home/home_shell.dart';
 import 'features/onboarding/onboarding_screen.dart';
+import 'features/recuperar/recuperar_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -99,6 +100,13 @@ class PaPedirCliente extends ConsumerWidget {
           onIrARegistro: () {
             Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const RegisterScreen()),
+            );
+          },
+          onOlvidePassword: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const RecuperarScreen(app: AppTipo.cliente),
+              ),
             );
           },
         ),

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models.dart';
+import '../../../core/tienda_activa.dart';
 import '../data/menu_repository.dart';
 
 /// Categorías y productos de mi tienda.
@@ -21,6 +22,7 @@ class MenuTienda {
 }
 
 final menuTiendaProvider = FutureProvider.autoDispose<MenuTienda>((ref) async {
+  ref.watch(tiendaActivaProvider); // al cambiar de sucursal se recarga
   final repo = ref.watch(menuRepositoryProvider);
   final categorias = await repo.categorias();
   final productos = await repo.productos();
