@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/legal.dart';
 import '../providers/registro_provider.dart';
 
 class RegisterScreen extends ConsumerWidget {
@@ -82,6 +83,8 @@ class RegisterScreen extends ConsumerWidget {
                       ? 'Mínimo 8 caracteres'
                       : null,
                 ),
+                const SizedBox(height: 16),
+                const TextoLegal(prefijo: 'Al crear tu cuenta aceptas los '),
                 if (estado.error != null) ...[
                   const SizedBox(height: 12),
                   Text(

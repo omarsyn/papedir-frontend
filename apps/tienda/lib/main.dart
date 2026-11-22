@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/preferencias.dart';
 import 'core/tema.dart';
+import 'core/temas_fcm.dart';
 import 'core/tienda_activa.dart';
 import 'features/home/home_shell.dart';
 import 'features/onboarding/onboarding_screen.dart';
@@ -83,6 +84,8 @@ class PaPedirTienda extends ConsumerWidget {
             .read(fcmServiceProvider)
             .registerDevice(AppTipo.tienda)
             .catchError((Object _) {});
+        // Temas de Cloud Messaging que se envían desde la consola de Firebase.
+        suscribirTemas(const ['novedades', 'tiendas']);
       }
     });
 

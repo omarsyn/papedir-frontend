@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/preferencias.dart';
 import 'core/tema.dart';
+import 'core/temas_fcm.dart';
 import 'features/auth/screens/register_screen.dart';
 import 'features/home/home_shell.dart';
 import 'features/onboarding/onboarding_screen.dart';
@@ -79,6 +80,11 @@ class PaPedirCliente extends ConsumerWidget {
             .read(fcmServiceProvider)
             .registerDevice(AppTipo.cliente)
             .catchError((Object _) {});
+        // Temas de Cloud Messaging que se envían desde la consola de Firebase.
+        suscribirTemas([
+          'novedades',
+          if (ref.read(promocionesProvider)) 'promociones',
+        ]);
       }
     });
 

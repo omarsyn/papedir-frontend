@@ -7,6 +7,7 @@ import '../carrito/providers/carrito_provider.dart';
 import '../cartera/cartera_screen.dart';
 import '../direcciones/providers/direccion_activa_provider.dart';
 import '../direcciones/screens/direcciones_screen.dart';
+import '../perfil/perfil_screen.dart';
 
 class CuentaScreen extends ConsumerWidget {
   const CuentaScreen({super.key});
@@ -28,6 +29,12 @@ class CuentaScreen extends ConsumerWidget {
               ].whereType<String>().where((s) => s.isNotEmpty).join('\n'),
             ),
             isThreeLine: (usuario?.telefono ?? '').isNotEmpty,
+            trailing: const Icon(Icons.edit_outlined),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const PerfilScreen(conPromociones: true),
+              ),
+            ),
           ),
           const Divider(),
           ListTile(

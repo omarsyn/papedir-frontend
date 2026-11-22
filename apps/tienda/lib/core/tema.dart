@@ -1,4 +1,9 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+final bool _enPruebas = Platform.environment.containsKey('FLUTTER_TEST');
 
 /// Medidas comunes del diseño (bordes redondeados y espacios).
 abstract final class Disenio {
@@ -20,7 +25,13 @@ ThemeData construirTema(Color semilla, Brightness brillo) {
   final tarjeta = oscuro ? const Color(0xFF1C1F26) : Colors.white;
   final campo = oscuro ? const Color(0xFF22262E) : Colors.white;
 
-  final base = ThemeData(colorScheme: esquema, useMaterial3: true);
+  // Fuente Inter (google_fonts), la de la identidad de PaPedir. En las
+  // pruebas no hay internet para descargarla, así que se usa la de sistema.
+  final base = ThemeData(
+    colorScheme: esquema,
+    useMaterial3: true,
+    fontFamily: _enPruebas ? null : GoogleFonts.inter().fontFamily,
+  );
   final t = base.textTheme;
   final texto = t.copyWith(
     headlineMedium: t.headlineMedium?.copyWith(fontWeight: FontWeight.w800),

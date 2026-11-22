@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/catalogos_provider.dart';
+import '../../../core/legal.dart';
 import '../providers/registro_provider.dart';
 import 'mapa_selector_screen.dart';
 
@@ -177,9 +178,7 @@ class RegistroScreen extends ConsumerWidget {
                   onChanged: (v) => notifier.cambiarAcepto(v ?? false),
                   contentPadding: EdgeInsets.zero,
                   controlAffinity: ListTileControlAffinity.leading,
-                  title: const Text(
-                    'Acepto el aviso de privacidad y los términos de uso',
-                  ),
+                  title: const TextoLegal(),
                 ),
                 if (estado.error != null) ...[
                   const SizedBox(height: 8),

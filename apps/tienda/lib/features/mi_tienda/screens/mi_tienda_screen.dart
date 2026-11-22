@@ -12,6 +12,7 @@ import '../../../core/widgets/mensajes.dart';
 import '../../../core/widgets/vista_async.dart';
 import '../../cartera/cartera_screen.dart';
 import '../../home/navegacion_provider.dart';
+import '../../perfil/perfil_screen.dart';
 import '../../planes/planes_screen.dart';
 import '../../sucursales/screens/mis_tiendas_screen.dart';
 import '../providers/mi_tienda_provider.dart';
@@ -143,6 +144,12 @@ class MiTiendaScreen extends ConsumerWidget {
                   leading: const Icon(Icons.person_outline),
                   title: Text(usuario?.nombre ?? ''),
                   subtitle: Text(usuario?.email ?? ''),
+                  trailing: const Icon(Icons.edit_outlined),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const PerfilScreen(),
+                    ),
+                  ),
                 ),
                 ListTile(
                   leading: const Icon(Icons.dark_mode_outlined),
