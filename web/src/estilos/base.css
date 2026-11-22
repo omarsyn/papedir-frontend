@@ -3032,3 +3032,12 @@ time {
     grid-column: 1 / -1;
   }
 }
+
+/* Las capas internas de Leaflet usan z-index de 400 a 1000: se encierran dentro del mapa para que las
+   sugerencias de dirección, menús y avisos que caen encima no queden debajo. */
+.leaflet-container {
+  isolation: isolate;
+}
+.ubicacion-entrada {
+  z-index: 2;
+}
