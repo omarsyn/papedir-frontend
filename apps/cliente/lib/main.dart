@@ -96,6 +96,7 @@ class PaPedirCliente extends ConsumerWidget {
       inicio = Builder(
         builder: (context) => LoginScreen(
           appTipo: AppTipo.cliente,
+          logo: Image.asset('assets/logo.png', height: 110),
           tituloApp: 'PaPedir',
           onIrARegistro: () {
             Navigator.of(context).push(
