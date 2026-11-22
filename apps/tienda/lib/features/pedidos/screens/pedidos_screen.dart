@@ -9,6 +9,7 @@ import '../../mi_tienda/providers/mi_tienda_provider.dart';
 import '../../pedido_manual/pedido_manual_screen.dart';
 import '../data/pedidos_repository.dart';
 import '../providers/pedidos_provider.dart';
+import '../../notificaciones/notificaciones_screen.dart';
 
 /// La tienda tiene 5 minutos para aceptar un pedido nuevo.
 const _tiempoParaAceptar = Duration(minutes: 5);
@@ -33,6 +34,7 @@ class PedidosScreen extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Pedidos'),
+          actions: const [CampanaNotificaciones()],
           bottom: TabBar(
             isScrollable: true,
             tabs: [

@@ -10,6 +10,7 @@ import '../data/pedidos_repository.dart';
 import '../providers/pedido_detalle_provider.dart';
 import '../widgets/mapa_seguimiento.dart';
 import 'calificar_screen.dart';
+import 'chat_pedido_screen.dart';
 
 class PedidoDetalleScreen extends ConsumerWidget {
   const PedidoDetalleScreen({super.key, required this.pedidoId});
@@ -118,6 +119,20 @@ class PedidoDetalleScreen extends ConsumerWidget {
             MapaSeguimiento(pedido: p),
             const SizedBox(height: 8),
           ],
+          if (p.repartidor != null && estadosConRepartidor.contains(p.estado))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: FilledButton.tonalIcon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) =>
+                        ChatPedidoScreen(pedidoId: p.id, titulo: p.folio),
+                  ),
+                ),
+                icon: const Icon(Icons.chat_bubble_outline),
+                label: const Text('Escribir al repartidor'),
+              ),
+            ),
           if (p.codigoEntrega != null && !estadoFinal(p.estado))
             Card(
               child: ListTile(

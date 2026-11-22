@@ -6,6 +6,7 @@ import '../../../core/models.dart';
 import '../../../core/widgets/vista_async.dart';
 import '../providers/pedidos_provider.dart';
 import 'pedido_detalle_screen.dart';
+import '../../notificaciones/notificaciones_screen.dart';
 
 class PedidosScreen extends ConsumerWidget {
   const PedidosScreen({super.key});
@@ -14,7 +15,10 @@ class PedidosScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final pedidos = ref.watch(pedidosProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Mis pedidos')),
+      appBar: AppBar(
+        title: const Text('Mis pedidos'),
+        actions: [CampanaNotificaciones(onAbrirPedido: abrirPedido)],
+      ),
       body: VistaAsync<List<Pedido>>(
         valor: pedidos,
         onReintentar: () => ref.invalidate(pedidosProvider),
@@ -55,4 +59,13 @@ class PedidosScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Abre el detalle de un pedido (desde una notificación).
+void abrirPedido(BuildContext context, String pedidoId) {
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => PedidoDetalleScreen(pedidoId: pedidoId),
+    ),
+  );
 }

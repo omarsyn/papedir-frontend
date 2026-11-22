@@ -14,6 +14,8 @@ import '../../direcciones/screens/direccion_form_screen.dart';
 import '../../direcciones/screens/direcciones_screen.dart';
 import '../providers/tiendas_provider.dart';
 import 'menu_screen.dart';
+import '../../notificaciones/notificaciones_screen.dart';
+import '../../pedidos/screens/pedidos_screen.dart' show abrirPedido;
 
 void _abrirMenu(BuildContext context, Tienda tienda, String heroTag) {
   Navigator.of(context).push(
@@ -239,49 +241,62 @@ class _Encabezado extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) =>
-                              const DireccionesScreen(seleccionar: true),
-                        ),
-                      );
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.location_on_rounded, color: blanco),
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) =>
+                                    const DireccionesScreen(seleccionar: true),
+                              ),
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
                               children: [
-                                Text(
-                                  'Entregar en',
-                                  style: tema.textTheme.labelSmall?.copyWith(
-                                    color: Colors.white70,
+                                const Icon(
+                                  Icons.location_on_rounded,
+                                  color: blanco,
+                                ),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Entregar en',
+                                        style: tema.textTheme.labelSmall
+                                            ?.copyWith(color: Colors.white70),
+                                      ),
+                                      Text(
+                                        direccion?.alias ??
+                                            'Elige una dirección',
+                                        overflow: TextOverflow.ellipsis,
+                                        style: tema.textTheme.titleMedium
+                                            ?.copyWith(color: blanco),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                Text(
-                                  direccion?.alias ?? 'Elige una dirección',
-                                  overflow: TextOverflow.ellipsis,
-                                  style: tema.textTheme.titleMedium?.copyWith(
-                                    color: blanco,
-                                  ),
+                                const Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  color: blanco,
                                 ),
                               ],
                             ),
                           ),
-                          const Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            color: blanco,
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
+                      const CampanaNotificaciones(
+                        color: blanco,
+                        onAbrirPedido: abrirPedido,
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 18),
                   Row(
