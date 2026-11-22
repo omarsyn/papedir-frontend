@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
+import '../models/mensaje_pedido.dart';
 import '../models/ticket.dart';
 
 typedef JsonMap = Map<String, dynamic>;
@@ -13,6 +14,7 @@ class SocketService {
   final _pedidoDisponibleCtrl = StreamController<JsonMap>.broadcast();
   final _pedidoTomadoCtrl = StreamController<String>.broadcast();
   final _pedidoActualizadoCtrl = StreamController<JsonMap>.broadcast();
+  final _pedidoMensajeCtrl = StreamController<MensajePedido>.broadcast();
   final _ticketMensajeCtrl = StreamController<Mensaje>.broadcast();
   final _ticketActualizadoCtrl = StreamController<JsonMap>.broadcast();
   final _cuentaAprobadaCtrl = StreamController<void>.broadcast();
@@ -21,6 +23,7 @@ class SocketService {
   Stream<JsonMap> get onPedidoDisponible => _pedidoDisponibleCtrl.stream;
   Stream<String> get onPedidoTomado => _pedidoTomadoCtrl.stream;
   Stream<JsonMap> get onPedidoActualizado => _pedidoActualizadoCtrl.stream;
+  Stream<MensajePedido> get onPedidoMensaje => _pedidoMensajeCtrl.stream;
   Stream<Mensaje> get onTicketMensaje => _ticketMensajeCtrl.stream;
   Stream<JsonMap> get onTicketActualizado => _ticketActualizadoCtrl.stream;
   Stream<void> get onCuentaAprobada => _cuentaAprobadaCtrl.stream;
@@ -69,6 +72,12 @@ class SocketService {
       if (data is JsonMap) _pedidoActualizadoCtrl.add(data);
     });
 
+    _socket!.on('pedido:mensaje', (data) {
+      if (data is JsonMap) {
+        _pedidoMensajeCtrl.add(MensajePedido.fromJson(data));
+      }
+    });
+
     _socket!.on('ticket:mensaje', (data) {
       if (data is JsonMap) {
         _ticketMensajeCtrl.add(Mensaje.fromJson(data));
@@ -92,12 +101,18 @@ class SocketService {
     });
   }
 
-  /// Emite la ubicación del repartidor cada 10s. Retorna false si el socket está caído
-  /// para usar el respaldo HTTP PUT /repartidor/ubicacion.
   bool emitUbicacion({required double lat, required double lng}) {
     if (!isConnected) return false;
     _socket!.emit('repartidor:ubicacion', {'lat': lat, 'lng': lng});
     return true;
+  }
+
+  void unirsePedido(String pedidoId) {
+    _socket?.emit('pedido:unirse', {'pedidoId': pedidoId});
+  }
+
+  void salirPedido(String pedidoId) {
+    _socket?.emit('pedido:salir', {'pedidoId': pedidoId});
   }
 
   void unirseTicket(String ticketId) {
@@ -119,6 +134,7 @@ class SocketService {
     _pedidoDisponibleCtrl.close();
     _pedidoTomadoCtrl.close();
     _pedidoActualizadoCtrl.close();
+    _pedidoMensajeCtrl.close();
     _ticketMensajeCtrl.close();
     _ticketActualizadoCtrl.close();
     _cuentaAprobadaCtrl.close();

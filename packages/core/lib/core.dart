@@ -25,8 +25,14 @@ export 'models/viaje.dart';
 export 'models/cartera_models.dart';
 export 'models/vehiculo_model.dart';
 export 'api/cartera_repository.dart';
+export 'models/mensaje_pedido.dart';
 
 // Push & Realtime
 export 'push/fcm_service.dart';
 export 'realtime/socket_service.dart';
 export 'push/local_notifications_service.dart';
+
+// Chat
+export 'chat/chat_pedido_provider.dart';
+export 'chat/chat_pedido_sheet.dart';
+
