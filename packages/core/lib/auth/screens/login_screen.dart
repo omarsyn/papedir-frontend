@@ -7,6 +7,9 @@ class LoginScreen extends ConsumerStatefulWidget {
   final AppTipo appTipo;
   final String tituloApp;
   final VoidCallback? onIrARegistro;
+
+  /// Abre la pantalla de recuperar contraseña de la app (opcional).
+  final VoidCallback? onOlvidePassword;
   final Widget? logo;
 
   const LoginScreen({
@@ -14,6 +17,7 @@ class LoginScreen extends ConsumerStatefulWidget {
     required this.appTipo,
     required this.tituloApp,
     this.onIrARegistro,
+    this.onOlvidePassword,
     this.logo,
   });
 
@@ -112,6 +116,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ? 'Ingresa tu contraseña'
                         : null,
                   ),
+                  if (widget.onOlvidePassword != null)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: widget.onOlvidePassword,
+                        child: const Text('¿Olvidaste tu contraseña?'),
+                      ),
+                    ),
                   if (authState.errorMessage != null) ...[
                     const SizedBox(height: 16),
                     Container(
