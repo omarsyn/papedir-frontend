@@ -9,6 +9,10 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 class ViajeActivoState {
   final Viaje? viaje;
   final List<LatLng> rutaPuntos;
+
+  /// true si `rutaPuntos` viene trazada por calles (OSRM); false si el backend
+  /// no pudo calcularla y mandó las paradas en línea recta.
+  final bool rutaPorCalles;
   final bool cargando;
   final bool procesandoAccion;
   final Position? ubicacionActual;
@@ -18,6 +22,7 @@ class ViajeActivoState {
   const ViajeActivoState({
     this.viaje,
     this.rutaPuntos = const [],
+    this.rutaPorCalles = false,
     this.cargando = false,
     this.procesandoAccion = false,
     this.ubicacionActual,
@@ -29,6 +34,7 @@ class ViajeActivoState {
     Viaje? viaje,
     bool limpiarViaje = false,
     List<LatLng>? rutaPuntos,
+    bool? rutaPorCalles,
     bool? cargando,
     bool? procesandoAccion,
     Position? ubicacionActual,
@@ -39,6 +45,7 @@ class ViajeActivoState {
     return ViajeActivoState(
       viaje: limpiarViaje ? null : (viaje ?? this.viaje),
       rutaPuntos: rutaPuntos ?? this.rutaPuntos,
+      rutaPorCalles: rutaPorCalles ?? this.rutaPorCalles,
       cargando: cargando ?? this.cargando,
       procesandoAccion: procesandoAccion ?? this.procesandoAccion,
       ubicacionActual: ubicacionActual ?? this.ubicacionActual,
@@ -53,6 +60,7 @@ class ViajeActivoNotifier extends StateNotifier<ViajeActivoState> {
   final SocketService _socket;
 
   Timer? _gpsTimer;
+  int _ticksGps = 0;
   StreamSubscription<JsonMap>? _pedidoActualizadoSub;
 
   ViajeActivoNotifier(this._dio, this._socket)
@@ -92,11 +100,12 @@ class ViajeActivoNotifier extends StateNotifier<ViajeActivoState> {
         return;
       }
 
-      final puntosRuta = await _cargarRuta();
+      final ruta = await _cargarRuta();
 
       state = state.copyWith(
         viaje: viaje,
-        rutaPuntos: puntosRuta,
+        rutaPuntos: ruta.puntos,
+        rutaPorCalles: ruta.porCalles,
         cargando: false,
         viajeFinalizado: false,
       );
@@ -118,11 +127,13 @@ class ViajeActivoNotifier extends StateNotifier<ViajeActivoState> {
     }
   }
 
-  Future<List<LatLng>> _cargarRuta() async {
+  /// Trazo por calles que calcula el backend (OSRM) desde la última ubicación
+  /// reportada por las paradas pendientes.
+  Future<({List<LatLng> puntos, bool porCalles})> _cargarRuta() async {
     try {
       final r = (await _dio.get('/repartidor/viaje-actual/ruta')).data;
       if (r is JsonMap && r['puntos'] is List) {
-        return (r['puntos'] as List)
+        final puntos = (r['puntos'] as List)
             .whereType<JsonMap>()
             .where((p) => p['lat'] != null && p['lng'] != null)
             .map(
@@ -132,11 +143,20 @@ class ViajeActivoNotifier extends StateNotifier<ViajeActivoState> {
               ),
             )
             .toList();
+        return (puntos: puntos, porCalles: r['fuente'] == 'calles');
       }
     } catch (e) {
       debugPrint('[ViajeActivo] No se pudo obtener la polilínea de ruta: $e');
     }
-    return const [];
+    return (puntos: const <LatLng>[], porCalles: false);
+  }
+
+  /// Vuelve a pedir el trazo para que siga al repartidor mientras avanza.
+  Future<void> _refrescarRuta() async {
+    if (state.viaje == null) return;
+    final ruta = await _cargarRuta();
+    if (!mounted || state.viaje == null || ruta.puntos.isEmpty) return;
+    state = state.copyWith(rutaPuntos: ruta.puntos, rutaPorCalles: ruta.porCalles);
   }
 
   double? calcularDistanciaMetros(ParadaViaje parada) {
@@ -309,6 +329,10 @@ class ViajeActivoNotifier extends StateNotifier<ViajeActivoState> {
         debugPrint('[ViajeActivo GPS HTTP] $e');
       }
     }
+
+    // Cada 30 s (3 lecturas de GPS) se vuelve a trazar desde donde va ahora.
+    _ticksGps++;
+    if (_ticksGps % 3 == 0) await _refrescarRuta();
   }
 
   @override
