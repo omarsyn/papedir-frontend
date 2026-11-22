@@ -554,6 +554,32 @@ class _TarjetaParadaActiva extends StatelessWidget {
                 ),
               ],
             ),
+            if (pedidoPermiteChat(pedido)) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () => mostrarChatPedidoModal(
+                  context,
+                  pedido: pedido,
+                  tituloContraparte: pedido.destino.nombre,
+                ),
+                icon: const Icon(Icons.chat_outlined, size: 18),
+                label: const Text('Chat con cliente'),
+              ),
+            ],
+            const SizedBox(height: 10),
+            FilledButton(
+              onPressed: procesando ? null : onAccionPrincipal,
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: procesando
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(_textoBoton()),
+            ),
             const SizedBox(height: 10),
             FilledButton(
               onPressed: procesando ? null : onAccionPrincipal,
