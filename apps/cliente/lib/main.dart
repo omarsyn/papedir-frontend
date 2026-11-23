@@ -5,6 +5,7 @@ import 'package:core/core.dart'
         LoginScreen,
         authProvider,
         dioProvider,
+        preferenciasRemotasProvider,
         fcmServiceProvider;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +19,7 @@ import 'features/auth/screens/register_screen.dart';
 import 'features/home/home_shell.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/recuperar/recuperar_screen.dart';
+import 'features/terminos/terminos_pendientes_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -88,6 +90,12 @@ class PaPedirCliente extends ConsumerWidget {
       }
     });
 
+    // Preferencias en Firestore: si cambian en otro teléfono, se aplican aquí.
+    ref.listen<AsyncValue<Map<String, dynamic>?>>(
+      preferenciasRemotasProvider,
+      (_, siguiente) => aplicarPreferenciasRemotas(ref, siguiente.valueOrNull),
+    );
+
     final arranque = ref.watch(arranqueProvider);
     final autenticado = ref.watch(authProvider).isAuthenticated;
 
@@ -118,6 +126,9 @@ class PaPedirCliente extends ConsumerWidget {
           },
         ),
       );
+    } else if (ref.watch(authProvider).usuario?.terminosPendientes ?? false) {
+      // Hay términos nuevos: se aceptan antes de entrar.
+      inicio = const TerminosPendientesScreen();
     } else {
       inicio = const HomeShell();
     }
@@ -130,6 +141,15 @@ class PaPedirCliente extends ConsumerWidget {
       theme: _tema(Brightness.light),
       darkTheme: _tema(Brightness.dark),
       themeMode: ref.watch(temaProvider),
+      // Preferencia "Texto grande" (Firestore / teléfono).
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaler: TextScaler.linear(
+            ref.watch(fuenteGrandeProvider) ? 1.15 : 1.0,
+          ),
+        ),
+        child: child!,
+      ),
       home: inicio,
     );
   }

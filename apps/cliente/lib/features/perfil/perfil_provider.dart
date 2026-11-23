@@ -1,4 +1,8 @@
-import 'package:core/core.dart' show Tokens, authProvider;
+import 'dart:io';
+
+import 'package:core/core.dart'
+    show Tokens, authProvider, firebaseLoginProvider, subirAvatar;
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -29,7 +33,7 @@ final perfilCamposProvider = Provider.autoDispose<PerfilCampos>((ref) {
 });
 
 /// Qué se está haciendo en la pantalla de perfil (para deshabilitar botones).
-enum AccionPerfil { ninguna, guardando, password, eliminando }
+enum AccionPerfil { ninguna, guardando, password, eliminando, foto }
 
 class PerfilNotifier extends AutoDisposeNotifier<AccionPerfil> {
   @override
@@ -81,13 +85,32 @@ class PerfilNotifier extends AutoDisposeNotifier<AccionPerfil> {
             );
       });
 
-  /// DELETE /usuarios/me con la contraseña. Después cierra la sesión local.
+  /// Elige una foto de la galería y la sube (Firebase Storage para cuentas
+  /// de Firebase, `/uploads` para las de PaPedir). Devuelve false si el
+  /// usuario no eligió ninguna.
+  Future<bool> cambiarFoto() => _hacer(AccionPerfil.foto, () async {
+    final foto = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 800,
+      imageQuality: 85,
+    );
+    if (foto == null) return false;
+    await conApiError(
+      () => subirAvatar(ref.read(dioProvider), File(foto.path)),
+    );
+    await ref.read(authProvider.notifier).checkSession();
+    return true;
+  });
+
+  /// DELETE /usuarios/me con la contraseña o, en cuentas de Firebase
+  /// (sin contraseña de PaPedir), con un ID token reciente.
   Future<void> eliminarCuenta(String password) =>
       _hacer(AccionPerfil.eliminando, () async {
+        final Map<String, dynamic> datos = password.isNotEmpty
+            ? {'password': password}
+            : {'idToken': await ref.read(firebaseLoginProvider).idToken()};
         await conApiError(
-          () => ref
-              .read(dioProvider)
-              .delete<void>('/usuarios/me', data: {'password': password}),
+          () => ref.read(dioProvider).delete<void>('/usuarios/me', data: datos),
         );
         await ref.read(tokenStorageProvider).clear();
         await ref.read(authProvider.notifier).logout();

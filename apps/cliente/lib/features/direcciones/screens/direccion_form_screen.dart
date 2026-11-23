@@ -1,9 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/models.dart';
+import '../../../core/providers.dart';
 import '../../../core/widgets/mensajes.dart';
+import '../data/geocodificador.dart';
 import '../providers/direccion_form_provider.dart';
 import 'mapa_selector_screen.dart';
+
+/// Lo que el usuario va escribiendo en "Dirección" (para el autocompletado).
+final _escritoProvider = StateProvider.autoDispose<String>((_) => '');
+
+/// Sugerencias de GET /geo/sugerencias; espera 400 ms a que deje de teclear.
+final _sugerenciasFormProvider = FutureProvider.autoDispose
+    .family<List<SugerenciaDireccion>, String>((ref, q) async {
+      if (q.trim().length < 3) return const [];
+      var cancelado = false;
+      ref.onDispose(() => cancelado = true);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      if (cancelado) return const [];
+      return sugerenciasDe(ref.read(dioProvider), q);
+    });
 
 class DireccionFormScreen extends ConsumerWidget {
   const DireccionFormScreen({super.key});
@@ -17,11 +34,31 @@ class DireccionFormScreen extends ConsumerWidget {
     );
     if (r == null || !context.mounted) return;
     ref.read(direccionFormProvider.notifier).fijarUbicacion(r.coordenadas);
-    // Solo se autocompleta si el usuario aún no escribió la dirección.
+    // Si eligió una sugerencia en el buscador del mapa, esa manda; si solo
+    // movió el pin, se autocompleta únicamente cuando aún no hay texto.
     final c = ref.read(direccionFormControllersProvider);
-    if (c.texto.text.trim().isEmpty && r.texto != null) {
+    if (r.texto != null && (r.deBuscador || c.texto.text.trim().isEmpty)) {
       c.texto.text = r.texto!;
     }
+    ref.read(_escritoProvider.notifier).state = '';
+  }
+
+  /// Tocar una sugerencia: llena la dirección y marca la ubicación sola.
+  void _elegirSugerencia(
+    BuildContext context,
+    WidgetRef ref,
+    SugerenciaDireccion s,
+  ) {
+    FocusScope.of(context).unfocus();
+    ref.read(direccionFormControllersProvider).texto.text = s.completo;
+    ref.read(_escritoProvider.notifier).state = '';
+    ref
+        .read(direccionFormProvider.notifier)
+        .fijarUbicacion(Coordenadas(s.lat, s.lng));
+    mostrarMensaje(
+      context,
+      'Ubicación marcada. Si no es el punto exacto, ajústala en el mapa.',
+    );
   }
 
   Future<void> _guardar(BuildContext context, WidgetRef ref) async {
@@ -53,6 +90,11 @@ class DireccionFormScreen extends ConsumerWidget {
     final c = ref.watch(direccionFormControllersProvider);
     final estado = ref.watch(direccionFormProvider);
     final u = estado.ubicacion;
+    final escrito = ref.watch(_escritoProvider);
+    final sugerencias = escrito.trim().length < 3
+        ? const AsyncValue<List<SugerenciaDireccion>>.data([])
+        : ref.watch(_sugerenciasFormProvider(escrito));
+    final lista = sugerencias.valueOrNull ?? const <SugerenciaDireccion>[];
     return Scaffold(
       appBar: AppBar(title: const Text('Nueva dirección')),
       body: SafeArea(
@@ -99,14 +141,45 @@ class DireccionFormScreen extends ConsumerWidget {
                 TextFormField(
                   controller: c.texto,
                   maxLines: 2,
-                  decoration: const InputDecoration(
+                  minLines: 1,
+                  onChanged: (v) =>
+                      ref.read(_escritoProvider.notifier).state = v,
+                  decoration: InputDecoration(
                     labelText: 'Dirección',
-                    hintText: 'Calle, número, colonia',
+                    hintText: 'Escribe calle o lugar y elige una sugerencia',
+                    suffixIcon: sugerencias.isLoading
+                        ? const Padding(
+                            padding: EdgeInsets.all(14),
+                            child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : null,
                   ),
                   validator: (v) => (v == null || v.trim().isEmpty)
                       ? 'Escribe la dirección'
                       : null,
                 ),
+                if (lista.isNotEmpty)
+                  Card(
+                    margin: const EdgeInsets.only(top: 4),
+                    child: Column(
+                      children: [
+                        for (final s in lista)
+                          ListTile(
+                            dense: true,
+                            leading: const Icon(Icons.place_outlined),
+                            title: Text(s.texto),
+                            subtitle: s.detalle == null
+                                ? null
+                                : Text(s.detalle!),
+                            onTap: () => _elegirSugerencia(context, ref, s),
+                          ),
+                      ],
+                    ),
+                  ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: c.referencias,

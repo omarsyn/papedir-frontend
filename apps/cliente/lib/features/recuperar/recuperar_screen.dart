@@ -186,7 +186,10 @@ class _PasoCorreo extends ConsumerWidget {
                 'Escribe el correo de tu cuenta y te mandaremos un código '
                 'para crear una nueva.',
           ),
-          if (estado.error != null) _Aviso(texto: estado.error!, esError: true),
+          if (estado.error != null)
+            _Aviso(texto: estado.error!, esError: true)
+          else if (estado.aviso != null)
+            _Aviso(texto: estado.aviso!),
           TextFormField(
             controller: campos.email,
             keyboardType: TextInputType.emailAddress,

@@ -8,6 +8,7 @@ import '../cartera/cartera_screen.dart';
 import '../direcciones/providers/direccion_activa_provider.dart';
 import '../direcciones/screens/direcciones_screen.dart';
 import '../perfil/perfil_screen.dart';
+import '../favoritos/favoritos.dart';
 
 class CuentaScreen extends ConsumerWidget {
   const CuentaScreen({super.key});
@@ -48,6 +49,14 @@ class CuentaScreen extends ConsumerWidget {
                 ),
               );
             },
+          ),
+          ListTile(
+            leading: const Icon(Icons.favorite_border),
+            title: const Text('Mis tiendas favoritas'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const FavoritosScreen()),
+            ),
           ),
           ListTile(
             leading: const Icon(Icons.dark_mode_outlined),

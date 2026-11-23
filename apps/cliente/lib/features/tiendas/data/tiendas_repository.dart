@@ -32,6 +32,25 @@ class TiendasRepository {
     return data.map((e) => Tienda.fromJson(asMapa(e))).toList();
   });
 
+  Future<Tienda> detalle(String tiendaId) => conApiError(() async {
+    final r = await _dio.get<Map<String, dynamic>>('/tiendas/$tiendaId');
+    return Tienda.fromJson(r.data!);
+  });
+
+  Future<List<Tienda>> favoritas() => conApiError(() async {
+    final r = await _dio.get<List<dynamic>>('/favoritos');
+    return (r.data ?? const []).map((e) => Tienda.fromJson(asMapa(e))).toList();
+  });
+
+  Future<void> marcarFavorita(String tiendaId, bool favorita) =>
+      conApiError(() async {
+        if (favorita) {
+          await _dio.put<void>('/favoritos/$tiendaId');
+        } else {
+          await _dio.delete<void>('/favoritos/$tiendaId');
+        }
+      });
+
   Future<List<MenuCategoria>> menu(String tiendaId) => conApiError(() async {
     final r = await _dio.get<List<dynamic>>('/tiendas/$tiendaId/menu');
     return (r.data ?? <dynamic>[])

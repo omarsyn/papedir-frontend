@@ -6,6 +6,7 @@ import '../../core/formato.dart';
 import '../../core/tema.dart';
 import '../../core/widgets/mensajes.dart';
 import '../registro/screens/mapa_selector_screen.dart';
+import 'codigo_entrega.dart';
 import 'pedido_manual_provider.dart';
 
 /// Pedido capturado por la tienda (venta por teléfono, WhatsApp, etc.).
@@ -48,6 +49,11 @@ class PedidoManualScreen extends ConsumerWidget {
     try {
       final pedido = await ref.read(pedidoManualProvider.notifier).crear();
       if (!context.mounted) return;
+      if (pedido.codigoEntrega != null) {
+        // El código se comparte por fuera de la app con quien recibe.
+        await mostrarCodigoEntrega(context, pedido);
+        if (!context.mounted) return;
+      }
       mostrarMensaje(
         context,
         'Pedido ${pedido.folio} creado. Ya está en "Listos" esperando repartidor.',

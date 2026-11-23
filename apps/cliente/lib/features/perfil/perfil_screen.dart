@@ -1,10 +1,12 @@
-import 'package:core/core.dart' show authProvider;
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:core/core.dart' show authProvider, usuarioFirebaseProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_error.dart';
 import '../../core/legal.dart';
+import '../../core/preferencias.dart';
 import '../../core/tema.dart';
 import '../../core/temas_fcm.dart';
 import '../../core/widgets/mensajes.dart';
@@ -27,6 +29,17 @@ class PerfilScreen extends ConsumerWidget {
           .read(perfilProvider.notifier)
           .guardar(nombre: c.nombre.text.trim(), telefono: c.telefono.text);
       if (context.mounted) mostrarMensaje(context, 'Perfil actualizado');
+    } catch (e) {
+      if (context.mounted) mostrarError(context, e);
+    }
+  }
+
+  Future<void> _foto(BuildContext context, WidgetRef ref) async {
+    try {
+      final cambio = await ref.read(perfilProvider.notifier).cambiarFoto();
+      if (cambio && context.mounted) {
+        mostrarMensaje(context, 'Foto actualizada');
+      }
     } catch (e) {
       if (context.mounted) mostrarError(context, e);
     }
@@ -120,6 +133,8 @@ class PerfilScreen extends ConsumerWidget {
   Future<void> _eliminar(BuildContext context, WidgetRef ref) async {
     final form = GlobalKey<FormState>();
     var password = '';
+    // Las cuentas de Firebase (Google, GitHub) no tienen contraseña de PaPedir.
+    final esFirebase = ref.read(usuarioFirebaseProvider).valueOrNull != null;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) {
@@ -139,16 +154,18 @@ class PerfilScreen extends ConsumerWidget {
                   'direcciones, y se cerrarán todas tus sesiones. Tus pedidos '
                   'se conservan sin datos personales. No se puede deshacer.',
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Escribe tu contraseña para confirmar',
+                if (!esFirebase) ...[
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Escribe tu contraseña para confirmar',
+                    ),
+                    onChanged: (v) => password = v,
+                    validator: (v) =>
+                        (v ?? '').isEmpty ? 'Escribe tu contraseña' : null,
                   ),
-                  onChanged: (v) => password = v,
-                  validator: (v) =>
-                      (v ?? '').isEmpty ? 'Escribe tu contraseña' : null,
-                ),
+                ],
               ],
             ),
           ),
@@ -204,6 +221,7 @@ class PerfilScreen extends ConsumerWidget {
     final tema = Theme.of(context);
     final esquema = tema.colorScheme;
     final nombre = usuario?.nombre ?? '';
+    final foto = usuario?.fotoUrl;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Mi perfil')),
@@ -211,15 +229,44 @@ class PerfilScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(Disenio.margen),
         children: [
           Center(
-            child: CircleAvatar(
-              radius: 44,
-              backgroundColor: esquema.primaryContainer,
-              child: Text(
-                nombre.isEmpty ? '?' : nombre.characters.first.toUpperCase(),
-                style: tema.textTheme.headlineMedium?.copyWith(
-                  color: esquema.onPrimaryContainer,
+            child: Stack(
+              children: [
+                CircleAvatar(
+                  radius: 48,
+                  backgroundColor: esquema.primaryContainer,
+                  backgroundImage: foto == null
+                      ? null
+                      : CachedNetworkImageProvider(foto),
+                  child: foto != null
+                      ? null
+                      : Text(
+                          nombre.isEmpty
+                              ? '?'
+                              : nombre.characters.first.toUpperCase(),
+                          style: tema.textTheme.headlineMedium?.copyWith(
+                            color: esquema.onPrimaryContainer,
+                          ),
+                        ),
                 ),
-              ),
+                // Solo las cuentas de correo cambian su foto; las de Google
+                // o GitHub usan la del proveedor (puedeCambiarFoto).
+                if (usuario?.puedeCambiarFoto ?? false)
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: IconButton.filled(
+                      tooltip: 'Cambiar foto',
+                      onPressed: ocupado ? null : () => _foto(context, ref),
+                      icon: accion == AccionPerfil.foto
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.photo_camera_outlined, size: 20),
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(height: 10),
@@ -296,6 +343,14 @@ class PerfilScreen extends ConsumerWidget {
                     onChanged: (v) =>
                         ref.read(promocionesProvider.notifier).cambiar(v),
                   ),
+                SwitchListTile(
+                  secondary: const Icon(Icons.format_size),
+                  title: const Text('Texto grande'),
+                  subtitle: const Text('Se guarda en tu cuenta'),
+                  value: ref.watch(fuenteGrandeProvider),
+                  onChanged: (v) =>
+                      ref.read(fuenteGrandeProvider.notifier).cambiar(v),
+                ),
                 ListTile(
                   leading: const Icon(Icons.description_outlined),
                   title: const Text('Términos de uso'),

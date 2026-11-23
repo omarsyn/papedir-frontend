@@ -6,7 +6,10 @@ import '../../../core/formato.dart';
 import '../../../core/models.dart';
 import '../../../core/widgets/mensajes.dart';
 import '../../../core/widgets/vista_async.dart';
+import '../../carrito/providers/carrito_provider.dart';
+import '../../carrito/screens/carrito_screen.dart';
 import '../data/pedidos_repository.dart';
+import '../data/repetir_pedido.dart';
 import '../providers/pedido_detalle_provider.dart';
 import '../widgets/mapa_seguimiento.dart';
 import 'calificar_screen.dart';
@@ -46,6 +49,59 @@ class PedidoDetalleScreen extends ConsumerWidget {
     } catch (e) {
       if (!context.mounted) return;
       mostrarError(context, e);
+    }
+  }
+
+  /// "Volver a pedir": llena el carrito con el pedido anterior y lo abre.
+  Future<void> _repetir(BuildContext context, WidgetRef ref) async {
+    final carrito = ref.read(carritoProvider);
+    if (!carrito.vacio) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('¿Reemplazar tu carrito?'),
+          content: const Text(
+            'Ya tienes productos en el carrito. Se cambiarán por los de este '
+            'pedido.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Reemplazar'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true || !context.mounted) return;
+    }
+    try {
+      final r = await ref.read(repetirPedidoProvider)(pedidoId);
+      if (!context.mounted) return;
+      if (r.lineas.isEmpty) {
+        mostrarMensaje(
+          context,
+          'Ninguno de esos productos está disponible hoy',
+        );
+        return;
+      }
+      final n = ref.read(carritoProvider.notifier)..vaciar();
+      for (final (producto, opciones, cantidad) in r.lineas) {
+        for (var i = 0; i < cantidad; i++) {
+          n.agregar(r.tienda, producto, opciones: opciones);
+        }
+      }
+      if (r.omitidos.isNotEmpty) {
+        mostrarMensaje(context, 'No se agregó: ${r.omitidos.join(', ')}');
+      }
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => const CarritoScreen()));
+    } catch (e) {
+      if (context.mounted) mostrarError(context, e);
     }
   }
 
@@ -162,6 +218,15 @@ class PedidoDetalleScreen extends ConsumerWidget {
                 label: const Text('Calificar pedido'),
               ),
           ],
+          if (estadoFinal(p.estado))
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: OutlinedButton.icon(
+                onPressed: () => _repetir(context, ref),
+                icon: const Icon(Icons.replay),
+                label: const Text('Volver a pedir'),
+              ),
+            ),
           const SizedBox(height: 8),
           Text('Productos', style: tema.textTheme.titleMedium),
           for (final i in p.items)

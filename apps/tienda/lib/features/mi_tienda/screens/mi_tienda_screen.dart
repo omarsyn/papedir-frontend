@@ -11,7 +11,9 @@ import '../../../core/widgets/imagen_red.dart';
 import '../../../core/widgets/mensajes.dart';
 import '../../../core/widgets/vista_async.dart';
 import '../../cartera/cartera_screen.dart';
+import '../../cupones/cupones_screen.dart';
 import '../../home/navegacion_provider.dart';
+import '../../horario/horario_screen.dart';
 import '../../perfil/perfil_screen.dart';
 import '../../planes/planes_screen.dart';
 import '../../sucursales/screens/mis_tiendas_screen.dart';
@@ -156,6 +158,28 @@ class MiTiendaScreen extends ConsumerWidget {
                   title: const Text('Tema'),
                   subtitle: Text(etiquetaTema(ref.watch(temaProvider))),
                   onTap: () => elegirTema(context, ref),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.schedule),
+                  title: const Text('Horario'),
+                  subtitle: const Text('Días y horas en que recibes pedidos'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const HorarioScreen(),
+                    ),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.local_offer_outlined),
+                  title: const Text('Cupones'),
+                  subtitle: const Text('Descuentos para tus clientes'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const CuponesScreen(),
+                    ),
+                  ),
                 ),
                 ListTile(
                   leading: const Icon(Icons.workspace_premium_outlined),

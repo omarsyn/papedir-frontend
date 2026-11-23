@@ -1,5 +1,13 @@
 import 'package:core/core.dart'
-    show Tokens, authProvider, dioProvider, tokenStorageProvider;
+    show
+        AppTipo,
+        ErrorFirebase,
+        SesionIniciada,
+        Tokens,
+        authProvider,
+        dioProvider,
+        firebaseLoginProvider,
+        tokenStorageProvider;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -93,6 +101,7 @@ class RegistroNotifier extends AutoDisposeNotifier<RegistroState> {
     required String password,
     required String negocio,
     required String direccion,
+    bool firebase = false,
   }) async {
     final ubicacion = state.ubicacion;
     if (ubicacion == null) {
@@ -112,6 +121,29 @@ class RegistroNotifier extends AutoDisposeNotifier<RegistroState> {
       detalles: const {},
       limpiarError: true,
     );
+    final datosTienda = {
+      'nombre': negocio,
+      'categoria': state.categoria,
+      'direccion': direccion,
+      'ubicacion': ubicacion.toJson(),
+    };
+    if (firebase) {
+      // "Completa tu registro" de Google/GitHub/correo de Firebase.
+      final r = await ref
+          .read(firebaseLoginProvider)
+          .completarRegistro(AppTipo.tienda, {
+            if (nombre.isNotEmpty) 'nombre': nombre,
+            'telefono': telefono,
+            'aceptoTerminos': true,
+            'tienda': datosTienda,
+          });
+      if (r is ErrorFirebase) {
+        state = state.copyWith(cargando: false, error: r.mensaje);
+        return false;
+      }
+      state = state.copyWith(cargando: false);
+      return r is SesionIniciada;
+    }
     try {
       final r = await conApiError(
         () => ref
@@ -125,12 +157,7 @@ class RegistroNotifier extends AutoDisposeNotifier<RegistroState> {
                 'telefono': telefono,
                 'rol': 'tienda',
                 'aceptoTerminos': true,
-                'tienda': {
-                  'nombre': negocio,
-                  'categoria': state.categoria,
-                  'direccion': direccion,
-                  'ubicacion': ubicacion.toJson(),
-                },
+                'tienda': datosTienda,
               },
             ),
       );

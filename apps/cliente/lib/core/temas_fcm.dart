@@ -1,3 +1,4 @@
+import 'package:core/core.dart' show guardarPreferenciasRemotas;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -38,6 +39,9 @@ class PromocionesNotifier extends Notifier<bool> {
     await ref
         .read(sharedPreferencesProvider)
         .setBool(_clavePromociones, activo);
+    await guardarPreferenciasRemotas({
+      'notificaciones': {'promociones': activo},
+    });
     if (activo) {
       await suscribirTemas(const ['promociones']);
     } else {

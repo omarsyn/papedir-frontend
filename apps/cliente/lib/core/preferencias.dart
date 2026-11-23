@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:core/core.dart' show guardarPreferenciasRemotas;
 
 /// Se reemplaza en main() con la instancia ya cargada.
 final sharedPreferencesProvider = Provider<SharedPreferences>(
@@ -22,10 +23,28 @@ class TemaNotifier extends Notifier<ThemeMode> {
     );
   }
 
-  Future<void> cambiar(ThemeMode modo) async {
+  Future<void> cambiar(ThemeMode modo, {bool remoto = true}) async {
     state = modo;
     await ref.read(sharedPreferencesProvider).setString(_clave, modo.name);
+    if (remoto) await guardarPreferenciasRemotas({'tema': _aRemoto[modo]});
   }
+
+  /// Valor que llegó de Firestore (otro teléfono): se aplica sin reenviarlo.
+  void aplicarRemoto(String? valor) {
+    final modo = _deRemoto[valor];
+    if (modo != null && modo != state) cambiar(modo, remoto: false);
+  }
+
+  static const _aRemoto = {
+    ThemeMode.system: 'sistema',
+    ThemeMode.light: 'claro',
+    ThemeMode.dark: 'oscuro',
+  };
+  static const _deRemoto = {
+    'sistema': ThemeMode.system,
+    'claro': ThemeMode.light,
+    'oscuro': ThemeMode.dark,
+  };
 }
 
 final temaProvider = NotifierProvider<TemaNotifier, ThemeMode>(
@@ -48,7 +67,46 @@ class OnboardingNotifier extends Notifier<bool> {
   Future<void> terminar() async {
     state = true;
     await ref.read(sharedPreferencesProvider).setBool(_clave, true);
+    await guardarPreferenciasRemotas({'onboardingVisto': true});
   }
+}
+
+/// Texto grande (preferencia "fuente": "normal" | "grande").
+class FuenteGrandeNotifier extends Notifier<bool> {
+  static const _clave = 'fuente_grande';
+
+  @override
+  bool build() => ref.watch(sharedPreferencesProvider).getBool(_clave) ?? false;
+
+  Future<void> cambiar(bool grande, {bool remoto = true}) async {
+    state = grande;
+    await ref.read(sharedPreferencesProvider).setBool(_clave, grande);
+    if (remoto) {
+      await guardarPreferenciasRemotas({
+        'fuente': grande ? 'grande' : 'normal',
+      });
+    }
+  }
+
+  void aplicarRemoto(String? valor) {
+    if (valor == null) return;
+    final grande = valor == 'grande';
+    if (grande != state) cambiar(grande, remoto: false);
+  }
+}
+
+final fuenteGrandeProvider = NotifierProvider<FuenteGrandeNotifier, bool>(
+  FuenteGrandeNotifier.new,
+);
+
+/// Aplica las preferencias que llegan de Firestore (tiempo real entre
+/// teléfonos). Se llama desde la raíz de la app.
+void aplicarPreferenciasRemotas(WidgetRef ref, Map<String, dynamic>? datos) {
+  if (datos == null) return;
+  ref.read(temaProvider.notifier).aplicarRemoto(datos['tema'] as String?);
+  ref
+      .read(fuenteGrandeProvider.notifier)
+      .aplicarRemoto(datos['fuente'] as String?);
 }
 
 final onboardingVistoProvider = NotifierProvider<OnboardingNotifier, bool>(

@@ -1,4 +1,5 @@
-import 'package:core/core.dart' show AppTipo, authProvider;
+import 'package:core/core.dart'
+    show AppTipo, authProvider, firebaseLoginProvider;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -77,6 +78,21 @@ class RecuperarNotifier extends AutoDisposeNotifier<RecuperarEstado> {
                   'Vence en 15 minutos; revisa también la carpeta de spam.',
       );
     } on ApiError catch (e) {
+      if (e.codigo == 'CUENTA_FIREBASE') {
+        // Cuenta creada con Firebase: el enlace lo manda Firebase.
+        try {
+          await ref.read(firebaseLoginProvider).recuperarPassword(correo);
+          state = state.copyWith(
+            cargando: false,
+            aviso:
+                'Tu cuenta es de Firebase: te enviamos a $correo un enlace '
+                'para crear una contraseña nueva. Después inicia sesión.',
+          );
+        } catch (_) {
+          state = state.copyWith(cargando: false, error: e.message);
+        }
+        return;
+      }
       state = state.copyWith(cargando: false, error: e.message);
     }
   }

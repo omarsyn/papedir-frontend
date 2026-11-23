@@ -6,6 +6,7 @@ import '../../../core/models.dart';
 import '../../../core/widgets/mensajes.dart';
 import '../../../core/widgets/vista_async.dart';
 import '../../mi_tienda/providers/mi_tienda_provider.dart';
+import '../../pedido_manual/codigo_entrega.dart';
 import '../../pedido_manual/pedido_manual_screen.dart';
 import '../data/pedidos_repository.dart';
 import '../providers/pedidos_provider.dart';
@@ -265,6 +266,8 @@ class _TarjetaPedido extends ConsumerWidget {
             const Divider(),
             if (p.descripcion != null && p.descripcion!.isNotEmpty)
               Text(p.descripcion!),
+            if (p.esManual && p.codigoEntrega != null)
+              CodigoEntregaManual(codigo: p.codigoEntrega!, compacto: true),
             for (final i in p.items) ...[
               Row(
                 children: [

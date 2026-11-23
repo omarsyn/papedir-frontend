@@ -1,3 +1,4 @@
+import 'package:core/core.dart' show RegistroRequerido;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,7 +8,11 @@ import '../providers/registro_provider.dart';
 import 'mapa_selector_screen.dart';
 
 class RegistroScreen extends ConsumerWidget {
-  const RegistroScreen({super.key});
+  const RegistroScreen({super.key, this.firebase});
+
+  /// Si viene de Google, GitHub o correo de Firebase ("Completa tu registro"):
+  /// no se piden correo ni contraseña.
+  final RegistroRequerido? firebase;
 
   Future<void> _elegirEnMapa(BuildContext context, WidgetRef ref) async {
     final actual = ref.read(registroProvider).ubicacion;
@@ -36,6 +41,7 @@ class RegistroScreen extends ConsumerWidget {
           password: c.password.text,
           negocio: c.negocio.text.trim(),
           direccion: c.direccion.text.trim(),
+          firebase: firebase != null,
         );
     if (ok && context.mounted && Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
@@ -52,7 +58,11 @@ class RegistroScreen extends ConsumerWidget {
     final categorias =
         ref.watch(categoriasProvider).valueOrNull ?? categoriasBase;
     return Scaffold(
-      appBar: AppBar(title: const Text('Registrar mi negocio')),
+      appBar: AppBar(
+        title: Text(
+          firebase == null ? 'Registrar mi negocio' : 'Completa tu registro',
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -73,18 +83,20 @@ class RegistroScreen extends ConsumerWidget {
                       ? 'Escribe tu nombre'
                       : null,
                 ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: c.email,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    labelText: 'Correo',
-                    errorText: estado.detalles['email'],
+                if (firebase == null) ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: c.email,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: InputDecoration(
+                      labelText: 'Correo',
+                      errorText: estado.detalles['email'],
+                    ),
+                    validator: (v) => (v == null || !v.contains('@'))
+                        ? 'Correo inválido'
+                        : null,
                   ),
-                  validator: (v) => (v == null || !v.contains('@'))
-                      ? 'Correo inválido'
-                      : null,
-                ),
+                ],
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: c.telefono,
@@ -97,18 +109,20 @@ class RegistroScreen extends ConsumerWidget {
                       ? 'Teléfono inválido'
                       : null,
                 ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: c.password,
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: 'Contraseña',
-                    errorText: estado.detalles['password'],
+                if (firebase == null) ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: c.password,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: 'Contraseña',
+                      errorText: estado.detalles['password'],
+                    ),
+                    validator: (v) => (v == null || v.length < 8)
+                        ? 'Mínimo 8 caracteres'
+                        : null,
                   ),
-                  validator: (v) => (v == null || v.length < 8)
-                      ? 'Mínimo 8 caracteres'
-                      : null,
-                ),
+                ],
                 const SizedBox(height: 24),
                 Text('Tu negocio', style: tema.textTheme.titleMedium),
                 const SizedBox(height: 12),

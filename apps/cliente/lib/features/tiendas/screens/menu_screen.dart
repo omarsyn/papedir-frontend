@@ -11,6 +11,7 @@ import '../../carrito/providers/carrito_provider.dart';
 import '../../carrito/screens/carrito_screen.dart';
 import '../providers/tiendas_provider.dart';
 import '../widgets/opciones_sheet.dart';
+import '../../favoritos/favoritos.dart';
 
 /// Menú de una tienda: foto grande que se encoge al deslizar (Hero +
 /// SliverAppBar), datos de la tienda y productos por categoría.
@@ -99,6 +100,7 @@ class MenuScreen extends ConsumerWidget {
               expandedHeight: 240,
               backgroundColor: esquema.primary,
               foregroundColor: Colors.white,
+              actions: [BotonFavorito(tienda: tienda, color: Colors.white)],
               flexibleSpace: FlexibleSpaceBar(
                 titlePadding: const EdgeInsetsDirectional.only(
                   start: 56,

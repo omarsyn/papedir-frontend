@@ -211,6 +211,7 @@ class Pedido {
     this.descripcion,
     this.notas,
     this.repartidor,
+    this.codigoEntrega,
   });
 
   final String id;
@@ -233,6 +234,12 @@ class Pedido {
   final String? notas;
   final RepartidorResumen? repartidor;
   final DateTime creadoEn;
+
+  /// Pedidos manuales: código de 4 dígitos que la tienda comparte con quien
+  /// recibe (WhatsApp o llamada) y que el repartidor pide al entregar.
+  final String? codigoEntrega;
+
+  bool get esManual => origen == 'manual';
 
   factory Pedido.fromJson(Map<String, dynamic> j) {
     final destino = j['destino'] == null
@@ -257,6 +264,7 @@ class Pedido {
           ? null
           : RepartidorResumen.fromJson(asMapa(j['repartidor'])),
       creadoEn: _fecha(j['creadoEn']),
+      codigoEntrega: j['codigoEntrega'] as String?,
     );
   }
 }
