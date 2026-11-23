@@ -15,6 +15,9 @@ Usuario _$UsuarioFromJson(Map<String, dynamic> json) => Usuario(
   rol: $enumDecode(_$RolEnumMap, json['rol']),
   estado: $enumDecode(_$EstadoCuentaEnumMap, json['estado']),
   creadoEn: DateTime.parse(json['creadoEn'] as String),
+  fotoUrl: json['fotoUrl'] as String?,
+  puedeCambiarFoto: json['puedeCambiarFoto'] as bool? ?? false,
+  terminosPendientes: json['terminosPendientes'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$UsuarioToJson(Usuario instance) => <String, dynamic>{
@@ -26,6 +29,9 @@ Map<String, dynamic> _$UsuarioToJson(Usuario instance) => <String, dynamic>{
   'rol': _$RolEnumMap[instance.rol]!,
   'estado': _$EstadoCuentaEnumMap[instance.estado]!,
   'creadoEn': instance.creadoEn.toIso8601String(),
+  'fotoUrl': instance.fotoUrl,
+  'puedeCambiarFoto': instance.puedeCambiarFoto,
+  'terminosPendientes': instance.terminosPendientes,
 };
 
 const _$RolEnumMap = {

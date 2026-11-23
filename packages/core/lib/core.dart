@@ -36,3 +36,9 @@ export 'push/local_notifications_service.dart';
 export 'chat/chat_pedido_provider.dart';
 export 'chat/chat_pedido_sheet.dart';
 
+// Firebase (ACUERDOS §13): login con Google/GitHub/correo, preferencias en
+// Firestore y foto de perfil en Storage.
+export 'auth/screens/completar_registro_screen.dart';
+export 'firebase/avatar.dart';
+export 'firebase/firebase_login.dart';
+export 'firebase/preferencias_remotas.dart';

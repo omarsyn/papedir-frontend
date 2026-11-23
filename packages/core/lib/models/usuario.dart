@@ -14,6 +14,15 @@ class Usuario {
   final EstadoCuenta estado;
   final DateTime creadoEn;
 
+  /// Foto de perfil (de Google/GitHub o la que subió el usuario).
+  final String? fotoUrl;
+
+  /// Solo las cuentas de correo pueden cambiar su foto.
+  final bool puedeCambiarFoto;
+
+  /// Hay una versión nueva de los términos que debe aceptar.
+  final bool terminosPendientes;
+
   const Usuario({
     required this.id,
     required this.nombre,
@@ -23,10 +32,15 @@ class Usuario {
     required this.rol,
     required this.estado,
     required this.creadoEn,
+    this.fotoUrl,
+    this.puedeCambiarFoto = false,
+    this.terminosPendientes = false,
   });
 
   factory Usuario.fromJson(Map<String, dynamic> json) =>
       _$UsuarioFromJson(json);
+
+  Map<String, dynamic> toJson() => _$UsuarioToJson(this);
 }
 
 @JsonSerializable()

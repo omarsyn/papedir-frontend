@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuth;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/api_client.dart';
 import '../api/api_exception.dart';
@@ -157,8 +158,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // Si falla la red al cerrar sesión, limpiamos los tokens locales de igual forma
     } finally {
       await _tokenStorage.clear();
+      // Si la sesión venía de Firebase, también se cierra ahí.
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (_) {
+        // Sin Firebase inicializado (pruebas): no hay nada que cerrar.
+      }
       state = const AuthState();
     }
+  }
+
+  /// Reemplaza el usuario de la sesión con uno que regresó la API
+  /// (por ejemplo, después de aceptar los términos nuevos).
+  void actualizarUsuario(Usuario usuario) {
+    state = state.copyWith(usuario: usuario);
   }
 
   void markAsApproved() {
@@ -174,6 +187,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
         rol: current.rol,
         estado: EstadoCuenta.activo,
         creadoEn: current.creadoEn,
+        fotoUrl: current.fotoUrl,
+        puedeCambiarFoto: current.puedeCambiarFoto,
+        terminosPendientes: current.terminosPendientes,
       ),
     );
   }
