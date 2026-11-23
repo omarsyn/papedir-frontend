@@ -19,7 +19,8 @@ export function Dialogo({ titulo, abierto, onCerrar, children, ancho = 480 }: Pr
       ref={ref}
       className="dialogo"
       style={{ width: `min(${ancho}px, calc(100vw - 32px))` }}
-      onClose={onCerrar}
+      // React propaga "close" por el árbol: sin este filtro, cerrar un diálogo anidado cierra también el de afuera.
+      onClose={(e) => e.target === e.currentTarget && onCerrar()}
       onClick={(e) => e.target === ref.current && onCerrar()}
     >
       {abierto && (

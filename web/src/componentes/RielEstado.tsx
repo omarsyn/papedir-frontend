@@ -1,7 +1,7 @@
 import { Ban } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import type { EventoPedido, Pedido } from '../api/cliente';
-import { soloHora } from '../util/formato';
+import { detalleEvento, soloHora } from '../util/formato';
 
 const PASOS = [
   { estado: 'creado', texto: 'Creado', eventos: ['creado'] },
@@ -71,7 +71,7 @@ export function RielEstado({ pedido, eventos }: { pedido: Pedido; eventos: Event
         <p className="riel-final">
           {pedido.estado === 'rechazado' ? 'Rechazado por la tienda' : fin?.tipo === 'cancelado_automatico' ? 'Cancelado automáticamente' : 'Cancelado'}
           {fin?.creadoEn && ` a las ${soloHora(fin.creadoEn)}`}
-          {fin?.detalle && <>: {fin.detalle}</>}
+          {fin?.detalle && <>: {detalleEvento(fin.detalle)}</>}
         </p>
       )}
     </section>
