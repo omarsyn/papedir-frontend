@@ -43,6 +43,7 @@ ParadaViaje _$ParadaViajeFromJson(Map<String, dynamic> json) => ParadaViaje(
   direccion: json['direccion'] as String,
   ubicacion: Coordenadas.fromJson(json['ubicacion'] as Map<String, dynamic>),
   completada: json['completada'] as bool,
+  etaMin: (json['etaMin'] as num?)?.toInt(),
 );
 
 Map<String, dynamic> _$ParadaViajeToJson(ParadaViaje instance) =>
@@ -53,6 +54,7 @@ Map<String, dynamic> _$ParadaViajeToJson(ParadaViaje instance) =>
       'direccion': instance.direccion,
       'ubicacion': instance.ubicacion,
       'completada': instance.completada,
+      'etaMin': instance.etaMin,
     };
 
 const _$TipoParadaEnumMap = {

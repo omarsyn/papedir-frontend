@@ -45,6 +45,9 @@ class ParadaViaje {
   final Coordenadas ubicacion;
   final bool completada;
 
+  /// Minutos aproximados para llegar siguiendo el orden (null si ya se hizo).
+  final int? etaMin;
+
   const ParadaViaje({
     required this.pedidoId,
     required this.tipo,
@@ -52,6 +55,7 @@ class ParadaViaje {
     required this.direccion,
     required this.ubicacion,
     required this.completada,
+    this.etaMin,
   });
 
   factory ParadaViaje.fromJson(Map<String, dynamic> json) =>
