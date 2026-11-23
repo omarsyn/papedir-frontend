@@ -1,5 +1,6 @@
 package com.papedir.tienda
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity()
+// FlutterFragmentActivity: la pide flutter_stripe (hoja de pago de los planes).
+class MainActivity : FlutterFragmentActivity()

@@ -1,4 +1,4 @@
-﻿name: cliente
+name: cliente
 description: App Cliente de PaPedir
 publish_to: none
 version: 0.1.0+1
@@ -6,18 +6,44 @@ version: 0.1.0+1
 resolution: workspace
 
 environment:
-  sdk: ^3.6.0
+  sdk: ^3.8.0
 
 dependencies:
   flutter:
     sdk: flutter
-  papedir_core: ^0.1.0
+  core:
+    path: ../../packages/core
   cupertino_icons: ^1.0.8
-
+  flutter_riverpod: ^2.6.1
+  dio: ^5.7.0
+  flutter_secure_storage: ^9.2.2
+  firebase_core: ^3.15.2
+  geolocator: ^13.0.2
+  shared_preferences: ^2.3.2
+  cached_network_image: ^3.4.1
+  google_maps_flutter: ^2.10.0
+  flutter_stripe: ^15.0.0
+  local_auth: 2.3.0
+  google_fonts: 9.0.0
+  url_launcher: ^6.3.3
+  firebase_messaging: 15.2.10
+  image_picker: ^1.2.4
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/logo.png
+
+# Ícono de la app: flutter pub run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icono.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icono_foreground.png"
+  min_sdk_android: 21

@@ -1,122 +1,156 @@
+import 'package:core/core.dart'
+    show
+        AppTipo,
+        AuthState,
+        LoginScreen,
+        authProvider,
+        dioProvider,
+        preferenciasRemotasProvider,
+        fcmServiceProvider;
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+import 'core/preferencias.dart';
+import 'core/tema.dart';
+import 'core/temas_fcm.dart';
+import 'features/auth/screens/register_screen.dart';
+import 'features/home/home_shell.dart';
+import 'features/onboarding/onboarding_screen.dart';
+import 'features/recuperar/recuperar_screen.dart';
+import 'features/terminos/terminos_pendientes_screen.dart';
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp();
+  } catch (_) {
+    // Sin Firebase la app sigue funcionando; solo se pierden las notificaciones.
   }
+  final prefs = await SharedPreferences.getInstance();
+  runApp(
+    ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: const PaPedirCliente(),
+    ),
+  );
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+const _bienvenida = [
+  PaginaOnboarding(
+    icono: Icons.storefront,
+    titulo: 'Tiendas de Celaya',
+    texto: 'Pide comida, abarrotes o medicina de los negocios cerca de ti.',
+  ),
+  PaginaOnboarding(
+    icono: Icons.map_outlined,
+    titulo: 'Marca tu dirección',
+    texto:
+        'Elige el punto exacto en el mapa para que el repartidor llegue sin perderse.',
+  ),
+  PaginaOnboarding(
+    icono: Icons.delivery_dining,
+    titulo: 'Sigue tu pedido',
+    texto: 'Ve en qué va tu pedido y recíbelo con tu código de entrega.',
+  ),
+];
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
+/// Diseño de la app (ver core/tema.dart). El color de la marca no cambia.
+ThemeData _tema(Brightness brillo) =>
+    construirTema(const Color(0xFF1565C0), brillo);
 
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
+/// Ajusta el cliente HTTP y recupera la sesión guardada (si existe).
+final arranqueProvider = FutureProvider<void>((ref) async {
+  await Future<void>.delayed(Duration.zero);
+  final dio = ref.read(dioProvider);
+  // Render (plan gratis) puede tardar hasta ~1 min en despertar.
+  dio.options.connectTimeout = const Duration(seconds: 60);
+  dio.options.receiveTimeout = const Duration(seconds: 60);
+  await ref.read(authProvider.notifier).checkSession();
+});
 
-  final String title;
+class PaPedirCliente extends ConsumerWidget {
+  const PaPedirCliente({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Registra el token de notificaciones cada vez que se inicia sesión.
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      if (previous?.usuario == null && next.usuario != null) {
+        ref
+            .read(fcmServiceProvider)
+            .registerDevice(AppTipo.cliente)
+            .catchError((Object _) {});
+        // Temas de Cloud Messaging que se envían desde la consola de Firebase.
+        suscribirTemas([
+          'novedades',
+          if (ref.read(promocionesProvider)) 'promociones',
+        ]);
+      }
     });
-  }
 
-  @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+    // Preferencias en Firestore: si cambian en otro teléfono, se aplican aquí.
+    ref.listen<AsyncValue<Map<String, dynamic>?>>(
+      preferenciasRemotasProvider,
+      (_, siguiente) => aplicarPreferenciasRemotas(ref, siguiente.valueOrNull),
+    );
+
+    final arranque = ref.watch(arranqueProvider);
+    final autenticado = ref.watch(authProvider).isAuthenticated;
+
+    final onboardingVisto = ref.watch(onboardingVistoProvider);
+
+    final Widget inicio;
+    if (!onboardingVisto) {
+      inicio = const OnboardingScreen(paginas: _bienvenida);
+    } else if (arranque.isLoading) {
+      inicio = const Scaffold(body: Center(child: CircularProgressIndicator()));
+    } else if (!autenticado) {
+      inicio = Builder(
+        builder: (context) => LoginScreen(
+          appTipo: AppTipo.cliente,
+          logo: Image.asset('assets/logo.png', height: 110),
+          tituloApp: 'PaPedir',
+          onIrARegistro: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const RegisterScreen()),
+            );
+          },
+          onOlvidePassword: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const RecuperarScreen(app: AppTipo.cliente),
+              ),
+            );
+          },
         ),
+      );
+    } else if (ref.watch(authProvider).usuario?.terminosPendientes ?? false) {
+      // Hay términos nuevos: se aceptan antes de entrar.
+      inicio = const TerminosPendientesScreen();
+    } else {
+      inicio = const HomeShell();
+    }
+
+    return MaterialApp(
+      // La llave reinicia la navegación al iniciar o cerrar sesión.
+      key: ValueKey<String>('$autenticado|$onboardingVisto'),
+      title: 'PaPedir',
+      debugShowCheckedModeBanner: false,
+      theme: _tema(Brightness.light),
+      darkTheme: _tema(Brightness.dark),
+      themeMode: ref.watch(temaProvider),
+      // Preferencia "Texto grande" (Firestore / teléfono).
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaler: TextScaler.linear(
+            ref.watch(fuenteGrandeProvider) ? 1.15 : 1.0,
+          ),
+        ),
+        child: child!,
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
+      home: inicio,
     );
   }
 }

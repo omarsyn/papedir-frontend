@@ -1,30 +1,130 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-
+import 'package:cliente/core/models.dart';
+import 'package:cliente/features/carrito/providers/carrito_provider.dart';
+import 'package:cliente/core/preferencias.dart';
 import 'package:cliente/main.dart';
+import 'package:core/core.dart' show TokenStorage, Tokens, tokenStorageProvider;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// Almacén de tokens en memoria: sin sesión guardada.
+class _TokenStorageFalso implements TokenStorage {
+  @override
+  Future<void> saveTokens(Tokens tokens) async {}
+
+  @override
+  Future<String?> getAccessToken() async => null;
+
+  @override
+  Future<String?> getRefreshToken() async => null;
+
+  @override
+  Future<void> clear() async {}
+}
+
+Tienda _tienda(String id) => Tienda.fromJson({
+  'id': id,
+  'nombre': 'Tienda $id',
+  'categoria': 'comida',
+  'telefono': '4610000000',
+  'direccion': 'Centro',
+  'ubicacion': {'lat': 20.52, 'lng': -100.81},
+  'abierta': true,
+  'tiempoPreparacionMin': 15,
+});
+
+Producto _producto(String id, num precio) => Producto.fromJson({
+  'id': id,
+  'nombre': 'Producto $id',
+  'precio': precio,
+  'disponible': true,
+});
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('La primera vez muestra la bienvenida', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          tokenStorageProvider.overrideWithValue(_TokenStorageFalso()),
+          sharedPreferencesProvider.overrideWithValue(prefs),
+        ],
+        child: const PaPedirCliente(),
+      ),
+    );
+    await tester.pumpAndSettle();
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(find.text('Saltar'), findsOneWidget);
+    expect(find.text('Siguiente'), findsOneWidget);
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  testWidgets('Sin sesión muestra el login', (tester) async {
+    SharedPreferences.setMockInitialValues({'onboarding_visto': true});
+    final prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          tokenStorageProvider.overrideWithValue(_TokenStorageFalso()),
+          sharedPreferencesProvider.overrideWithValue(prefs),
+        ],
+        child: const PaPedirCliente(),
+      ),
+    );
+    await tester.pumpAndSettle();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('Iniciar sesión'), findsWidgets);
+    expect(find.text('¿No tienes cuenta? Regístrate'), findsOneWidget);
+  });
+
+  test('Carrito: agrega, quita y calcula subtotal', () {
+    final c = ProviderContainer();
+    addTearDown(c.dispose);
+    final n = c.read(carritoProvider.notifier);
+    final t = _tienda('t1');
+
+    n.agregar(t, _producto('p1', 50));
+    n.agregar(t, _producto('p1', 50));
+    n.agregar(t, _producto('p2', 30));
+
+    expect(c.read(carritoProvider).cantidadTotal, 3);
+    expect(c.read(carritoProvider).subtotal, 130);
+
+    n.quitar('p1');
+    expect(c.read(carritoProvider).cantidadTotal, 2);
+
+    n.eliminar('p1');
+    n.eliminar('p2');
+    expect(c.read(carritoProvider).vacio, isTrue);
+    expect(c.read(carritoProvider).tienda, isNull);
+  });
+
+  test('Carrito: mismo producto con opciones distintas va separado', () {
+    final c = ProviderContainer();
+    addTearDown(c.dispose);
+    final n = c.read(carritoProvider.notifier);
+    final t = _tienda('t1');
+    final p = _producto('p1', 50);
+    const verde = OpcionElegida(
+      id: 'o1',
+      grupo: 'Salsa',
+      nombre: 'Verde',
+      precioExtra: 0,
+    );
+    const queso = OpcionElegida(
+      id: 'o2',
+      grupo: 'Extras',
+      nombre: 'Queso',
+      precioExtra: 15,
+    );
+
+    n.agregar(t, p, opciones: const [verde]);
+    n.agregar(t, p, opciones: const [verde, queso]);
+    n.agregar(t, p, opciones: const [queso, verde]); // mismo orden no importa
+
+    final carrito = c.read(carritoProvider);
+    expect(carrito.lineas.length, 2);
+    expect(carrito.cantidadDe('p1'), 3);
+    expect(carrito.subtotal, 50 + 65 * 2);
   });
 }
