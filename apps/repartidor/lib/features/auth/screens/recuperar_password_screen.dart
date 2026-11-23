@@ -4,6 +4,137 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:core/core.dart';
+import 'package:dio/dio.dart';
+
+/// Estado de la pantalla en Riverpod.
+class RecuperarState {
+  const RecuperarState({
+    this.codigoEnviado = false,
+    this.cargando = false,
+    this.ocultarPass = true,
+    this.ocultarConfirmar = true,
+    this.error,
+    this.segundosReenvio = 0,
+  });
+
+  final bool codigoEnviado;
+  final bool cargando;
+  final bool ocultarPass;
+  final bool ocultarConfirmar;
+  final String? error;
+  final int segundosReenvio;
+
+  RecuperarState copyWith({
+    bool? codigoEnviado,
+    bool? cargando,
+    bool? ocultarPass,
+    bool? ocultarConfirmar,
+    String? error,
+    bool limpiarError = false,
+    int? segundosReenvio,
+  }) => RecuperarState(
+    codigoEnviado: codigoEnviado ?? this.codigoEnviado,
+    cargando: cargando ?? this.cargando,
+    ocultarPass: ocultarPass ?? this.ocultarPass,
+    ocultarConfirmar: ocultarConfirmar ?? this.ocultarConfirmar,
+    error: limpiarError ? null : (error ?? this.error),
+    segundosReenvio: segundosReenvio ?? this.segundosReenvio,
+  );
+}
+
+class RecuperarNotifier extends AutoDisposeNotifier<RecuperarState> {
+  Timer? _timer;
+
+  @override
+  RecuperarState build() {
+    ref.onDispose(() => _timer?.cancel());
+    return const RecuperarState();
+  }
+
+  void _cooldown() {
+    _timer?.cancel();
+    state = state.copyWith(segundosReenvio: 60);
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      final s = state.segundosReenvio - 1;
+      state = state.copyWith(segundosReenvio: s < 0 ? 0 : s);
+      if (s <= 0) t.cancel();
+    });
+  }
+
+  /// Devuelve el aviso para el SnackBar, o null si hubo error.
+  Future<String?> enviarCodigo(String email) async {
+    state = state.copyWith(cargando: true, limpiarError: true);
+    final correo = email.trim().toLowerCase();
+    try {
+      await ref.read(dioProvider).post(
+        '/auth/recuperar',
+        data: {'email': correo},
+      );
+      state = state.copyWith(cargando: false, codigoEnviado: true);
+      _cooldown();
+      return 'Si el correo está registrado, recibirás un código de 6 dígitos '
+          '(válido por 15 min).';
+    } on DioException catch (e) {
+      final err = ApiException.fromDioException(e);
+      if (err.error == 'CUENTA_FIREBASE') {
+        // Cuenta de Google/GitHub/correo de Firebase: el enlace lo manda
+        // Firebase y la contraseña se cambia desde ahí.
+        try {
+          await ref.read(firebaseLoginProvider).recuperarPassword(correo);
+          state = state.copyWith(cargando: false);
+          return 'Tu cuenta es de Firebase: te enviamos a $correo un enlace '
+              'para crear una contraseña nueva. Después inicia sesión.';
+        } catch (_) {
+          // Se muestra el error del backend.
+        }
+      }
+      state = state.copyWith(
+        cargando: false,
+        error: err.error == 'DEMASIADAS_PETICIONES'
+            ? 'Has solicitado demasiados códigos. Espera una hora antes de '
+                  'intentar de nuevo.'
+            : err.message,
+      );
+      return null;
+    } catch (e) {
+      state = state.copyWith(cargando: false, error: e.toString());
+      return null;
+    }
+  }
+
+  Future<bool> restablecer({
+    required String email,
+    required String codigo,
+    required String password,
+  }) async {
+    state = state.copyWith(cargando: true, limpiarError: true);
+    try {
+      await ref
+          .read(authProvider.notifier)
+          .restablecerPassword(email: email, codigo: codigo, password: password);
+      await LocalNotificationsService.instance.mostrarPasswordActualizada();
+      state = state.copyWith(cargando: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(cargando: false, error: e.toString());
+      return false;
+    }
+  }
+
+  void cambiarCorreo() =>
+      state = state.copyWith(codigoEnviado: false, limpiarError: true);
+
+  void alternarPass() =>
+      state = state.copyWith(ocultarPass: !state.ocultarPass);
+
+  void alternarConfirmar() =>
+      state = state.copyWith(ocultarConfirmar: !state.ocultarConfirmar);
+}
+
+final recuperarProvider =
+    NotifierProvider.autoDispose<RecuperarNotifier, RecuperarState>(
+      RecuperarNotifier.new,
+    );
 
 class RecuperarPasswordScreen extends ConsumerStatefulWidget {
   final String? emailInicial;
@@ -15,6 +146,8 @@ class RecuperarPasswordScreen extends ConsumerStatefulWidget {
       _RecuperarPasswordScreenState();
 }
 
+/// El State solo guarda los controladores de texto; el estado de la
+/// pantalla vive en [recuperarProvider].
 class _RecuperarPasswordScreenState
     extends ConsumerState<RecuperarPasswordScreen> {
   final _formEmailKey = GlobalKey<FormState>();
@@ -25,15 +158,6 @@ class _RecuperarPasswordScreenState
   final _passwordCtrl = TextEditingController();
   final _confirmarCtrl = TextEditingController();
 
-  bool _codigoEnviado = false;
-  bool _cargando = false;
-  bool _obscurePass = true;
-  bool _obscureConfirm = true;
-  String? _errorMensaje;
-
-  int _segundosReenvio = 0;
-  Timer? _timer;
-
   @override
   void initState() {
     super.initState();
@@ -42,7 +166,6 @@ class _RecuperarPasswordScreenState
 
   @override
   void dispose() {
-    _timer?.cancel();
     _emailCtrl.dispose();
     _codigoCtrl.dispose();
     _passwordCtrl.dispose();
@@ -50,93 +173,43 @@ class _RecuperarPasswordScreenState
     super.dispose();
   }
 
-  void _iniciarCooldownReenvio() {
-    _timer?.cancel();
-    setState(() => _segundosReenvio = 60);
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      if (_segundosReenvio <= 1) {
-        timer.cancel();
-        setState(() => _segundosReenvio = 0);
-      } else {
-        setState(() => _segundosReenvio--);
-      }
-    });
-  }
-
-Future<void> _enviarCodigo() async {
-    if (!_formEmailKey.currentState!.validate()) return;
-
-    setState(() {
-      _cargando = true;
-      _errorMensaje = null;
-    });
-
-    try {
-      await ref
-          .read(authProvider.notifier)
-          .solicitarRecuperacion(email: _emailCtrl.text);
-
-      if (!mounted) return;
-      setState(() {
-        _codigoEnviado = true;
-      });
-      _iniciarCooldownReenvio();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Si el correo está registrado, recibirás un código de 6 dígitos (válido por 15 min).',
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _errorMensaje = e.toString());
-    } finally {
-      if (mounted) setState(() => _cargando = false);
+  Future<void> _enviarCodigo() async {
+    if (!(_formEmailKey.currentState?.validate() ?? true)) return;
+    final aviso = await ref
+        .read(recuperarProvider.notifier)
+        .enviarCodigo(_emailCtrl.text);
+    if (aviso != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(aviso)));
     }
   }
 
   Future<void> _confirmarNuevaPassword() async {
     if (!_formResetKey.currentState!.validate()) return;
-
-    setState(() {
-      _cargando = true;
-      _errorMensaje = null;
-    });
-
-    try {
-      await ref.read(authProvider.notifier).restablecerPassword(
-            email: _emailCtrl.text,
-            codigo: _codigoCtrl.text,
-            password: _passwordCtrl.text,
-          );
-      await LocalNotificationsService.instance.mostrarPasswordActualizada();
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Contraseña actualizada. Inicia sesión con tu nueva clave.'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      context.go('/login');
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _errorMensaje = e.toString());
-    } finally {
-      if (mounted) setState(() => _cargando = false);
-    }
+    final ok = await ref
+        .read(recuperarProvider.notifier)
+        .restablecer(
+          email: _emailCtrl.text,
+          codigo: _codigoCtrl.text,
+          password: _passwordCtrl.text,
+        );
+    if (!ok || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Contraseña actualizada. Inicia sesión con tu nueva clave.'),
+        backgroundColor: Colors.green,
+      ),
+    );
+    context.go('/login');
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final st = ref.watch(recuperarProvider);
+    final notifier = ref.read(recuperarProvider.notifier);
+    final codigoEnviado = st.codigoEnviado;
+    final cargando = st.cargando;
 
     return Scaffold(
       appBar: AppBar(
@@ -149,13 +222,13 @@ Future<void> _enviarCodigo() async {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Icon(
-                _codigoEnviado ? Icons.mark_email_read_outlined : Icons.lock_reset,
+                codigoEnviado ? Icons.mark_email_read_outlined : Icons.lock_reset,
                 size: 56,
                 color: colors.primary,
               ),
               const SizedBox(height: 16),
               Text(
-                _codigoEnviado
+                codigoEnviado
                     ? 'Ingresa el código y tu nueva contraseña'
                     : '¿Olvidaste tu contraseña?',
                 style: theme.textTheme.headlineSmall?.copyWith(
@@ -165,7 +238,7 @@ Future<void> _enviarCodigo() async {
               ),
               const SizedBox(height: 8),
               Text(
-                _codigoEnviado
+                codigoEnviado
                     ? 'Enviamos un código de 6 dígitos a ${_emailCtrl.text.trim()}. Caduca en 15 minutos.'
                     : 'Escribe el correo asociado a tu cuenta de repartidor para enviarte un código de verificación.',
                 style: theme.textTheme.bodyMedium?.copyWith(
@@ -174,7 +247,7 @@ Future<void> _enviarCodigo() async {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
-              if (_errorMensaje != null) ...[
+              if (st.error != null) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -187,7 +260,7 @@ Future<void> _enviarCodigo() async {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          _errorMensaje!,
+                          st.error!,
                           style: TextStyle(color: colors.onErrorContainer),
                         ),
                       ),
@@ -196,7 +269,7 @@ Future<void> _enviarCodigo() async {
                 ),
                 const SizedBox(height: 16),
               ],
-              if (!_codigoEnviado)
+              if (!codigoEnviado)
                 Form(
                   key: _formEmailKey,
                   child: Column(
@@ -206,7 +279,7 @@ Future<void> _enviarCodigo() async {
                         controller: _emailCtrl,
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.done,
-                        enabled: !_cargando,
+                        enabled: !cargando,
                         decoration: const InputDecoration(
                           labelText: 'Correo electrónico',
                           prefixIcon: Icon(Icons.email_outlined),
@@ -224,11 +297,11 @@ Future<void> _enviarCodigo() async {
                       ),
                       const SizedBox(height: 20),
                       FilledButton(
-                        onPressed: _cargando ? null : _enviarCodigo,
+                        onPressed: cargando ? null : _enviarCodigo,
                         style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
-                        child: _cargando
+                        child: cargando
                             ? const SizedBox(
                                 height: 20,
                                 width: 20,
@@ -249,7 +322,7 @@ Future<void> _enviarCodigo() async {
                         controller: _codigoCtrl,
                         keyboardType: TextInputType.number,
                         textInputAction: TextInputAction.next,
-                        enabled: !_cargando,
+                        enabled: !cargando,
                         maxLength: 6,
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
@@ -273,9 +346,9 @@ Future<void> _enviarCodigo() async {
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _passwordCtrl,
-                        obscureText: _obscurePass,
+                        obscureText: st.ocultarPass,
                         textInputAction: TextInputAction.next,
-                        enabled: !_cargando,
+                        enabled: !cargando,
                         decoration: InputDecoration(
                           labelText: 'Nueva contraseña',
                           helperText: 'Mínimo 8 caracteres',
@@ -283,12 +356,11 @@ Future<void> _enviarCodigo() async {
                           border: const OutlineInputBorder(),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _obscurePass
+                              st.ocultarPass
                                   ? Icons.visibility_outlined
                                   : Icons.visibility_off_outlined,
                             ),
-                            onPressed: () =>
-                                setState(() => _obscurePass = !_obscurePass),
+                            onPressed: notifier.alternarPass,
                           ),
                         ),
                         validator: (v) {
@@ -301,21 +373,20 @@ Future<void> _enviarCodigo() async {
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _confirmarCtrl,
-                        obscureText: _obscureConfirm,
+                        obscureText: st.ocultarConfirmar,
                         textInputAction: TextInputAction.done,
-                        enabled: !_cargando,
+                        enabled: !cargando,
                         decoration: InputDecoration(
                           labelText: 'Confirmar nueva contraseña',
                           prefixIcon: const Icon(Icons.lock_outline),
                           border: const OutlineInputBorder(),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _obscureConfirm
+                              st.ocultarConfirmar
                                   ? Icons.visibility_outlined
                                   : Icons.visibility_off_outlined,
                             ),
-                            onPressed: () => setState(
-                                () => _obscureConfirm = !_obscureConfirm),
+                            onPressed: notifier.alternarConfirmar,
                           ),
                         ),
                         validator: (v) {
@@ -328,11 +399,11 @@ Future<void> _enviarCodigo() async {
                       ),
                       const SizedBox(height: 24),
                       FilledButton(
-                        onPressed: _cargando ? null : _confirmarNuevaPassword,
+                        onPressed: cargando ? null : _confirmarNuevaPassword,
                         style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
-                        child: _cargando
+                        child: cargando
                             ? const SizedBox(
                                 height: 20,
                                 width: 20,
@@ -345,24 +416,21 @@ Future<void> _enviarCodigo() async {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           TextButton(
-                            onPressed: _cargando
+                            onPressed: cargando
                                 ? null
                                 : () {
-                                    setState(() {
-                                      _codigoEnviado = false;
-                                      _errorMensaje = null;
-                                      _codigoCtrl.clear();
-                                    });
+                                    _codigoCtrl.clear();
+                                    notifier.cambiarCorreo();
                                   },
                             child: const Text('Cambiar correo'),
                           ),
                           TextButton(
-                            onPressed: (_cargando || _segundosReenvio > 0)
+                            onPressed: (cargando || st.segundosReenvio > 0)
                                 ? null
                                 : _enviarCodigo,
                             child: Text(
-                              _segundosReenvio > 0
-                                  ? 'Reenviar en ${_segundosReenvio}s'
+                              st.segundosReenvio > 0
+                                  ? 'Reenviar en ${st.segundosReenvio}s'
                                   : 'Reenviar código',
                             ),
                           ),

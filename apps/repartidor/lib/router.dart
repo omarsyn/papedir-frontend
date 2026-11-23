@@ -4,18 +4,28 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'features/auth/screens/recuperar_password_screen.dart';
 import 'features/auth/screens/registro_repartidor_screen.dart';
+import 'features/documentos/documentos_screen.dart';
+import 'features/ganancias/ganancias_screen.dart';
 import 'features/historial/screens/historial_screen.dart';
 import 'features/mapa_disponibles/screens/mapa_disponibles_screen.dart';
 import 'features/onboarding/providers/onboarding_provider.dart';
 import 'features/onboarding/screens/onboarding_repartidor_screen.dart';
 import 'features/perfil/screens/perfil_screen.dart';
 import 'features/permisos/screens/permissions_gate_screen.dart';
+import 'features/revision/revision_screen.dart';
+import 'features/terminos/terminos_pendientes_screen.dart';
 import 'features/viaje_activo/screens/viaje_activo_screen.dart';
 
+/// Avisa a GoRouter que vuelva a evaluar `redirect` cuando cambia la sesión
+/// o el onboarding.
+class _RefrescoRouter extends ChangeNotifier {
+  void avisar() => notifyListeners();
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
-  final authRefresh = ValueNotifier<int>(0);
-  ref.listen(authProvider, (_, __) => authRefresh.value++);
-  ref.listen(onboardingRepartidorProvider, (_, __) => authRefresh.value++);
+  final authRefresh = _RefrescoRouter();
+  ref.listen(authProvider, (_, __) => authRefresh.avisar());
+  ref.listen(onboardingRepartidorProvider, (_, __) => authRefresh.avisar());
   ref.onDispose(authRefresh.dispose);
 
   return GoRouter(
@@ -35,6 +45,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         return isPublicRoute ? null : '/login';
       }
 
+      // Términos nuevos: se aceptan antes de cualquier otra cosa.
+      if (authState.usuario?.terminosPendientes ?? false) {
+        return location == '/terminos' ? null : '/terminos';
+      }
+
       if (isPending) {
         return location == '/revision' ? null : '/revision';
       }
@@ -45,6 +60,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       if (isPublicRoute ||
           location == '/revision' ||
+          location == '/terminos' ||
           location == '/onboarding') {
         return '/permisos';
       }
@@ -82,7 +98,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/revision',
-        builder: (context, state) => const PendingReviewScreen(),
+        builder: (context, state) => const RevisionScreen(),
+      ),
+      GoRoute(
+        path: '/terminos',
+        builder: (context, state) => const TerminosPendientesScreen(),
+      ),
+      GoRoute(
+        path: '/ganancias',
+        builder: (context, state) => const GananciasScreen(),
+      ),
+      GoRoute(
+        path: '/documentos',
+        builder: (context, state) => const DocumentosScreen(),
       ),
       GoRoute(
         path: '/permisos',

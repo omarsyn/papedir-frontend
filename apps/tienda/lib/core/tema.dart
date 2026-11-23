@@ -110,7 +110,14 @@ ThemeData construirTema(Color semilla, Brightness brillo) {
       side: BorderSide(color: esquema.outlineVariant),
       shape: const StadiumBorder(),
       showCheckmark: false,
-      labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+      labelStyle: TextStyle(
+        fontWeight: FontWeight.w600,
+        color: esquema.onSurface,
+      ),
+      secondaryLabelStyle: TextStyle(
+        fontWeight: FontWeight.w700,
+        color: esquema.onPrimaryContainer,
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
     ),
     listTileTheme: ListTileThemeData(

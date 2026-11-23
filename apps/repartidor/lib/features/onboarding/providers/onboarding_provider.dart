@@ -39,6 +39,9 @@ class OnboardingRepartidorNotifier extends Notifier<OnboardingState> {
   }
 
   void completar() {
+    if (state.completadoEnSesion) return;
     state = state.copyWith(completadoEnSesion: true);
+    // Se recuerda en Firestore para no repetir la bienvenida (ACUERDOS §13).
+    guardarPreferenciasRemotas({'onboardingVisto': true});
   }
 }

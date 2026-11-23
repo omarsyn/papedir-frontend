@@ -231,7 +231,7 @@ class _ViajeActivoScreenState extends ConsumerState<ViajeActivoScreen> {
         children: [
           // Resumen financiero del viaje
           Container(
-            color: Colors.blue.shade50,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -383,7 +383,9 @@ class _ViajeActivoScreenState extends ConsumerState<ViajeActivoScreen> {
                       ),
                     ),
                     subtitle: Text(
-                      p.direccion,
+                      p.etaMin == null || p.completada
+                          ? p.direccion
+                          : '~${p.etaMin} min · ${p.direccion}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -503,6 +505,26 @@ class _TarjetaParadaActiva extends StatelessWidget {
                   ),
             ),
             Text(parada.direccion),
+            if (parada.etaMin != null) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(
+                    Icons.schedule,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Llegas en ~${parada.etaMin} min',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
             if (!esTienda &&
                 pedido.destino.referencias != null &&
                 pedido.destino.referencias!.isNotEmpty) ...[

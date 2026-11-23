@@ -1,10 +1,33 @@
 import 'dart:io';
+
 import 'package:core/core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
-class ModalEntregaSheet extends StatefulWidget {
+import '../../../core/biometria.dart';
+
+/// Foto de evidencia elegida en el modal (se libera al cerrarlo).
+final _fotoEntregaProvider = StateProvider.autoDispose<XFile?>((_) => null);
+
+/// true mientras se confirma la entrega.
+final _enviandoEntregaProvider = StateProvider.autoDispose<bool>((_) => false);
+
+/// Controlador del código de 4 dígitos (se libera al cerrar el modal).
+final _codigoEntregaProvider = Provider.autoDispose<TextEditingController>((
+  ref,
+) {
+  final c = TextEditingController();
+  ref.onDispose(c.dispose);
+  return c;
+});
+
+final _formEntregaProvider = Provider.autoDispose<GlobalKey<FormState>>(
+  (_) => GlobalKey<FormState>(),
+);
+
+class ModalEntregaSheet extends ConsumerWidget {
   final Pedido pedido;
   final Future<bool> Function(String codigo, String? fotoPath) onConfirmar;
 
@@ -14,100 +37,104 @@ class ModalEntregaSheet extends StatefulWidget {
     required this.onConfirmar,
   });
 
-  @override
-  State<ModalEntregaSheet> createState() => _ModalEntregaSheetState();
-}
+  /// Efectivo a cobrar en el domicilio (0 si se pagó con tarjeta).
+  double get _aCobrar => pedido.metodoPago == 'efectivo' ? pedido.total : 0;
 
-class _ModalEntregaSheetState extends State<ModalEntregaSheet> {
-  final _formKey = GlobalKey<FormState>();
-  final _codigoCtrl = TextEditingController();
-  final _picker = ImagePicker();
-
-  XFile? _fotoSeleccionada;
-  bool _enviando = false;
-
-  @override
-  void dispose() {
-    _codigoCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _capturarFoto(ImageSource source) async {
-    final imagen = await _picker.pickImage(
+  Future<void> _capturarFoto(WidgetRef ref, ImageSource source) async {
+    final imagen = await ImagePicker().pickImage(
       source: source,
       imageQuality: 75,
       maxWidth: 1280,
     );
-    if (imagen != null && mounted) {
-      setState(() => _fotoSeleccionada = imagen);
-    }
+    if (imagen != null) ref.read(_fotoEntregaProvider.notifier).state = imagen;
   }
 
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _enviando = true);
+  Future<void> _submit(BuildContext context, WidgetRef ref) async {
+    if (!ref.read(_formEntregaProvider).currentState!.validate()) return;
 
-    final ok = await widget.onConfirmar(
-      _codigoCtrl.text,
-      _fotoSeleccionada?.path,
-    );
-
-    if (!mounted) return;
-    setState(() => _enviando = false);
-
-    if (ok) {
-      Navigator.of(context).pop();
+    // Sensor (ACUERDOS §13): huella, rostro o PIN del teléfono para
+    // confirmar que es el repartidor quien cierra la entrega.
+    final identificado = await ref
+        .read(biometriaProvider)
+        .confirmar('Confirma la entrega del pedido ${pedido.folio}');
+    if (!identificado) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se confirmó tu identidad')),
+        );
+      }
+      return;
     }
+
+    ref.read(_enviandoEntregaProvider.notifier).state = true;
+    final ok = await onConfirmar(
+      ref.read(_codigoEntregaProvider).text,
+      ref.read(_fotoEntregaProvider)?.path,
+    );
+    if (!context.mounted) return;
+    ref.read(_enviandoEntregaProvider.notifier).state = false;
+    if (ok) Navigator.of(context).pop();
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final foto = ref.watch(_fotoEntregaProvider);
+    final enviando = ref.watch(_enviandoEntregaProvider);
+    final codigoCtrl = ref.watch(_codigoEntregaProvider);
+    final esquema = Theme.of(context).colorScheme;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 20, 20, bottomInset + 24),
       child: Form(
-        key: _formKey,
+        key: ref.watch(_formEntregaProvider),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Confirmar entrega · ${widget.pedido.folio}',
+                'Confirmar entrega · ${pedido.folio}',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.green.shade50,
+                  color: esquema.secondaryContainer,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green.shade200),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Cobrar en efectivo al cliente:',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    Text(
-                      '\$${widget.pedido.total.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green.shade800,
+                    Expanded(
+                      child: Text(
+                        _aCobrar > 0
+                            ? 'Cobrar en efectivo al cliente:'
+                            : 'Pagado con tarjeta: no cobres nada',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: esquema.onSecondaryContainer,
+                        ),
                       ),
                     ),
+                    if (_aCobrar > 0)
+                      Text(
+                        '\$${_aCobrar.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: esquema.onSecondaryContainer,
+                        ),
+                      ),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
               TextFormField(
-                controller: _codigoCtrl,
+                controller: codigoCtrl,
                 keyboardType: TextInputType.number,
                 maxLength: 4,
                 textAlign: TextAlign.center,
@@ -120,7 +147,6 @@ class _ModalEntregaSheetState extends State<ModalEntregaSheet> {
                 decoration: const InputDecoration(
                   labelText: 'Código de entrega (4 dígitos)',
                   hintText: '0000',
-                  border: OutlineInputBorder(),
                 ),
                 validator: (v) {
                   if (v == null || v.trim().length != 4) {
@@ -135,13 +161,13 @@ class _ModalEntregaSheetState extends State<ModalEntregaSheet> {
                 style: Theme.of(context).textTheme.labelLarge,
               ),
               const SizedBox(height: 8),
-              if (_fotoSeleccionada != null)
+              if (foto != null)
                 Stack(
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: Image.file(
-                        File(_fotoSeleccionada!.path),
+                        File(foto.path),
                         height: 140,
                         width: double.infinity,
                         fit: BoxFit.cover,
@@ -154,9 +180,13 @@ class _ModalEntregaSheetState extends State<ModalEntregaSheet> {
                         backgroundColor: Colors.black54,
                         child: IconButton(
                           icon: const Icon(Icons.close, color: Colors.white),
-                          onPressed: _enviando
+                          onPressed: enviando
                               ? null
-                              : () => setState(() => _fotoSeleccionada = null),
+                              : () =>
+                                    ref
+                                            .read(_fotoEntregaProvider.notifier)
+                                            .state =
+                                        null,
                         ),
                       ),
                     ),
@@ -167,9 +197,9 @@ class _ModalEntregaSheetState extends State<ModalEntregaSheet> {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: _enviando
+                        onPressed: enviando
                             ? null
-                            : () => _capturarFoto(ImageSource.camera),
+                            : () => _capturarFoto(ref, ImageSource.camera),
                         icon: const Icon(Icons.camera_alt_outlined),
                         label: const Text('Tomar foto'),
                       ),
@@ -177,9 +207,9 @@ class _ModalEntregaSheetState extends State<ModalEntregaSheet> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: _enviando
+                        onPressed: enviando
                             ? null
-                            : () => _capturarFoto(ImageSource.gallery),
+                            : () => _capturarFoto(ref, ImageSource.gallery),
                         icon: const Icon(Icons.photo_library_outlined),
                         label: const Text('Galería'),
                       ),
@@ -188,19 +218,21 @@ class _ModalEntregaSheetState extends State<ModalEntregaSheet> {
                 ),
               const SizedBox(height: 20),
               FilledButton.icon(
-                onPressed: _enviando ? null : _submit,
+                onPressed: enviando ? null : () => _submit(context, ref),
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                icon: _enviando
+                icon: enviando
                     ? const SizedBox(
                         height: 18,
                         width: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.check_circle_outline),
+                    : const Icon(Icons.fingerprint),
                 label: Text(
-                  _enviando ? 'Confirmando entrega...' : 'Finalizar entrega',
+                  enviando
+                      ? 'Confirmando entrega...'
+                      : 'Finalizar entrega con huella',
                 ),
               ),
             ],

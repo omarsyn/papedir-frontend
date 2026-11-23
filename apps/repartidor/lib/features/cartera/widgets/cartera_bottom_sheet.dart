@@ -101,13 +101,16 @@ class _ContenidoTarjetaCartera extends StatelessWidget {
             ? '+MX\$${cartera.saldo.toStringAsFixed(2)}'
             : 'MX\$0.00';
 
+    final esquema = Theme.of(context).colorScheme;
+    final oscuro = Theme.of(context).brightness == Brightness.dark;
+
     final Color colorMonto = cartera.bloqueado
         ? Colors.red.shade700
         : esDeuda
             ? Colors.red.shade600
             : esAFavor
-                ? Colors.green.shade700
-                : Colors.grey.shade800;
+                ? (oscuro ? Colors.green.shade300 : Colors.green.shade700)
+                : esquema.onSurface;
 
     final String mensajePrincipal = cartera.bloqueado
         ? 'Has alcanzado el límite de saldo pendiente. Liquida tu cuenta para recibir pedidos.'
@@ -121,15 +124,15 @@ class _ContenidoTarjetaCartera extends StatelessWidget {
         ? Colors.red
         : valorBarra >= 0.75
             ? Colors.orange.shade700
-            : const Color(0xFF1F2937);
+            : esquema.onSurface;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: esquema.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: cartera.bloqueado ? Colors.red.shade300 : Colors.grey.shade200,
+          color: cartera.bloqueado ? Colors.red.shade300 : esquema.outlineVariant,
         ),
       ),
       child: Column(
@@ -177,7 +180,7 @@ class _ContenidoTarjetaCartera extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: valorBarra,
                     minHeight: 6,
-                    backgroundColor: Colors.grey.shade300,
+                    backgroundColor: esquema.outlineVariant,
                     valueColor: AlwaysStoppedAnimation<Color>(colorBarra),
                   ),
                 ),
@@ -186,7 +189,7 @@ class _ContenidoTarjetaCartera extends StatelessWidget {
               Icon(
                 Icons.block,
                 size: 20,
-                color: cartera.bloqueado ? Colors.red : Colors.grey.shade800,
+                color: cartera.bloqueado ? Colors.red : esquema.onSurfaceVariant,
               ),
             ],
           ),
@@ -201,7 +204,7 @@ class _ContenidoTarjetaCartera extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade700,
+                    color: esquema.onSurfaceVariant,
                   ),
                 ),
                 Text(
@@ -210,7 +213,7 @@ class _ContenidoTarjetaCartera extends StatelessWidget {
                     fontSize: 11,
                     color: cartera.bloqueado
                         ? Colors.red.shade700
-                        : Colors.grey.shade600,
+                        : esquema.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -226,8 +229,8 @@ class _ContenidoTarjetaCartera extends StatelessWidget {
               );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF262626),
-              foregroundColor: Colors.white,
+              backgroundColor: esquema.inverseSurface,
+              foregroundColor: esquema.onInverseSurface,
               shape: const StadiumBorder(),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             ),

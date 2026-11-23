@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:repartidor/features/cartera/screens/cartera_detalle_screen.dart';
 import 'package:repartidor/features/perfil/providers/vehiculo_provider.dart';
+import '../../../core/responsivo.dart';
 import '../providers/perfil_provider.dart';
+import '../widgets/cuenta_extras.dart';
 
 class PerfilScreen extends ConsumerStatefulWidget {
   const PerfilScreen({super.key});
@@ -109,7 +111,8 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
       appBar: AppBar(title: const Text('Mi perfil')),
       body: estado.cargando && estado.nombre.isEmpty
           ? const Center(child: CircularProgressIndicator())
-          : Form(
+          : AnchoMaximo(
+              child: Form(
               key: _formKey,
               child: ListView(
                 padding: const EdgeInsets.all(16),
@@ -119,16 +122,7 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                       padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
-                          CircleAvatar(
-                            radius: 30,
-                            child: Text(
-                              inicial,
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
+                          AvatarPerfil(inicial: inicial),
                           const SizedBox(width: 16),
                           Expanded(
                             child: Column(
@@ -216,6 +210,7 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                   if (usuario != null)
                     SeccionDatosSoloSoporte(usuario: usuario),
                   const Divider(height: 36),
+                  const OpcionesCuenta(),
                   ListTile(
                     leading: const Icon(Icons.account_balance_wallet_outlined),
                     title: const Text('Mi cartera'),
@@ -253,8 +248,11 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                     icon: const Icon(Icons.logout),
                     label: const Text('Cerrar sesión'),
                   ),
+                  const SizedBox(height: 8),
+                  const BotonEliminarCuenta(),
                 ],
               ),
+            ),
             ),
     );
   }
