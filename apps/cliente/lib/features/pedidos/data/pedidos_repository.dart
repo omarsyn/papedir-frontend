@@ -48,6 +48,8 @@ class PedidosRepository {
     required String tiendaId,
     required String direccionId,
     required List<LineaCarrito> lineas,
+    String? cupon,
+    double propina = 0,
   }) => conApiError(() async {
     final r = await _dio.post<Map<String, dynamic>>(
       '/pedidos/cotizar',
@@ -55,6 +57,8 @@ class PedidosRepository {
         'tiendaId': tiendaId,
         'direccionId': direccionId,
         'items': _items(lineas),
+        if (cupon != null) 'cupon': cupon,
+        if (propina > 0) 'propina': propina,
       },
     );
     return Cotizacion.fromJson(r.data!);
@@ -68,6 +72,8 @@ class PedidosRepository {
     String? notas,
     String metodoPago = 'efectivo',
     String? paymentIntentId,
+    String? cupon,
+    double propina = 0,
   }) => conApiError(() async {
     final r = await _dio.post<Map<String, dynamic>>(
       '/pedidos',
@@ -78,6 +84,8 @@ class PedidosRepository {
         if (paymentIntentId != null) 'paymentIntentId': paymentIntentId,
         'notas': notas,
         'items': _items(lineas),
+        if (cupon != null) 'cupon': cupon,
+        if (propina > 0) 'propina': propina,
       },
     );
     return Pedido.fromJson(r.data!);
@@ -89,6 +97,8 @@ class PedidosRepository {
     required String tiendaId,
     required String direccionId,
     required List<LineaCarrito> lineas,
+    String? cupon,
+    double propina = 0,
   }) => conApiError(() async {
     final r = await _dio.post<Map<String, dynamic>>(
       '/pagos/intento',
@@ -96,6 +106,8 @@ class PedidosRepository {
         'tiendaId': tiendaId,
         'direccionId': direccionId,
         'items': _items(lineas),
+        if (cupon != null) 'cupon': cupon,
+        if (propina > 0) 'propina': propina,
       },
     );
     return r.data!;

@@ -157,6 +157,12 @@ class Cotizacion {
     required this.costoEnvio,
     required this.total,
     required this.tiempoEstimadoMin,
+    this.descuento = 0,
+    this.cuponCodigo,
+    this.cuponDescripcion,
+    this.propina = 0,
+    this.saldoAplicado = 0,
+    this.deudaCobrada = 0,
   });
 
   final double distanciaKm;
@@ -165,13 +171,34 @@ class Cotizacion {
   final double total;
   final int tiempoEstimadoMin;
 
-  factory Cotizacion.fromJson(Map<String, dynamic> j) => Cotizacion(
-    distanciaKm: _d(j['distanciaKm']),
-    subtotal: _d(j['subtotal']),
-    costoEnvio: _d(j['costoEnvio']),
-    total: _d(j['total']),
-    tiempoEstimadoMin: (j['tiempoEstimadoMin'] as num?)?.toInt() ?? 0,
-  );
+  /// Descuento del cupón aplicado.
+  final double descuento;
+  final String? cuponCodigo;
+  final String? cuponDescripcion;
+  final double propina;
+
+  /// Saldo a favor de la cartera que se descontó solo.
+  final double saldoAplicado;
+
+  /// Adeudo anterior que se sumó al total.
+  final double deudaCobrada;
+
+  factory Cotizacion.fromJson(Map<String, dynamic> j) {
+    final cupon = j['cupon'] is Map ? asMapa(j['cupon']) : null;
+    return Cotizacion(
+      distanciaKm: _d(j['distanciaKm']),
+      subtotal: _d(j['subtotal']),
+      costoEnvio: _d(j['costoEnvio']),
+      total: _d(j['total']),
+      tiempoEstimadoMin: (j['tiempoEstimadoMin'] as num?)?.toInt() ?? 0,
+      descuento: _d(j['descuento']),
+      cuponCodigo: cupon?['codigo'] as String?,
+      cuponDescripcion: cupon?['descripcion'] as String?,
+      propina: _d(j['propina']),
+      saldoAplicado: _d(j['saldoAplicado']),
+      deudaCobrada: _d(j['deudaCobrada']),
+    );
+  }
 }
 
 class PedidoItem {

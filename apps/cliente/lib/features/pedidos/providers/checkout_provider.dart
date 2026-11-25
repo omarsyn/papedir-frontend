@@ -10,10 +10,71 @@ import '../../direcciones/providers/direccion_activa_provider.dart';
 import '../data/pago_tarjeta.dart';
 import '../data/pedidos_repository.dart';
 
-/// Cotización del carrito: se recalcula sola al cambiar carrito o dirección.
+/// Cupón aplicado (código) o null. Se valida con una cotización antes de
+/// guardarlo: si el backend responde CUPON_INVALIDO se muestra el motivo.
+class CuponNotifier extends AutoDisposeNotifier<String?> {
+  @override
+  String? build() => null;
+
+  /// Devuelve null si se aplicó, o el motivo por el que no.
+  Future<String?> aplicar(String codigo) async {
+    final c = codigo.trim().toUpperCase();
+    if (c.isEmpty) return 'Escribe el código del cupón';
+    final carrito = ref.read(carritoProvider);
+    final dir = ref.read(direccionActivaProvider);
+    final tienda = carrito.tienda;
+    if (dir == null || tienda == null) return 'Falta la dirección';
+    try {
+      await ref
+          .read(pedidosRepositoryProvider)
+          .cotizar(
+            tiendaId: tienda.id,
+            direccionId: dir.id,
+            lineas: carrito.lineas.values.toList(),
+            cupon: c,
+          );
+      state = c;
+      return null;
+    } on ApiError catch (e) {
+      return e.message;
+    }
+  }
+
+  void quitar() => state = null;
+}
+
+final cuponProvider = NotifierProvider.autoDispose<CuponNotifier, String?>(
+  CuponNotifier.new,
+);
+
+/// Caja de texto del cupón.
+final cuponControllerProvider = Provider.autoDispose<TextEditingController>((
+  ref,
+) {
+  final c = TextEditingController();
+  ref.onDispose(c.dispose);
+  return c;
+});
+
+/// Propina para el repartidor (0 a 500).
+class PropinaNotifier extends AutoDisposeNotifier<double> {
+  @override
+  double build() => 0;
+
+  void elegir(double v) => state = v;
+}
+
+final propinaProvider = NotifierProvider.autoDispose<PropinaNotifier, double>(
+  PropinaNotifier.new,
+);
+
+/// Cotización del carrito: se recalcula sola al cambiar carrito, dirección,
+/// cupón o propina.
 final cotizacionProvider = FutureProvider.autoDispose<Cotizacion?>((ref) async {
   final carrito = ref.watch(carritoProvider);
   final dir = ref.watch(direccionActivaProvider);
+  final cupon = ref.watch(cuponProvider);
+  final propina = ref.watch(propinaProvider);
   final tienda = carrito.tienda;
   if (dir == null || tienda == null || carrito.vacio) return null;
   return ref
@@ -22,6 +83,8 @@ final cotizacionProvider = FutureProvider.autoDispose<Cotizacion?>((ref) async {
         tiendaId: tienda.id,
         direccionId: dir.id,
         lineas: carrito.lineas.values.toList(),
+        cupon: cupon,
+        propina: propina,
       );
 });
 
@@ -64,6 +127,8 @@ class EnvioPedidoNotifier extends AutoDisposeNotifier<bool> {
       throw ApiError('Falta la dirección o el carrito está vacío');
     }
     final metodo = ref.read(metodoPagoProvider);
+    final cupon = ref.read(cuponProvider);
+    final propina = ref.read(propinaProvider);
     final lineas = carrito.lineas.values.toList();
     state = true;
     try {
@@ -81,6 +146,8 @@ class EnvioPedidoNotifier extends AutoDisposeNotifier<bool> {
                 tiendaId: tienda.id,
                 direccionId: dir.id,
                 lineas: lineas,
+                cupon: cupon,
+                propina: propina,
               );
         } on PagoCancelado {
           return null;
@@ -95,6 +162,8 @@ class EnvioPedidoNotifier extends AutoDisposeNotifier<bool> {
             notas: notas,
             metodoPago: metodo,
             paymentIntentId: paymentIntentId,
+            cupon: cupon,
+            propina: propina,
           );
     } finally {
       state = false;

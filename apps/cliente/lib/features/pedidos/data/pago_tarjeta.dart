@@ -21,6 +21,8 @@ class PagoTarjeta {
     required String tiendaId,
     required String direccionId,
     required List<LineaCarrito> lineas,
+    String? cupon,
+    double propina = 0,
   }) async {
     final Map<String, dynamic> intento;
     try {
@@ -28,6 +30,8 @@ class PagoTarjeta {
         tiendaId: tiendaId,
         direccionId: direccionId,
         lineas: lineas,
+        cupon: cupon,
+        propina: propina,
       );
     } on ApiError catch (e) {
       if (e.codigo == 'PAGOS_NO_CONFIGURADO') {

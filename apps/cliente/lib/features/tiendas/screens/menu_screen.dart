@@ -12,6 +12,7 @@ import '../../carrito/screens/carrito_screen.dart';
 import '../providers/tiendas_provider.dart';
 import '../widgets/opciones_sheet.dart';
 import '../../favoritos/favoritos.dart';
+import '../../cupones/cupones_tienda.dart';
 
 /// Menú de una tienda: foto grande que se encoge al deslizar (Hero +
 /// SliverAppBar), datos de la tienda y productos por categoría.
@@ -147,6 +148,7 @@ class MenuScreen extends ConsumerWidget {
               ),
             ),
             SliverToBoxAdapter(child: _InfoTienda(tienda: tienda)),
+            SliverToBoxAdapter(child: CuponesDeLaTienda(tiendaId: tienda.id)),
             ...menu.when<List<Widget>>(
               loading: () => const [
                 SliverFillRemaining(
