@@ -147,7 +147,10 @@ class _ViajeActivoScreenState extends ConsumerState<ViajeActivoScreen> {
       if (next.viajeFinalizado && !(prev?.viajeFinalizado ?? false)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('¡Viaje completado con éxito!'),
+            content: Text(
+              '¡Viaje completado con éxito!',
+              style: TextStyle(color: Colors.white),
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -157,7 +160,10 @@ class _ViajeActivoScreenState extends ConsumerState<ViajeActivoScreen> {
           next.mensajeError != prev?.mensajeError) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(next.mensajeError!),
+            content: Text(
+              next.mensajeError!,
+              style: const TextStyle(color: Colors.white),
+            ),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -588,20 +594,6 @@ class _TarjetaParadaActiva extends StatelessWidget {
                 label: const Text('Chat con cliente'),
               ),
             ],
-            const SizedBox(height: 10),
-            FilledButton(
-              onPressed: procesando ? null : onAccionPrincipal,
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              child: procesando
-                  ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(_textoBoton()),
-            ),
             const SizedBox(height: 10),
             FilledButton(
               onPressed: procesando ? null : onAccionPrincipal,

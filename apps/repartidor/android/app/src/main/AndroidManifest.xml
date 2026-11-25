@@ -14,10 +14,10 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
-        <!-- API Key de Google Maps -->
+        <!-- API key de Google Maps (viene de local.properties) -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="DEV_SIN_KEY" />
+            android:value="${MAPS_API_KEY}" />
 
         <activity
             android:name=".MainActivity"
