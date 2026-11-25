@@ -451,6 +451,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tiendas/{id}/cupones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Cupones vigentes que el cliente puede usar en esta tienda
+         * @description Activos, dentro de su vigencia y sin agotar: los de la tienda y los de PaPedir (`deLaTienda = false`).
+         *     Es solo para mostrarlos; al cotizar se valida todo (compra mínima, usos por cliente, primer pedido).
+         */
+        get: operations["cuponesDeTienda"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tiendas/{id}/menu": {
         parameters: {
             query?: never;
@@ -1241,8 +1264,10 @@ export interface paths {
         /** Mi vehículo */
         get: operations["obtenerMiVehiculo"];
         /**
-         * Registrar o cambiar mi vehículo
-         * @description El cliente lo ve en su pedido para reconocer al repartidor. La placa es obligatoria salvo en bicicleta.
+         * Registrar mi vehículo (al darme de alta)
+         * @description El cliente lo ve en su pedido para reconocer al repartidor. La placa es obligatoria salvo en bicicleta (en bicicleta se ignora).
+         *     El repartidor lo registra mientras su cuenta está en revisión, o la primera vez si ya está aprobado. Después de eso,
+         *     cambiarlo responde 409 `VEHICULO_BLOQUEADO`: lo cambia soporte desde el panel (`PUT /soporte/usuarios/{id}/vehiculo`).
          */
         put: operations["guardarMiVehiculo"];
         post?: never;
@@ -1289,7 +1314,7 @@ export interface paths {
         head?: never;
         /**
          * Conectarse / desconectarse para recibir pedidos
-         * @description No se puede desconectar con un viaje activo, ni conectar con la cuenta pendiente de aprobación.
+         * @description No se puede desconectar con un viaje activo, ni conectar con la cuenta pendiente de aprobación (`CUENTA_PENDIENTE`) o sin vehículo registrado (`SIN_VEHICULO`).
          */
         patch: operations["actualizarRepartidorDisponibilidad"];
         trace?: never;
@@ -3418,7 +3443,7 @@ export interface components {
         EntregaRequest: {
             ubicacion: components["schemas"]["Coordenadas"];
             /**
-             * @description Obligatorio en pedidos de la app; 409 CODIGO_INCORRECTO si no coincide. No aplica en manuales.
+             * @description Obligatorio si el pedido tiene código (los de la app y los manuales desde 1.12.0); 409 CODIGO_INCORRECTO si no coincide. Los manuales anteriores no tienen código.
              * @example 4821
              */
             codigoEntrega?: string;
@@ -4196,7 +4221,7 @@ export interface components {
                 cargo?: number;
             } | null;
             /**
-             * @description 4 dígitos. Solo viene en la respuesta para el cliente dueño del pedido; null en manuales
+             * @description 4 dígitos. Viene para el cliente dueño del pedido y, en pedidos manuales, para la tienda que lo capturó (lo comparte por WhatsApp o llamada con quien recibe)
              * @example 4821
              */
             codigoEntrega?: string | null;
@@ -5997,6 +6022,44 @@ export interface operations {
             };
         };
     };
+    cuponesDeTienda: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example BIENVENIDA */
+                        codigo?: string;
+                        descripcion?: string | null;
+                        /** @enum {string} */
+                        tipo?: "porcentaje" | "monto" | "envio_gratis";
+                        /** @example 10 */
+                        valor?: number;
+                        maximoDescuento?: number | null;
+                        /** @example 100 */
+                        minimoCompra?: number;
+                        /** Format: date-time */
+                        fin?: string | null;
+                        soloPrimerPedido?: boolean;
+                        deLaTienda?: boolean;
+                    }[];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
     obtenerMenuTienda: {
         parameters: {
             query?: never;
@@ -7440,6 +7503,13 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationError"];
+            /** @description `VEHICULO_BLOQUEADO`: ya tiene vehículo y su cuenta está aprobada; lo cambia soporte */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     misGanancias: {
